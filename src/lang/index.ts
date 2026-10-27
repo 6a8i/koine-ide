@@ -1,9 +1,16 @@
-import { compileStudio } from "./studio/interpreter";
-import { compileVisualg } from "./visualg/interpreter";
+import { compileStudio, compileStudioProject } from "./studio/interpreter";
+import { compileVisualg, compileVisualgProject } from "./visualg/interpreter";
 import { Lang, Program } from "./shared/types";
+import { SourceFile } from "./protocol";
 
+/** Compila um único arquivo (atalho usado pelos testes). */
 export function compile(lang: Lang, src: string): Program {
   return lang === "visualg" ? compileVisualg(src) : compileStudio(src);
+}
+
+/** Compila um projeto: todos os arquivos da linguagem, com `entry` como ponto de partida. */
+export function compileProject(lang: Lang, files: SourceFile[], entry: string): Program {
+  return lang === "visualg" ? compileVisualgProject(files, entry) : compileStudioProject(files, entry);
 }
 
 export const LANG_INFO: Record<Lang, { name: string; ext: string; short: string }> = {
@@ -16,6 +23,11 @@ export function langFromFilename(name: string): Lang | null {
   if (ext === "por") return "studio";
   if (ext === "alg") return "visualg";
   return null;
+}
+
+/** true se o arquivo tem um ponto de entrada (funcao inicio / algoritmo) e pode ser executado. */
+export function hasEntryPoint(lang: Lang, src: string): boolean {
+  return lang === "visualg" ? /^\s*algoritmo\b/im.test(src) : /\bfuncao\s+inicio\s*\(/.test(src);
 }
 
 /** Detecta a linguagem pelo conteúdo (quando o arquivo não tem extensão conhecida). */

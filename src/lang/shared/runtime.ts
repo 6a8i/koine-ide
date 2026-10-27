@@ -2,6 +2,72 @@ import { Host, PortugolError } from "./types";
 
 export const MAX_CALL_DEPTH = 1200;
 
+// ======================= valores de execução compartilhados =======================
+
+/** Referência a uma posição de memória (parâmetros por & / var e variáveis `ref`). */
+export class Ref {
+  constructor(public get: () => any, public set: (v: any) => void) {}
+}
+
+/** Descrição mínima de um tipo agregado (estrutura/registro ou classe) usada pelo runtime e pelo depurador. */
+export interface AggDecl {
+  name: string;
+  fieldNames: string[];
+  /** tipos dos campos (texto, para formatação); opcional */
+  fieldTypes?: string[];
+}
+
+/** Valor de estrutura/registro: copiado na atribuição. */
+export class StructVal {
+  constructor(public decl: AggDecl, public f: any[]) {}
+}
+
+/** Objeto (instância de classe): compartilhado por referência. `cls` tem a vtable. */
+export class ObjVal {
+  constructor(public cls: AggDecl & { vtable: any[] }, public f: any[]) {}
+}
+
+function copyArrayDeep(a: any[]): any[] {
+  const out = new Array(a.length);
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    out[i] = x instanceof StructVal ? copyStruct(x) : Array.isArray(x) ? copyArrayDeep(x) : x;
+  }
+  return out;
+}
+
+/** Cópia profunda de uma estrutura (vetores internos e estruturas aninhadas também; objetos e refs são compartilhados). */
+export function copyStruct(v: StructVal): StructVal {
+  const f = v.f.slice();
+  for (let i = 0; i < f.length; i++) {
+    const x = f[i];
+    if (x instanceof StructVal) f[i] = copyStruct(x);
+    else if (Array.isArray(x)) f[i] = copyArrayDeep(x);
+    else if (x && typeof x === "object" && Array.isArray(x.data) && typeof x.lo === "number") {
+      // VArray do VisuAlg: copia preservando a classe
+      const c = Object.create(Object.getPrototypeOf(x));
+      c.lo = x.lo; c.hi = x.hi; c.data = copyArrayDeep(x.data);
+      f[i] = c;
+    }
+  }
+  return new StructVal(v.decl, f);
+}
+
+export function structEquals(a: any, b: any): boolean {
+  if (a instanceof StructVal && b instanceof StructVal) {
+    if (a.decl !== b.decl || a.f.length !== b.f.length) return false;
+    for (let i = 0; i < a.f.length; i++) if (!structEquals(a.f[i], b.f[i])) return false;
+    return true;
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (!structEquals(a[i], b[i])) return false;
+    return true;
+  }
+  if (a && b && typeof a === "object" && typeof b === "object" && Array.isArray(a.data) && Array.isArray(b.data)) return structEquals(a.data, b.data);
+  return a === b;
+}
+
 export function stackOverflow(line: number, col: number) {
   return new PortugolError(
     "Estouro de pilha: a função chamou a si mesma vezes demais (recursão sem fim?)",

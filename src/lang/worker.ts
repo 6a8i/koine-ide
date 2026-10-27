@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { compile } from "./index";
+import { compileProject } from "./index";
 import { FromWorker, ToWorker } from "./protocol";
 import { Host, PortugolError, Program } from "./shared/types";
 import { Debugger } from "./shared/debug";
@@ -19,6 +19,8 @@ function flush() {
 let pendingInput: ((v: string) => void) | null = null;
 let dbg: Debugger | null = null;
 let program: Program | null = null;
+let entryFile = "";
+let fileNames: string[] = [];
 
 const host: Host = {
   write(t) {
@@ -51,6 +53,10 @@ function finalSnapshot() {
   }
 }
 
+function fileOf(e: PortugolError): string {
+  return e.file ?? fileNames[e.fileIndex] ?? entryFile;
+}
+
 self.onmessage = async (ev: MessageEvent<ToWorker>) => {
   const m = ev.data;
   if (m.type === "input") {
@@ -64,34 +70,39 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
     return;
   }
   if (m.type === "breakpoints") {
-    if (dbg) dbg.breakpoints = new Set(m.lines);
+    dbg?.setBreakpoints(m.breakpoints);
     return;
   }
   if (m.type === "run") {
     buf = "";
     lastFlush = Date.now();
+    entryFile = m.entry;
+    fileNames = m.files.map((f) => f.path);
     try {
-      program = compile(m.lang, m.source);
+      if (!m.files.length) throw new PortugolError("Nenhum arquivo para executar", 0, 0, "interno");
+      program = compileProject(m.lang, m.files, m.entry);
+      fileNames = program!.files;
       if (m.debug) {
         dbg = new Debugger(
           {
-            paused: (line, col, snapshot) => { flush(); post({ type: "paused", line, col, snapshot }); },
+            paused: (line, col, snapshot, file) => { flush(); post({ type: "paused", file, line, col, snapshot }); },
             snapshot: (snapshot) => post({ type: "snapshot", snapshot }),
           },
           m.debug.breakpoints,
           m.debug.breakpoints.length === 0,
+          program!.files,
         );
-        program.attachDebugger(dbg);
+        program!.attachDebugger(dbg);
       }
-      await program.run(host);
+      await program!.run(host);
       flush();
       post({ type: "done", snapshot: finalSnapshot() });
     } catch (e) {
       flush();
       const snapshot = finalSnapshot();
-      if (e instanceof PortugolError) post({ type: "error", message: e.message, line: e.line, col: e.col, kind: e.kind, snapshot });
-      else if (e instanceof RangeError) post({ type: "error", message: "Estouro de pilha: recursão sem fim?", line: 0, col: 0, kind: "execucao", snapshot });
-      else post({ type: "error", message: "Erro interno do interpretador: " + (e as Error)?.message, line: 0, col: 0, kind: "interno", snapshot });
+      if (e instanceof PortugolError) post({ type: "error", message: e.message, line: e.line, col: e.col, kind: e.kind, file: fileOf(e), snapshot });
+      else if (e instanceof RangeError) post({ type: "error", message: "Estouro de pilha: recursão sem fim?", line: 0, col: 0, kind: "execucao", file: entryFile, snapshot });
+      else post({ type: "error", message: "Erro interno do interpretador: " + (e as Error)?.message, line: 0, col: 0, kind: "interno", file: entryFile, snapshot });
     }
   }
 };

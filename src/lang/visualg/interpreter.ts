@@ -1,12 +1,14 @@
 import { BREAK, Host, PortugolError, Program, ReturnSignal } from "../shared/types";
-import { MAX_CALL_DEPTH, finalizeError, parseIntStrict, parseRealStrict, stackOverflow, wrapJsError } from "../shared/runtime";
+import { SourceFile } from "../protocol";
+import { MAX_CALL_DEPTH, Ref, StructVal, ObjVal, copyStruct, structEquals, finalizeError, parseIntStrict, parseRealStrict, stackOverflow, wrapJsError } from "../shared/runtime";
 import * as A from "./ast";
 import { TypeRef, typeName } from "./ast";
 import { formatVisualg, formatWithWidth } from "./builtins";
-import { parseVisualg } from "./parser";
+import { parseVisualgProject } from "./parser";
 import { Debugger, FrameNames, Snapshot, describeFrame, markAllBlocking } from "../shared/debug";
 
 type Frame = any[];
+type Loc = { line: number; col: number; file?: number };
 
 // ----- nomes das variáveis de cada subprograma (para o depurador) -----
 const namesCache = new WeakMap<A.Sub, FrameNames>();
@@ -16,19 +18,19 @@ function namesOf(fn: A.Sub): FrameNames {
     const slots: FrameNames["slots"] = fn.params.map((p) => ({ slot: p.slot, name: p.name, type: typeName(p.t) }));
     for (const d of fn.locals) slots.push({ slot: d.slot, name: d.name, type: typeName(d.t) });
     if (fn.isFunction) slots.push({ slot: fn.retSlot, name: fn.name + " (retorno)", type: typeName(fn.ret) });
-    n = { name: fn.name, slots };
+    n = { name: fn.cls ? `${fn.cls.name}.${fn.name}` : fn.name, slots };
     namesCache.set(fn, n);
   }
   return n;
 }
 function globalNames(ast: A.ProgramAst): FrameNames {
-  return { name: "globais", slots: ast.globals.map((d) => ({ slot: d.slot, name: d.name, type: typeName(d.t) })) };
+  return {
+    name: "globais",
+    slots: ast.globals.map((d) => ({ slot: d.slot, name: d.module && d.module !== ast.entry ? `${d.module.name}.${d.name}` : d.name, type: typeName(d.t) })),
+  };
 }
 const MAIN_NAMES: FrameNames = { name: "algoritmo", slots: [] };
-class Ref {
-  constructor(public get: () => any, public set: (v: any) => void) {}
-}
-const rt = (msg: string, n: { line: number; col: number }) => new PortugolError(msg, n.line, n.col);
+const rt = (msg: string, n: Loc) => new PortugolError(msg, n.line, n.col, "execucao", n.file ?? 0);
 
 /** Vetor do VisuAlg com limites arbitrários (ex.: 1..10). */
 class VArray {
@@ -37,7 +39,7 @@ class VArray {
     this.data = new Array(hi - lo + 1);
     for (let i = 0; i < this.data.length; i++) this.data[i] = fill();
   }
-  idx(i: number, at: { line: number; col: number }, name: string): number {
+  idx(i: number, at: Loc, name: string): number {
     if (!Number.isInteger(i) || i < this.lo || i > this.hi)
       throw rt(`Índice ${i} fora dos limites de "${name}" (válidos: ${this.lo} a ${this.hi})`, at);
     return i - this.lo;
@@ -45,7 +47,13 @@ class VArray {
 }
 
 export function compileVisualg(src: string): Program {
-  return new VisualgProgram(parseVisualg(src));
+  return compileVisualgProject([{ path: "principal.alg", source: src }], "principal.alg");
+}
+
+/** Compila um projeto: liga os módulos a partir da entrada e analisa tudo. */
+export function compileVisualgProject(files: SourceFile[], entry: string): Program {
+  const ast = parseVisualgProject(files, entry);
+  return new VisualgProgram(ast, ast.files);
 }
 
 function defaultValue(t: TypeRef): any {
@@ -53,6 +61,8 @@ function defaultValue(t: TypeRef): any {
     case "inteiro": case "real": return 0;
     case "caractere": return "";
     case "logico": return false;
+    case "registro": return zeroRecord(t.decl as A.RecordDecl);
+    case "classe": case "ref": case "nulo": return null;
     default: return undefined;
   }
 }
@@ -63,16 +73,36 @@ function makeVar(t: TypeRef, ranges: A.Range[]): any {
   return new VArray(r.lo, r.hi, () => (rest.length ? makeVar(t, rest) : defaultValue(t)));
 }
 
+function zeroRecord(decl: A.RecordDecl): StructVal {
+  return new StructVal(decl, decl.fields.map((f) => makeVar(f.t, f.ranges)));
+}
+
+const nullCheck = (v: any, what: string, n: Loc) => {
+  if (v === null) throw rt(`"${what}" é nulo: nenhum objeto foi criado para ele (use novo NomeDaClasse(...) para criar)`, n);
+  if (v === undefined) throw rt(`"${what}" ainda não tem valor`, n);
+};
+
+function describeExpr(e: A.Expr): string {
+  switch (e.k) {
+    case "var": return e.name;
+    case "index": return describeExpr(e.target) + "[...]";
+    case "member": return describeExpr(e.obj) + "." + e.name;
+    case "deref": return "*" + describeExpr(e.e);
+    default: return "expressão";
+  }
+}
+
 class VisualgProgram implements Program {
   private G: Frame = [];
   private host!: Host;
   private depth = 0;
   private dbg: Debugger | null = null;
 
-  constructor(private ast: A.ProgramAst) {}
+  constructor(private ast: A.ProgramAst, public files: string[] = ["principal.alg"]) {}
 
   attachDebugger(d: Debugger) {
     this.dbg = d;
+    d.setFiles(this.files);
     markAllBlocking(this.ast);
   }
 
@@ -85,6 +115,7 @@ class VisualgProgram implements Program {
     this.host = host;
     this.G = new Array(this.ast.nglobals);
     for (const d of this.ast.globals) this.G[d.slot] = makeVar(d.t, d.ranges);
+    for (const c of this.ast.constInits) this.G[c.slot] = c.value.value;
     this.dbg?.setGlobals(globalNames(this.ast), this.G);
     const F: Frame = [];
     const blocking = this.ast.body.some((s) => s.blocking);
@@ -106,7 +137,12 @@ class VisualgProgram implements Program {
 
   private exec(s: A.Stmt, F: Frame): void {
     switch (s.k) {
-      case "assign": this.store(s.target, this.coerce(this.evalE(s.value, F), s.target.t), F); return;
+      case "assign": {
+        let v = this.coerce(this.evalE(s.value, F), s.target.t);
+        if (s.copy) v = copyStruct(v);
+        this.store(s.target, v, F);
+        return;
+      }
       case "write": {
         let out = "";
         for (const a of s.args) {
@@ -118,7 +154,7 @@ class VisualgProgram implements Program {
         this.host.write(out);
         return;
       }
-      case "callstmt": this.call(s.call, F); return;
+      case "callstmt": this.evalE(s.call, F); return;
       case "if":
         if (this.evalE(s.cond, F)) this.runBody(s.then, F);
         else if (s.else) this.runBody(s.else, F);
@@ -156,7 +192,10 @@ class VisualgProgram implements Program {
       case "read": throw rt("leitura em contexto síncrono", s); // nunca acontece: read é sempre bloqueante
       case "pause": return;
       case "break": throw BREAK;
-      case "return": throw new ReturnSignal(this.evalE(s.value!, F));
+      case "return": {
+        const v = this.evalE(s.value!, F);
+        throw new ReturnSignal(s.copy ? copyStruct(v) : v);
+      }
       case "clear": this.host.clear(); return;
       case "nop": return;
     }
@@ -178,6 +217,17 @@ class VisualgProgram implements Program {
         const c = this.containerOf(e, F);
         return c.arr.data[c.idx];
       }
+      case "member": {
+        const o = this.evalE(e.obj, F);
+        nullCheck(o, describeExpr(e.obj), e);
+        return o.f[e.index];
+      }
+      case "deref": {
+        const r = this.evalE(e.e, F);
+        if (r === null || r === undefined) throw rt(`Referência nula: "${describeExpr(e.e)}" não aponta para nenhuma variável (use & para apontar)`, e);
+        return (r as Ref).get();
+      }
+      case "addr": return this.makeRef(e.target, F);
       case "bin": {
         const l = this.evalE(e.l, F);
         if (e.op === "e") return l ? this.evalE(e.r, F) : false;
@@ -189,6 +239,8 @@ class VisualgProgram implements Program {
         return e.op === "nao" ? !v : -v;
       }
       case "call": return this.call(e, F);
+      case "mcall": return this.mcall(e, F);
+      case "new": return this.construct(e, F);
     }
   }
 
@@ -204,8 +256,8 @@ class VisualgProgram implements Program {
         const v = Math.pow(l, r);
         return e.t.base === "inteiro" ? Math.trunc(v) : v;
       }
-      case "=": return l === r;
-      case "<>": return l !== r;
+      case "=": return l instanceof StructVal ? structEquals(l, r) : l === r;
+      case "<>": return l instanceof StructVal ? !structEquals(l, r) : l !== r;
       case "<": return l < r;
       case ">": return l > r;
       case "<=": return l <= r;
@@ -218,9 +270,10 @@ class VisualgProgram implements Program {
   }
 
   private containerOf(e: A.Index, F: Frame): { arr: VArray; idx: number } {
-    const name = e.target.k === "var" ? e.target.name : "vetor";
+    const name = describeExpr(e.target);
     let arr = this.evalE(e.target, F) as VArray;
     for (let i = 0; i < e.indices.length; i++) {
+      if (!(arr instanceof VArray)) throw rt(`"${name}" não é um vetor`, e);
       const idx = arr.idx(this.evalE(e.indices[i], F), e.indices[i], name);
       if (i === e.indices.length - 1) return { arr, idx };
       arr = arr.data[idx];
@@ -228,32 +281,105 @@ class VisualgProgram implements Program {
     throw rt("Índice inválido", e);
   }
 
-  private store(t: A.Var | A.Index, v: any, F: Frame) {
-    if (t.k === "var") {
-      if (t.ref) ((t.global ? this.G : F)[t.slot] as Ref).set(v);
-      else if (t.global) this.G[t.slot] = v;
-      else F[t.slot] = v;
-      return;
+  private store(t: A.LValue, v: any, F: Frame) {
+    switch (t.k) {
+      case "var":
+        if (t.ref) ((t.global ? this.G : F)[t.slot] as Ref).set(v);
+        else if (t.global) this.G[t.slot] = v;
+        else F[t.slot] = v;
+        return;
+      case "index": {
+        const c = this.containerOf(t, F);
+        c.arr.data[c.idx] = v;
+        return;
+      }
+      case "member": {
+        const o = this.evalE(t.obj, F);
+        nullCheck(o, describeExpr(t.obj), t);
+        o.f[t.index] = v;
+        return;
+      }
+      case "deref": {
+        const r = this.evalE(t.e, F);
+        if (r === null || r === undefined) throw rt(`Referência nula: "${describeExpr(t.e)}" não aponta para nenhuma variável (use & para apontar)`, t);
+        (r as Ref).set(v);
+        return;
+      }
     }
-    const c = this.containerOf(t, F);
-    c.arr.data[c.idx] = v;
   }
 
-  private makeRef(a: A.Var | A.Index, F: Frame): Ref {
-    if (a.k === "var") {
-      if (a.ref) return (a.global ? this.G : F)[a.slot] as Ref;
-      const M = a.global ? this.G : F, slot = a.slot;
-      return new Ref(() => M[slot], (v) => { M[slot] = v; });
+  private makeRef(a: A.LValue, F: Frame): Ref {
+    switch (a.k) {
+      case "var": {
+        if (a.ref) return (a.global ? this.G : F)[a.slot] as Ref;
+        const M = a.global ? this.G : F, slot = a.slot;
+        return new Ref(() => M[slot], (v) => { M[slot] = v; });
+      }
+      case "index": {
+        const c = this.containerOf(a, F);
+        return new Ref(() => c.arr.data[c.idx], (v) => { c.arr.data[c.idx] = v; });
+      }
+      case "member": {
+        const o = this.evalE(a.obj, F);
+        nullCheck(o, describeExpr(a.obj), a);
+        const i = a.index;
+        return new Ref(() => o.f[i], (v) => { o.f[i] = v; });
+      }
+      case "deref": {
+        const r = this.evalE(a.e, F);
+        if (r === null || r === undefined) throw rt(`Referência nula: "${describeExpr(a.e)}" não aponta para nenhuma variável`, a);
+        return r as Ref;
+      }
     }
-    const c = this.containerOf(a, F);
-    return new Ref(() => c.arr.data[c.idx], (v) => { c.arr.data[c.idx] = v; });
+  }
+
+  private argsFor(params: A.Param[], args: A.Expr[], copyArgs: boolean[], F: Frame, offset: number): any[] {
+    const out = new Array(params.length);
+    for (let i = offset; i < params.length; i++) {
+      const p = params[i], a = args[i - offset];
+      if (p.ref) out[i] = this.makeRef(a as A.LValue, F);
+      else {
+        let v = this.coerce(this.evalE(a, F), p.t);
+        if (copyArgs[i - offset]) v = copyStruct(v);
+        out[i] = v;
+      }
+    }
+    return out;
   }
 
   private call(e: A.Call, F: Frame): any {
     if (e.builtin) return e.builtin.impl(e.args.map((a) => this.evalE(a, F)), e);
     const fn = e.fn!;
-    const args = fn.params.map((p, i) => (p.ref ? this.makeRef(e.args[i] as A.Var | A.Index, F) : this.coerce(this.evalE(e.args[i], F), p.t)));
-    return this.invoke(fn, args, e);
+    return this.invoke(fn, this.argsFor(fn.params, e.args, e.copyArgs, F, 0), e);
+  }
+
+  private mcall(e: A.MethodCall, F: Frame): any {
+    if (e.isSuper) {
+      const m = e.method!;
+      const args = this.argsFor(m.params, e.args, e.copyArgs, F, 1);
+      args[0] = F[0];
+      return this.invoke(m, args, e);
+    }
+    const obj = this.evalE(e.obj, F);
+    if (obj === null || obj === undefined) throw rt(`Tentativa de chamar "${e.name}" em "${describeExpr(e.obj)}", que é nulo (nenhum objeto foi criado)`, e);
+    const m = (obj as ObjVal).cls.vtable[e.vslot] as A.Sub;
+    const args = this.argsFor(m.params, e.args, e.copyArgs, F, 1);
+    args[0] = obj;
+    return this.invoke(m, args, e);
+  }
+
+  private newObject(decl: A.ClassDecl): ObjVal {
+    return new ObjVal(decl, decl.allFields.map((f) => makeVar(f.t, f.ranges)));
+  }
+
+  private construct(e: A.New, F: Frame): any {
+    const decl = e.decl!;
+    const obj = this.newObject(decl);
+    const ctor = decl.ctor!;
+    const args = this.argsFor(ctor.params, e.args, e.copyArgs, F, 1);
+    args[0] = obj;
+    this.invoke(ctor, args, e);
+    return obj;
   }
 
   private newFrame(fn: A.Sub, args: any[]): Frame {
@@ -264,7 +390,7 @@ class VisualgProgram implements Program {
     return NF;
   }
 
-  private invoke(fn: A.Sub, args: any[], at: { line: number; col: number }): any {
+  private invoke(fn: A.Sub, args: any[], at: Loc): any {
     if (++this.depth > MAX_CALL_DEPTH) { this.depth = 0; throw stackOverflow(at.line, at.col); }
     const NF = this.newFrame(fn, args);
     try {
@@ -291,7 +417,12 @@ class VisualgProgram implements Program {
   private async execA(s: A.Stmt, F: Frame): Promise<void> {
     if (!s.blocking) return this.exec(s, F);
     switch (s.k) {
-      case "assign": this.store(s.target, this.coerce(await this.evalA(s.value, F), s.target.t), F); return;
+      case "assign": {
+        let v = this.coerce(await this.evalA(s.value, F), s.target.t);
+        if (s.copy) v = copyStruct(v);
+        this.store(s.target, v, F);
+        return;
+      }
       case "write": {
         let out = "";
         for (const a of s.args) {
@@ -309,7 +440,7 @@ class VisualgProgram implements Program {
           this.store(t, this.convertInput(line, t.t, t), F);
         }
         return;
-      case "callstmt": await this.callA(s.call, F); return;
+      case "callstmt": await this.evalA(s.call, F); return;
       case "if":
         if (await this.evalA(s.cond, F)) await this.runBodyA(s.then, F);
         else if (s.else) await this.runBodyA(s.else, F);
@@ -362,7 +493,10 @@ class VisualgProgram implements Program {
         return;
       }
       case "pause": await this.host.sleep(s.ms ? await this.evalA(s.ms, F) : 0); return;
-      case "return": throw new ReturnSignal(await this.evalA(s.value!, F));
+      case "return": {
+        const v = await this.evalA(s.value!, F);
+        throw new ReturnSignal(s.copy ? copyStruct(v) : v);
+      }
       default: this.exec(s, F);
     }
   }
@@ -371,10 +505,20 @@ class VisualgProgram implements Program {
     if (!e.blocking) return this.evalE(e, F);
     switch (e.k) {
       case "index": {
-        const name = e.target.k === "var" ? e.target.name : "vetor";
+        const name = describeExpr(e.target);
         let arr = (await this.evalA(e.target, F)) as VArray;
         for (let i = 0; i < e.indices.length; i++) arr = arr.data[arr.idx(await this.evalA(e.indices[i], F), e.indices[i], name)];
         return arr;
+      }
+      case "member": {
+        const o = await this.evalA(e.obj, F);
+        nullCheck(o, describeExpr(e.obj), e);
+        return o.f[e.index];
+      }
+      case "deref": {
+        const r = await this.evalA(e.e, F);
+        if (r === null || r === undefined) throw rt(`Referência nula: "${describeExpr(e.e)}" não aponta para nenhuma variável (use & para apontar)`, e);
+        return (r as Ref).get();
       }
       case "bin": {
         const l = await this.evalA(e.l, F);
@@ -384,30 +528,72 @@ class VisualgProgram implements Program {
       }
       case "un": { const v = await this.evalA(e.e, F); return e.op === "nao" ? !v : -v; }
       case "call": return this.callA(e, F);
+      case "mcall": return this.mcallA(e, F);
+      case "new": return this.constructA(e, F);
       default: return this.evalE(e, F);
     }
   }
 
+  private async argsForA(params: A.Param[], args: A.Expr[], copyArgs: boolean[], F: Frame, offset: number): Promise<any[]> {
+    const out = new Array(params.length);
+    for (let i = offset; i < params.length; i++) {
+      const p = params[i], a = args[i - offset];
+      if (p.ref) out[i] = this.makeRef(a as A.LValue, F);
+      else {
+        let v = this.coerce(await this.evalA(a, F), p.t);
+        if (copyArgs[i - offset]) v = copyStruct(v);
+        out[i] = v;
+      }
+    }
+    return out;
+  }
+
   private async callA(e: A.Call, F: Frame): Promise<any> {
-    const args: any[] = [];
     if (e.builtin) {
+      const args: any[] = [];
       for (const a of e.args) args.push(await this.evalA(a, F));
       return e.builtin.impl(args, e);
     }
     const fn = e.fn!;
-    for (let i = 0; i < fn.params.length; i++) {
-      const p = fn.params[i];
-      args.push(p.ref ? this.makeRef(e.args[i] as A.Var | A.Index, F) : this.coerce(await this.evalA(e.args[i], F), p.t));
+    const args = await this.argsForA(fn.params, e.args, e.copyArgs, F, 0);
+    return this.invokeA(fn, args, e);
+  }
+
+  private async mcallA(e: A.MethodCall, F: Frame): Promise<any> {
+    if (e.isSuper) {
+      const m = e.method!;
+      const args = await this.argsForA(m.params, e.args, e.copyArgs, F, 1);
+      args[0] = F[0];
+      return this.invokeA(m, args, e);
     }
-    if (!fn.blocking) return this.invoke(fn, args, e);
-    if (++this.depth > MAX_CALL_DEPTH) { this.depth = 0; throw stackOverflow(e.line, e.col); }
+    const obj = await this.evalA(e.obj, F);
+    if (obj === null || obj === undefined) throw rt(`Tentativa de chamar "${e.name}" em "${describeExpr(e.obj)}", que é nulo (nenhum objeto foi criado)`, e);
+    const m = (obj as ObjVal).cls.vtable[e.vslot] as A.Sub;
+    const args = await this.argsForA(m.params, e.args, e.copyArgs, F, 1);
+    args[0] = obj;
+    return this.invokeA(m, args, e);
+  }
+
+  private async constructA(e: A.New, F: Frame): Promise<any> {
+    const decl = e.decl!;
+    const obj = this.newObject(decl);
+    const ctor = decl.ctor!;
+    const args = await this.argsForA(ctor.params, e.args, e.copyArgs, F, 1);
+    args[0] = obj;
+    await this.invokeA(ctor, args, e);
+    return obj;
+  }
+
+  private async invokeA(fn: A.Sub, args: any[], at: Loc): Promise<any> {
+    if (!fn.blocking) return this.invoke(fn, args, at);
+    if (++this.depth > MAX_CALL_DEPTH) { this.depth = 0; throw stackOverflow(at.line, at.col); }
     const NF = this.newFrame(fn, args);
     this.dbg?.enter(namesOf(fn), NF);
     try {
       await this.runBodyA(fn.body, NF);
     } catch (ex) {
       if (ex instanceof ReturnSignal) return this.coerce(ex.value, fn.ret);
-      throw wrapJsError(ex, e.line, e.col);
+      throw wrapJsError(ex, at.line, at.col);
     } finally {
       this.depth--;
       this.dbg?.leave();
@@ -415,7 +601,7 @@ class VisualgProgram implements Program {
     return fn.isFunction ? NF[fn.retSlot] : undefined;
   }
 
-  private convertInput(line: string, t: TypeRef, n: { line: number; col: number }): any {
+  private convertInput(line: string, t: TypeRef, n: Loc): any {
     switch (t.base) {
       case "inteiro": {
         const v = parseIntStrict(line);

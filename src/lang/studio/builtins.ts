@@ -1,20 +1,30 @@
 import { Builtin, T, TypeRef } from "./ast";
 import { PortugolError } from "../shared/types";
-import { formatRealJava, parseIntStrict, parseRealStrict } from "../shared/runtime";
+import { formatRealJava, parseIntStrict, parseRealStrict, StructVal, ObjVal } from "../shared/runtime";
 
 const INT = T("inteiro"), REAL = T("real"), CAD = T("cadeia"), CAR = T("caracter"), LOG = T("logico"), VAZ = T("vazio");
 
-const rt = (msg: string, c: { line: number; col: number }) => new PortugolError(msg, c.line, c.col);
+const rt = (msg: string, c: { line: number; col: number; file?: number }) => new PortugolError(msg, c.line, c.col, "execucao", c.file ?? 0);
 
-export function formatValue(v: unknown, t: TypeRef | null): string {
+export function formatValue(v: unknown, t: TypeRef | null, depth = 0): string {
   if (typeof v === "boolean") return v ? "verdadeiro" : "falso";
   if (typeof v === "number") {
     if (t && t.base === "inteiro") return String(v);
     if (t && t.base === "real") return formatRealJava(v);
     return Number.isInteger(v) ? String(v) : formatRealJava(v);
   }
-  if (v === undefined || v === null) return "";
-  if (Array.isArray(v)) return "[" + v.map((x) => formatValue(x, null)).join(", ") + "]";
+  if (v === null) return "nulo";
+  if (v === undefined) return "";
+  if (typeof v === "string") return depth > 0 ? JSON.stringify(v) : v;
+  if (Array.isArray(v)) return "[" + v.map((x) => formatValue(x, null, depth + 1)).join(", ") + "]";
+  if (v instanceof StructVal || v instanceof ObjVal) {
+    const decl = v instanceof StructVal ? v.decl : v.cls;
+    if (depth > 3) return `${decl.name}{…}`;
+    const types = (decl as { fieldTypes?: TypeRef[] }).fieldTypes;
+    const fields = (decl as { fields?: { t: TypeRef }[]; allFields?: { t: TypeRef }[] });
+    const ft = (i: number): TypeRef | null => types?.[i] ?? fields.fields?.[i]?.t ?? fields.allFields?.[i]?.t ?? null;
+    return `${decl.name}{${v.f.map((x, i) => `${decl.fieldNames[i]}: ${formatValue(x, ft(i), depth + 1)}`).join(", ")}}`;
+  }
   return String(v);
 }
 

@@ -1,8 +1,8 @@
-import { FromWorker, ToWorker } from "./lang/protocol";
+import { FileBreakpoint, FromWorker, SourceFile, ToWorker } from "./lang/protocol";
 import { Lang } from "./lang/shared/types";
 import { DebugCommand, Snapshot } from "./lang/shared/debug";
 
-export interface RunError { message: string; line: number; col: number; kind: string }
+export interface RunError { message: string; line: number; col: number; kind: string; file: string }
 
 export interface RunnerEvents {
   out(text: string): void;
@@ -11,8 +11,8 @@ export interface RunnerEvents {
   done(ms: number, snapshot: Snapshot | null): void;
   error(e: RunError, ms: number, snapshot: Snapshot | null): void;
   stopped(ms: number): void;
-  /** depuração: parou numa linha */
-  paused(line: number, col: number, snapshot: Snapshot): void;
+  /** depuração: parou numa linha de um arquivo */
+  paused(file: string, line: number, col: number, snapshot: Snapshot): void;
   /** depuração: voltou a executar */
   resumed(): void;
   /** foto periódica das variáveis (em depuração) */
@@ -33,10 +33,12 @@ export class Runner {
   /** tempo total gasto esperando o usuário (não conta como execução) */
   private waited = 0;
   private waitStart = 0;
+  /** passo pedido enquanto o worker ainda não confirmou a pausa anterior (teclas rápidas) */
+  private pendingStep: DebugCommand | null = null;
 
   constructor(private ev: RunnerEvents) {}
 
-  run(lang: Lang, source: string, debug?: { breakpoints: number[] }) {
+  run(lang: Lang, files: SourceFile[], entry: string, debug?: { breakpoints: FileBreakpoint[] }) {
     this.stop(true);
     this.worker = new Worker(new URL("./lang/worker.ts", import.meta.url), { type: "module" });
     this.running = true;
@@ -57,7 +59,7 @@ export class Runner {
         case "paused": {
           this.paused = true;
           this.beginWait();
-          this.ev.paused(m.line, m.col, m.snapshot);
+          this.ev.paused(m.file, m.line, m.col, m.snapshot);
           const next = this.pendingStep;
           if (next) { this.pendingStep = null; this.debug(next); }
           break;
@@ -67,9 +69,9 @@ export class Runner {
     };
     this.worker.onerror = (e) => {
       this.finish();
-      this.ev.error({ message: "Falha ao executar: " + e.message, line: 0, col: 0, kind: "interno" }, this.elapsed(), null);
+      this.ev.error({ message: "Falha ao executar: " + e.message, line: 0, col: 0, kind: "interno", file: entry }, this.elapsed(), null);
     };
-    this.post({ type: "run", lang, source, debug });
+    this.post({ type: "run", lang, files, entry, debug });
   }
 
   sendInput(value: string) {
@@ -78,9 +80,6 @@ export class Runner {
     this.endWait();
     this.post({ type: "input", value });
   }
-
-  /** passo pedido enquanto o worker ainda não confirmou a pausa anterior (teclas rápidas) */
-  private pendingStep: DebugCommand | null = null;
 
   /** Comando do depurador (continuar, passo, entrar, sair, pausar). */
   debug(command: DebugCommand) {
@@ -102,8 +101,8 @@ export class Runner {
     this.ev.resumed();
   }
 
-  setBreakpoints(lines: number[]) {
-    if (this.running && this.debugging) this.post({ type: "breakpoints", lines });
+  setBreakpoints(breakpoints: FileBreakpoint[]) {
+    if (this.running && this.debugging) this.post({ type: "breakpoints", breakpoints });
   }
 
   stop(silent = false) {

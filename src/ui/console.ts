@@ -11,7 +11,7 @@ export class ConsolePanel {
   private lastText: Text | null = null;
   private total = 0;
   onSubmit: ((v: string) => void) | null = null;
-  onGoTo: ((line: number, col: number) => void) | null = null;
+  onGoTo: ((line: number, col: number, file?: string) => void) | null = null;
 
   constructor(private root: HTMLElement) {
     this.out = root.querySelector(".console-out")!;
@@ -119,7 +119,7 @@ export class ConsolePanel {
     this.appendRaw(text + "\n", "sys");
   }
 
-  error(message: string, line: number, col: number) {
+  error(message: string, line: number, col: number, file = "") {
     this.flush();
     const wrap = document.createElement("div");
     wrap.className = "c-error";
@@ -132,8 +132,8 @@ export class ConsolePanel {
       const link = document.createElement("a");
       link.href = "#";
       link.className = "c-error-pos";
-      link.textContent = `Linha ${line}` + (col > 0 ? `, coluna ${col}` : "");
-      link.addEventListener("click", (e) => { e.preventDefault(); this.onGoTo?.(line, col); });
+      link.textContent = (file ? file + ": " : "") + `Linha ${line}` + (col > 0 ? `, coluna ${col}` : "");
+      link.addEventListener("click", (e) => { e.preventDefault(); this.onGoTo?.(line, col, file || undefined); });
       body.appendChild(link);
       body.appendChild(document.createTextNode(": "));
     }

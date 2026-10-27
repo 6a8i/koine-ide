@@ -40,7 +40,7 @@ const isIdentStart = (c: string) => /[\p{L}_]/u.test(c);
 const isIdentPart = (c: string) => /[\p{L}\p{N}_]/u.test(c);
 const isDigit = (c: string) => c >= "0" && c <= "9";
 
-export function tokenize(src: string, opt: LexerOptions): Token[] {
+export function tokenize(src: string, opt: LexerOptions, fileIndex = 0): Token[] {
   const toks: Token[] = [];
   const ops = [...opt.operators].sort((a, b) => b.length - a.length);
   let i = 0,
@@ -48,7 +48,7 @@ export function tokenize(src: string, opt: LexerOptions): Token[] {
     col = 1;
   const n = src.length;
 
-  const err = (msg: string, l = line, c = col) => new PortugolError(msg, l, c, "sintaxe");
+  const err = (msg: string, l = line, c = col) => new PortugolError(msg, l, c, "sintaxe", fileIndex);
   const adv = (k = 1) => {
     for (let j = 0; j < k; j++) {
       if (src[i] === "\n") {
@@ -212,7 +212,7 @@ export function tokenize(src: string, opt: LexerOptions): Token[] {
 /** Utilitário de navegação sobre tokens, compartilhado pelos parsers. */
 export class TokenStream {
   pos = 0;
-  constructor(public toks: Token[]) {}
+  constructor(public toks: Token[], public fileIndex = 0) {}
   get cur(): Token {
     return this.toks[this.pos];
   }
@@ -245,7 +245,7 @@ export class TokenStream {
     return this.accept("keyword", v);
   }
   error(msg: string, t: Token = this.cur): PortugolError {
-    return new PortugolError(msg, t.line, t.col, "sintaxe");
+    return new PortugolError(msg, t.line, t.col, "sintaxe", this.fileIndex);
   }
   describe(t: Token = this.cur): string {
     if (t.type === "eof") return "o fim do programa";

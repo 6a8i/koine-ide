@@ -1,13 +1,16 @@
-import { BREAK, BreakSignal, Host, PortugolError, Program, ReturnSignal } from "../shared/types";
-import { MAX_CALL_DEPTH, finalizeError, parseIntStrict, parseRealStrict, stackOverflow, wrapJsError } from "../shared/runtime";
+import { BREAK, Host, PortugolError, Program, ReturnSignal } from "../shared/types";
+import { SourceFile } from "../protocol";
+import { MAX_CALL_DEPTH, Ref, StructVal, ObjVal, copyStruct, structEquals, finalizeError, parseIntStrict, parseRealStrict, stackOverflow, wrapJsError } from "../shared/runtime";
+import { linkModules } from "../shared/modules";
 import * as A from "./ast";
 import { TypeRef, typeName } from "./ast";
 import { formatValue } from "./builtins";
-import { parseStudio } from "./parser";
+import { parseStudio, RawModule } from "./parser";
 import { resolveStudio } from "./resolver";
 import { Debugger, FrameNames, Snapshot, describeFrame, markAllBlocking } from "../shared/debug";
 
 type Frame = any[];
+type Loc = { line: number; col: number; file?: number };
 
 // ----- nomes das variáveis de cada função (para o depurador) -----
 const namesCache = new WeakMap<A.FuncDecl, FrameNames>();
@@ -29,26 +32,38 @@ function namesOf(fn: A.FuncDecl): FrameNames {
   if (!n) {
     const slots: FrameNames["slots"] = fn.params.map((p) => ({ slot: p.slot, name: p.name, type: typeName(p.t) }));
     collectDecls(fn.body, slots);
-    n = { name: fn.name, slots };
+    n = { name: fn.cls ? `${fn.cls.name}.${fn.name}` : fn.name, slots };
     namesCache.set(fn, n);
   }
   return n;
 }
 
 function globalNames(ast: A.ProgramAst): FrameNames {
-  return { name: "globais", slots: ast.globals.map((d) => ({ slot: d.slot, name: d.name, type: typeName(d.t) })) };
+  return {
+    name: "globais",
+    slots: ast.globals.map((d) => ({ slot: d.slot, name: d.module && d.module !== ast.entry ? `${d.module.name}.${d.name}` : d.name, type: typeName(d.t) })),
+  };
 }
 
-/** Referência a uma posição de memória (parâmetros por &). */
-class Ref {
-  constructor(public get: () => any, public set: (v: any) => void) {}
-}
-
-const rt = (msg: string, n: { line: number; col: number }) => new PortugolError(msg, n.line, n.col);
+const rt = (msg: string, n: Loc) => new PortugolError(msg, n.line, n.col, "execucao", n.file ?? 0);
 
 export function compileStudio(src: string): Program {
-  const ast = resolveStudio(parseStudio(src));
-  return new StudioProgram(ast);
+  return compileStudioProject([{ path: "principal.por", source: src }], "principal.por");
+}
+
+/** Compila um projeto: analisa todos os arquivos, liga os módulos a partir da entrada e resolve o programa inteiro. */
+export function compileStudioProject(files: SourceFile[], entry: string): Program {
+  const names = files.map((f) => f.path);
+  let entryIndex = names.indexOf(entry);
+  if (entryIndex < 0) entryIndex = 0;
+  const raws: RawModule[] = files.map((f, i) => parseStudio(f.source, i, f.path));
+  const entryRaw = raws[entryIndex];
+  if (entryRaw.importable) {
+    throw new PortugolError(`O arquivo ${entryRaw.file} não tem a função "inicio" e não pode ser executado diretamente. Execute o arquivo principal do projeto`, 1, 1, "sintaxe", entryIndex);
+  }
+  const link = linkModules(raws, entryRaw, false);
+  const ast = resolveStudio({ modules: link.order, entry: entryRaw, link, files: names });
+  return new StudioProgram(ast, names);
 }
 
 function defaultValue(t: TypeRef): any {
@@ -56,16 +71,50 @@ function defaultValue(t: TypeRef): any {
     case "inteiro": case "real": return 0;
     case "cadeia": case "caracter": return "";
     case "logico": return false;
+    case "estrutura": return zeroStruct(t.decl as A.StructDecl);
+    case "classe": case "ref": case "nulo": return null;
     default: return undefined;
   }
 }
 
-function makeArray(sizes: number[], t: TypeRef, n: { line: number; col: number }): any {
+/** Valor inicial de um campo (vetores com tamanho fixo, estruturas zeradas, objetos/refs nulos). */
+function defaultField(f: A.Field): any {
+  if (f.dims.length) return fixedArray(f.dims, f.t);
+  return defaultValue(f.t);
+}
+
+function fixedArray(dims: number[], t: TypeRef): any {
+  const [s, ...rest] = dims;
+  const arr = new Array(s);
+  for (let i = 0; i < s; i++) arr[i] = rest.length ? fixedArray(rest, t) : defaultValue(t);
+  return arr;
+}
+
+function zeroStruct(decl: A.StructDecl): StructVal {
+  return new StructVal(decl, decl.fields.map(defaultField));
+}
+
+function makeArray(sizes: number[], t: TypeRef, n: Loc): any {
   const [s, ...rest] = sizes;
   if (!Number.isInteger(s) || s < 0) throw rt(`Tamanho de vetor inválido: ${s}`, n);
   const arr = new Array(s);
   for (let i = 0; i < s; i++) arr[i] = rest.length ? makeArray(rest, t, n) : defaultValue(t);
   return arr;
+}
+
+const nullCheck = (v: any, what: string, n: Loc) => {
+  if (v === null) throw rt(`"${what}" é nulo: nenhum objeto foi criado para ele (use NomeDaClasse(...) para criar)`, n);
+  if (v === undefined) throw rt(`"${what}" foi usada antes de receber um valor`, n);
+};
+
+function describeExpr(e: A.Expr): string {
+  switch (e.k) {
+    case "var": return e.name;
+    case "index": return describeExpr(e.target) + "[...]";
+    case "member": return describeExpr(e.obj) + "." + e.name;
+    case "deref": return "*" + describeExpr(e.e);
+    default: return "expressão";
+  }
 }
 
 class StudioProgram implements Program {
@@ -75,10 +124,11 @@ class StudioProgram implements Program {
   private dbg: Debugger | null = null;
   private mainF: Frame = [];
 
-  constructor(private ast: A.ProgramAst) {}
+  constructor(private ast: A.ProgramAst, public files: string[] = ["principal.por"]) {}
 
   attachDebugger(d: Debugger) {
     this.dbg = d;
+    d.setFiles(this.files);
     markAllBlocking(this.ast);
   }
 
@@ -125,8 +175,10 @@ class StudioProgram implements Program {
         if (s.t.dims > 0) {
           if (s.init) M[s.slot] = this.buildArray(s.init as A.ArrayLit, s.t, s.sizes, F, s);
           else M[s.slot] = makeArray(s.sizes.map((e) => this.evalE(e!, F)), s.t, s);
-        } else if (s.init) M[s.slot] = this.coerce(this.evalE(s.init, F), s.t);
-        else M[s.slot] = undefined;
+        } else if (s.init) {
+          const v = this.coerce(this.evalE(s.init, F), s.t);
+          M[s.slot] = s.copy ? copyStruct(v) : v;
+        } else M[s.slot] = s.t.base === "estrutura" ? zeroStruct(s.t.decl as A.StructDecl) : undefined;
         return;
       }
       case "expr": this.evalE(s.e, F); return;
@@ -179,14 +231,21 @@ class StudioProgram implements Program {
         return;
       }
       case "break": throw BREAK;
-      case "return": throw new ReturnSignal(s.value ? this.evalE(s.value, F) : undefined);
+      case "return": {
+        if (!s.value) throw new ReturnSignal(undefined);
+        const v = this.evalE(s.value, F);
+        throw new ReturnSignal(s.copy ? copyStruct(v) : v);
+      }
       case "block": this.runBody(s.body, F); return;
     }
   }
 
-  private buildArray(lit: A.Expr, t: TypeRef, sizes: (A.Expr | null)[], F: Frame, n: { line: number; col: number }): any {
-    if (lit.k !== "arr") return this.coerce(this.evalE(lit, F), t);
-    const arr = lit.items.map((it) => this.buildArray(it, A.T(t.base, t.dims - 1), sizes.slice(1), F, n));
+  private buildArray(lit: A.Expr, t: TypeRef, sizes: (A.Expr | null)[], F: Frame, n: Loc): any {
+    if (lit.k !== "arr") {
+      const v = this.coerce(this.evalE(lit, F), t);
+      return t.base === "estrutura" && t.dims === 0 && A.isLValue(lit) ? copyStruct(v) : v;
+    }
+    const arr = lit.items.map((it) => this.buildArray(it, A.withDims(t, t.dims - 1), sizes.slice(1), F, n));
     const declared = sizes[0];
     if (declared) {
       const sz = this.evalE(declared, F);
@@ -212,6 +271,17 @@ class StudioProgram implements Program {
         return v;
       }
       case "index": return this.indexGet(e, F);
+      case "member": {
+        const o = this.evalE(e.obj, F);
+        nullCheck(o, describeExpr(e.obj), e);
+        return o.f[e.index];
+      }
+      case "deref": {
+        const r = this.evalE(e.e, F);
+        if (r === null) throw rt(`Referência nula: "${describeExpr(e.e)}" não aponta para nenhuma variável (use & para apontar)`, e);
+        return (r as Ref).get();
+      }
+      case "addr": return this.makeRef(e.target, F);
       case "bin": {
         const l = this.evalE(e.l, F);
         if (e.op === "e") return l ? this.evalE(e.r, F) : false;
@@ -226,24 +296,23 @@ class StudioProgram implements Program {
       }
       case "assign": {
         let v = this.evalE(e.value, F);
-        if (e.op !== "=") v = this.binop({ op: e.op[0], line: e.line, col: e.col, t: e.t } as any, this.readLValue(e.target, F), v);
+        if (e.op !== "=") v = this.binop({ op: e.op[0], line: e.line, col: e.col, file: e.file, t: e.t }, this.evalE(e.target, F), v);
         v = this.coerce(v, e.t);
+        if (e.copy) v = copyStruct(v);
         this.store(e.target, v, F);
         return v;
       }
       case "incdec": {
-        const old = this.readLValue(e.target, F);
+        const old = this.evalE(e.target, F);
         const nv = e.op === "++" ? old + 1 : old - 1;
         this.store(e.target, nv, F);
         return e.prefix ? nv : old;
       }
       case "call": return this.call(e, F);
+      case "mcall": return this.mcall(e, F);
+      case "new": return this.construct(e, F);
       case "arr": throw rt("Lista de valores inesperada", e);
     }
-  }
-
-  private readLValue(t: A.Var | A.Index, F: Frame): any {
-    return this.evalE(t, F);
   }
 
   private indexGet(e: A.Index, F: Frame): any {
@@ -258,15 +327,31 @@ class StudioProgram implements Program {
     return arr;
   }
 
-  private store(t: A.Var | A.Index, v: any, F: Frame) {
-    if (t.k === "var") {
-      if (t.ref) ((t.global ? this.G : F)[t.slot] as Ref).set(v);
-      else if (t.global) this.G[t.slot] = v;
-      else F[t.slot] = v;
-      return;
+  private store(t: A.LValue, v: any, F: Frame) {
+    switch (t.k) {
+      case "var":
+        if (t.ref) ((t.global ? this.G : F)[t.slot] as Ref).set(v);
+        else if (t.global) this.G[t.slot] = v;
+        else F[t.slot] = v;
+        return;
+      case "index": {
+        const c = this.containerOf(t, F);
+        c.arr[c.idx] = v;
+        return;
+      }
+      case "member": {
+        const o = this.evalE(t.obj, F);
+        nullCheck(o, describeExpr(t.obj), t);
+        o.f[t.index] = v;
+        return;
+      }
+      case "deref": {
+        const r = this.evalE(t.e, F);
+        if (r === null) throw rt(`Referência nula: "${describeExpr(t.e)}" não aponta para nenhuma variável (use & para apontar)`, t);
+        (r as Ref).set(v);
+        return;
+      }
     }
-    const container = this.containerOf(t, F);
-    container.arr[container.idx] = v;
   }
 
   private containerOf(t: A.Index, F: Frame): { arr: any[]; idx: number } {
@@ -282,11 +367,11 @@ class StudioProgram implements Program {
     throw rt("Índice inválido", t);
   }
 
-  private binop(e: { op: string; line: number; col: number; t: TypeRef }, l: any, r: any): any {
+  private binop(e: { op: string; line: number; col: number; file?: number; t: TypeRef; l?: A.Expr; r?: A.Expr }, l: any, r: any): any {
     switch (e.op) {
       case "+":
         if (typeof l === "string" || typeof r === "string") {
-          return (typeof l === "string" ? l : formatValue(l, null)) + (typeof r === "string" ? r : formatValue(r, null));
+          return (typeof l === "string" ? l : formatValue(l, e.l?.t ?? null)) + (typeof r === "string" ? r : formatValue(r, e.r?.t ?? null));
         }
         return l + r;
       case "-": return l - r;
@@ -297,8 +382,8 @@ class StudioProgram implements Program {
       case "%":
         if (r === 0) throw rt("Divisão por zero (resto)", e);
         return l % r;
-      case "==": return l === r;
-      case "!=": return l !== r;
+      case "==": return l instanceof StructVal ? structEquals(l, r) : l === r;
+      case "!=": return l instanceof StructVal ? !structEquals(l, r) : l !== r;
       case "<": return l < r;
       case ">": return l > r;
       case "<=": return l <= r;
@@ -312,6 +397,21 @@ class StudioProgram implements Program {
       case ">>": return l >> r;
     }
     throw rt(`Operador desconhecido "${e.op}"`, e);
+  }
+
+  /** Argumentos de uma função/método do usuário (params pode começar com `este`, preenchido por quem chama). */
+  private argsFor(params: A.Param[], args: A.Expr[], copyArgs: boolean[], F: Frame, offset: number): any[] {
+    const out = new Array(params.length);
+    for (let i = offset; i < params.length; i++) {
+      const p = params[i], a = args[i - offset];
+      if (p.ref) out[i] = this.makeRef(a as A.LValue, F);
+      else {
+        let v = this.coerce(this.evalE(a, F), p.t);
+        if (copyArgs[i - offset]) v = copyStruct(v);
+        out[i] = v;
+      }
+    }
+    return out;
   }
 
   private call(e: A.Call, F: Frame): any {
@@ -328,28 +428,96 @@ class StudioProgram implements Program {
       return b.impl!(args, e);
     }
     const fn = e.fn!;
-    const args = fn.params.map((p, i) => (p.ref ? this.makeRef(e.args[i] as A.Var | A.Index, F) : this.coerce(this.evalE(e.args[i], F), p.t)));
-    return this.invoke(fn, args, e);
+    return this.invoke(fn, this.argsFor(fn.params, e.args, e.copyArgs, F, 0), e);
   }
 
-  private makeRef(a: A.Var | A.Index, F: Frame): Ref {
-    if (a.k === "var") {
-      if (a.ref) return (a.global ? this.G : F)[a.slot] as Ref;
-      const M = a.global ? this.G : F, slot = a.slot, name = a.name;
-      return new Ref(
-        () => {
-          const v = M[slot];
-          if (v === undefined) throw rt(`A variável "${name}" foi usada antes de receber um valor`, a);
-          return v;
-        },
-        (v) => { M[slot] = v; },
-      );
+  private mcall(e: A.MethodCall, F: Frame): any {
+    if (e.isSuper) {
+      const self = F[0];
+      if (e.name === "<construtor>") {
+        if (e.method) {
+          const args = this.argsFor(e.method.params, e.args, e.copyArgs, F, 1);
+          args[0] = self;
+          this.invoke(e.method, args, e);
+        }
+        this.initFields(e.initsOf!, self, F);
+        return undefined;
+      }
+      const m = e.method!;
+      const args = this.argsFor(m.params, e.args, e.copyArgs, F, 1);
+      args[0] = self;
+      return this.invoke(m, args, e);
     }
-    const c = this.containerOf(a, F);
-    return new Ref(() => c.arr[c.idx], (v) => { c.arr[c.idx] = v; });
+    const obj = this.evalE(e.obj, F);
+    if (obj === null) throw rt(`Tentativa de chamar "${e.name}" em "${describeExpr(e.obj)}", que é nulo (nenhum objeto foi criado)`, e);
+    const m = (obj as ObjVal).cls.vtable[e.vslot] as A.MethodDecl;
+    const args = this.argsFor(m.params, e.args, e.copyArgs, F, 1);
+    args[0] = obj;
+    return this.invoke(m, args, e);
   }
 
-  private invoke(fn: A.FuncDecl, args: any[], at: { line: number; col: number }): any {
+  /** Inicializadores de campo da classe (rodam logo após o super(...)). */
+  private initFields(cls: A.ClassDecl, self: ObjVal, F: Frame) {
+    for (const f of cls.ownFields) {
+      if (!f.init) continue;
+      const v = this.coerce(this.evalE(f.init, F), f.t);
+      self.f[f.index] = v instanceof StructVal && A.isLValue(f.init) ? copyStruct(v) : v;
+    }
+  }
+
+  private construct(e: A.New, F: Frame): any {
+    const decl = e.decl!;
+    if (decl.kind === "struct") {
+      if (e.args.length === 0) return zeroStruct(decl);
+      const f = new Array(decl.fields.length);
+      for (let i = 0; i < decl.fields.length; i++) {
+        let v = this.coerce(this.evalE(e.args[i], F), decl.fields[i].t);
+        if (e.copyArgs[i]) v = copyStruct(v);
+        f[i] = v;
+      }
+      return new StructVal(decl, f);
+    }
+    const obj = new ObjVal(decl, decl.allFields.map(defaultField));
+    const ctor = decl.ctor!;
+    const args = this.argsFor(ctor.params, e.args, e.copyArgs, F, 1);
+    args[0] = obj;
+    this.invoke(ctor, args, e);
+    return obj;
+  }
+
+  private makeRef(a: A.LValue, F: Frame): Ref {
+    switch (a.k) {
+      case "var": {
+        if (a.ref) return (a.global ? this.G : F)[a.slot] as Ref;
+        const M = a.global ? this.G : F, slot = a.slot, name = a.name;
+        return new Ref(
+          () => {
+            const v = M[slot];
+            if (v === undefined) throw rt(`A variável "${name}" foi usada antes de receber um valor`, a);
+            return v;
+          },
+          (v) => { M[slot] = v; },
+        );
+      }
+      case "index": {
+        const c = this.containerOf(a, F);
+        return new Ref(() => c.arr[c.idx], (v) => { c.arr[c.idx] = v; });
+      }
+      case "member": {
+        const o = this.evalE(a.obj, F);
+        nullCheck(o, describeExpr(a.obj), a);
+        const i = a.index;
+        return new Ref(() => o.f[i], (v) => { o.f[i] = v; });
+      }
+      case "deref": {
+        const r = this.evalE(a.e, F);
+        if (r === null) throw rt(`Referência nula: "${describeExpr(a.e)}" não aponta para nenhuma variável`, a);
+        return r as Ref;
+      }
+    }
+  }
+
+  private invoke(fn: A.FuncDecl, args: any[], at: Loc): any {
     if (++this.depth > MAX_CALL_DEPTH) { this.depth = 0; throw stackOverflow(at.line, at.col); }
     const NF: Frame = new Array(fn.nslots);
     for (let i = 0; i < args.length; i++) NF[fn.params[i].slot] = args[i];
@@ -384,8 +552,10 @@ class StudioProgram implements Program {
         if (s.t.dims > 0) {
           if (s.init) M[s.slot] = this.buildArray(s.init as A.ArrayLit, s.t, s.sizes, F, s); // listas bloqueantes são raras
           else M[s.slot] = makeArray(await Promise.all(s.sizes.map((e) => this.evalA(e!, F))), s.t, s);
-        } else if (s.init) M[s.slot] = this.coerce(await this.evalA(s.init, F), s.t);
-        else M[s.slot] = undefined;
+        } else if (s.init) {
+          const v = this.coerce(await this.evalA(s.init, F), s.t);
+          M[s.slot] = s.copy ? copyStruct(v) : v;
+        } else M[s.slot] = s.t.base === "estrutura" ? zeroStruct(s.t.decl as A.StructDecl) : undefined;
         return;
       }
       case "expr": await this.evalA(s.e, F); return;
@@ -446,7 +616,11 @@ class StudioProgram implements Program {
         } catch (e) { if (e !== BREAK) throw e; }
         return;
       }
-      case "return": throw new ReturnSignal(s.value ? await this.evalA(s.value, F) : undefined);
+      case "return": {
+        if (!s.value) throw new ReturnSignal(undefined);
+        const v = await this.evalA(s.value, F);
+        throw new ReturnSignal(s.copy ? copyStruct(v) : v);
+      }
       case "block": await this.runBodyA(s.body, F); return;
       case "break": throw BREAK;
     }
@@ -468,6 +642,16 @@ class StudioProgram implements Program {
         }
         return arr;
       }
+      case "member": {
+        const o = await this.evalA(e.obj, F);
+        nullCheck(o, describeExpr(e.obj), e);
+        return o.f[e.index];
+      }
+      case "deref": {
+        const r = await this.evalA(e.e, F);
+        if (r === null) throw rt(`Referência nula: "${describeExpr(e.e)}" não aponta para nenhuma variável (use & para apontar)`, e);
+        return (r as Ref).get();
+      }
       case "bin": {
         const l = await this.evalA(e.l, F);
         if (e.op === "e" && !l) return false;
@@ -481,14 +665,31 @@ class StudioProgram implements Program {
       }
       case "assign": {
         let v = await this.evalA(e.value, F);
-        if (e.op !== "=") v = this.binop({ op: e.op[0], line: e.line, col: e.col, t: e.t } as any, this.readLValue(e.target, F), v);
+        if (e.op !== "=") v = this.binop({ op: e.op[0], line: e.line, col: e.col, file: e.file, t: e.t }, this.evalE(e.target, F), v);
         v = this.coerce(v, e.t);
+        if (e.copy) v = copyStruct(v);
         this.store(e.target, v, F);
         return v;
       }
       case "call": return this.callA(e, F);
+      case "mcall": return this.mcallA(e, F);
+      case "new": return this.constructA(e, F);
       default: return this.evalE(e, F);
     }
+  }
+
+  private async argsForA(params: A.Param[], args: A.Expr[], copyArgs: boolean[], F: Frame, offset: number): Promise<any[]> {
+    const out = new Array(params.length);
+    for (let i = offset; i < params.length; i++) {
+      const p = params[i], a = args[i - offset];
+      if (p.ref) out[i] = this.makeRef(a as A.LValue, F);
+      else {
+        let v = this.coerce(await this.evalA(a, F), p.t);
+        if (copyArgs[i - offset]) v = copyStruct(v);
+        out[i] = v;
+      }
+    }
+    return out;
   }
 
   private async callA(e: A.Call, F: Frame): Promise<any> {
@@ -497,7 +698,7 @@ class StudioProgram implements Program {
       if (b.name === "leia") {
         for (const a of e.args) {
           const line = await this.host.readLine();
-          this.store(a as A.Var | A.Index, this.convertInput(line, a.t, a), F);
+          this.store(a as A.LValue, this.convertInput(line, a.t, a), F);
         }
         return;
       }
@@ -513,13 +714,66 @@ class StudioProgram implements Program {
       return b.impl!(args, e);
     }
     const fn = e.fn!;
-    const args: any[] = [];
-    for (let i = 0; i < fn.params.length; i++) {
-      const p = fn.params[i];
-      args.push(p.ref ? this.makeRef(e.args[i] as A.Var | A.Index, F) : this.coerce(await this.evalA(e.args[i], F), p.t));
+    const args = await this.argsForA(fn.params, e.args, e.copyArgs, F, 0);
+    return this.invokeA(fn, args, e);
+  }
+
+  private async mcallA(e: A.MethodCall, F: Frame): Promise<any> {
+    if (e.isSuper) {
+      const self = F[0];
+      if (e.name === "<construtor>") {
+        if (e.method) {
+          const args = await this.argsForA(e.method.params, e.args, e.copyArgs, F, 1);
+          args[0] = self;
+          await this.invokeA(e.method, args, e);
+        }
+        await this.initFieldsA(e.initsOf!, self, F);
+        return undefined;
+      }
+      const m = e.method!;
+      const args = await this.argsForA(m.params, e.args, e.copyArgs, F, 1);
+      args[0] = self;
+      return this.invokeA(m, args, e);
     }
-    if (!fn.blocking) return this.invoke(fn, args, e);
-    if (++this.depth > MAX_CALL_DEPTH) { this.depth = 0; throw stackOverflow(e.line, e.col); }
+    const obj = await this.evalA(e.obj, F);
+    if (obj === null) throw rt(`Tentativa de chamar "${e.name}" em "${describeExpr(e.obj)}", que é nulo (nenhum objeto foi criado)`, e);
+    const m = (obj as ObjVal).cls.vtable[e.vslot] as A.MethodDecl;
+    const args = await this.argsForA(m.params, e.args, e.copyArgs, F, 1);
+    args[0] = obj;
+    return this.invokeA(m, args, e);
+  }
+
+  private async initFieldsA(cls: A.ClassDecl, self: ObjVal, F: Frame) {
+    for (const f of cls.ownFields) {
+      if (!f.init) continue;
+      const v = this.coerce(await this.evalA(f.init, F), f.t);
+      self.f[f.index] = v instanceof StructVal && A.isLValue(f.init) ? copyStruct(v) : v;
+    }
+  }
+
+  private async constructA(e: A.New, F: Frame): Promise<any> {
+    const decl = e.decl!;
+    if (decl.kind === "struct") {
+      if (e.args.length === 0) return zeroStruct(decl);
+      const f = new Array(decl.fields.length);
+      for (let i = 0; i < decl.fields.length; i++) {
+        let v = this.coerce(await this.evalA(e.args[i], F), decl.fields[i].t);
+        if (e.copyArgs[i]) v = copyStruct(v);
+        f[i] = v;
+      }
+      return new StructVal(decl, f);
+    }
+    const obj = new ObjVal(decl, decl.allFields.map(defaultField));
+    const ctor = decl.ctor!;
+    const args = await this.argsForA(ctor.params, e.args, e.copyArgs, F, 1);
+    args[0] = obj;
+    await this.invokeA(ctor, args, e);
+    return obj;
+  }
+
+  private async invokeA(fn: A.FuncDecl, args: any[], at: Loc): Promise<any> {
+    if (!fn.blocking) return this.invoke(fn, args, at);
+    if (++this.depth > MAX_CALL_DEPTH) { this.depth = 0; throw stackOverflow(at.line, at.col); }
     const NF: Frame = new Array(fn.nslots);
     for (let i = 0; i < args.length; i++) NF[fn.params[i].slot] = args[i];
     this.dbg?.enter(namesOf(fn), NF);
@@ -527,7 +781,7 @@ class StudioProgram implements Program {
       await this.runBodyA(fn.body, NF);
     } catch (ex) {
       if (ex instanceof ReturnSignal) return this.coerce(ex.value, fn.ret);
-      throw wrapJsError(ex, e.line, e.col);
+      throw wrapJsError(ex, at.line, at.col);
     } finally {
       this.depth--;
       this.dbg?.leave();
@@ -535,7 +789,7 @@ class StudioProgram implements Program {
     return undefined;
   }
 
-  private convertInput(line: string, t: TypeRef, n: { line: number; col: number }): any {
+  private convertInput(line: string, t: TypeRef, n: Loc): any {
     switch (t.base) {
       case "inteiro": {
         const v = parseIntStrict(line);

@@ -37,13 +37,53 @@ export async function openFile(): Promise<OpenedFile | null> {
   });
 }
 
-async function readTextFile(path: string): Promise<string> {
+async function inv<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   const { invoke } = await import("@tauri-apps/api/core");
-  return invoke<string>("read_file", { path });
+  return invoke<T>(cmd, args);
 }
-async function writeTextFile(path: string, content: string): Promise<void> {
-  const { invoke } = await import("@tauri-apps/api/core");
-  await invoke("write_file", { path, content });
+
+export async function readTextFile(path: string): Promise<string> {
+  return inv<string>("read_file", { path });
+}
+export async function writeTextFile(path: string, content: string): Promise<void> {
+  await inv("write_file", { path, content });
+}
+
+// ---------- projeto (pasta) ----------
+export interface DirEntry {
+  name: string;
+  path: string;
+  kind: "dir" | "file";
+  children?: DirEntry[];
+}
+export interface PathInfo { exists: boolean; isDir: boolean; mtimeMs: number }
+
+/** Pergunta uma pasta ao usuário (só no Tauri). */
+export async function pickFolder(): Promise<string | null> {
+  if (!isTauri) return null;
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const p = await open({ directory: true, multiple: false, title: "Abrir pasta do projeto" });
+  return typeof p === "string" ? p : null;
+}
+/** Lista recursivamente a pasta (só .por/.alg e subpastas). */
+export const listDir = (root: string) => inv<DirEntry>("list_dir", { root });
+export const statPath = (path: string) => inv<PathInfo>("stat_path", { path });
+export const createFile = (path: string, content = "") => inv<void>("create_file", { path, content });
+export const createDir = (path: string) => inv<void>("create_dir", { path });
+export const renamePath = (from: string, to: string) => inv<void>("rename_path", { from, to });
+/** Envia para a lixeira. */
+export const deletePath = (path: string) => inv<void>("delete_path", { path });
+export const revealPath = (path: string) => inv<void>("reveal_path", { path });
+/** Caminho passado na linha de comando (arquivo ou pasta). */
+export const startupPath = () => inv<{ path: string; isDir: boolean } | null>("startup_path");
+
+export function dirName(p: string) {
+  const i = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
+  return i <= 0 ? p : p.slice(0, i);
+}
+export function joinPath(dir: string, name: string) {
+  const sep = dir.includes("\\") && !dir.includes("/") ? "\\" : "/";
+  return dir.replace(/[\\/]+$/, "") + sep + name;
 }
 
 export async function readPath(path: string): Promise<OpenedFile | null> {

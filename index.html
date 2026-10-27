@@ -22,8 +22,14 @@
           <button id="btn-open" class="btn" title="Abrir programa (Ctrl+O)">
             <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Abrir</span>
           </button>
+          <button id="btn-open-folder" class="btn tauri-only" title="Abrir pasta como projeto (Ctrl+Shift+O)">
+            <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2H3zM3 11h18l-2 8H5z"/></svg><span>Pasta</span>
+          </button>
           <button id="btn-save" class="btn" title="Salvar (Ctrl+S) · Salvar como (Ctrl+Shift+S)">
             <svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5zM8 3v6h7V3M8 21v-7h8v7"/></svg><span>Salvar</span>
+          </button>
+          <button id="btn-save-all" class="btn tauri-only" title="Salvar todos os arquivos (Ctrl+Alt+S)">
+            <svg viewBox="0 0 24 24"><path d="M7 7h9l3 3v11H7zM10 7v4h5V7M4 4h11"/></svg><span>Salvar tudo</span>
           </button>
         </div>
 
@@ -78,7 +84,26 @@
       </header>
 
       <main class="workspace" id="workspace">
+        <aside class="sidebar tauri-only" id="sidebar" aria-label="Projeto">
+          <div class="pane-header">
+            <span class="pane-title">Projeto</span>
+            <span class="sidebar-root" id="sidebar-root" title=""></span>
+            <div class="spacer"></div>
+            <button id="btn-tree-new-file" class="btn icon small" title="Novo arquivo">
+              <svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M12 12v6M9 15h6"/></svg>
+            </button>
+            <button id="btn-tree-new-folder" class="btn icon small" title="Nova pasta">
+              <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM12 10v6M9 13h6"/></svg>
+            </button>
+            <button id="btn-tree-refresh" class="btn icon small" title="Atualizar a lista de arquivos">
+              <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M18 3v4h-4M20 12a8 8 0 0 1-14 5.3M6 21v-4h4"/></svg>
+            </button>
+          </div>
+          <div class="tree-body" role="tree"></div>
+        </aside>
+        <div class="vsplitter tauri-only" id="sidebar-splitter" role="separator" aria-orientation="vertical" title="Arraste para redimensionar"></div>
         <div class="main-col" id="main-col">
+          <div class="tabs" id="tabs" role="tablist"></div>
           <section class="editor-pane">
             <div id="editor"></div>
           </section>
@@ -128,8 +153,11 @@
       </main>
 
       <footer class="statusbar">
+        <button id="btn-sidebar" class="st-btn tauri-only" title="Mostrar/ocultar o painel do projeto (Ctrl+B)" aria-pressed="true">☰</button>
+        <span id="st-root" class="st-root tauri-only" title=""></span>
         <span id="st-file" class="st-file">sem título.por</span>
         <span id="st-dirty" class="st-dirty" title="Alterações não salvas" hidden>●</span>
+        <button id="st-entry" class="st-btn tauri-only" title="Arquivo principal: o que é executado com F5"></button>
         <div class="spacer"></div>
         <span id="st-time" class="st-time" title="Tempo de execução do último programa (sem contar o tempo esperando o usuário)"></span>
         <span id="st-pos">Ln 1, Col 1</span>

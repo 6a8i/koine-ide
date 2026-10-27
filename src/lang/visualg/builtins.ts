@@ -1,8 +1,9 @@
 import { Builtin, T, TypeRef } from "./ast";
 import { PortugolError } from "../shared/types";
+import { StructVal, ObjVal } from "../shared/runtime";
 
 const INT = T("inteiro"), REAL = T("real"), CAR = T("caractere");
-const rt = (m: string, at: { line: number; col: number }) => new PortugolError(m, at.line, at.col);
+const rt = (m: string, at: { line: number; col: number; file?: number }) => new PortugolError(m, at.line, at.col, "execucao", at.file ?? 0);
 
 function b(name: string, params: TypeRef[], ret: TypeRef | "arg0", impl: Builtin["impl"]): Builtin {
   return { name, params, ret, impl };
@@ -59,12 +60,34 @@ export function formatNumberVisualg(v: number, leadingSpace = true): string {
 export function formatVisualg(v: unknown, t: TypeRef): string {
   if (typeof v === "boolean") return v ? " VERDADEIRO" : " FALSO";
   if (typeof v === "number") return formatNumberVisualg(v);
-  if (v === undefined || v === null) return "";
+  if (v === null) return "nulo";
+  if (v === undefined) return "";
+  if (v instanceof StructVal || v instanceof ObjVal) return formatAggregate(v, 0);
   void t;
   return String(v);
 }
 
+/** Registro/objeto por extenso: Ponto{x: 1, y: 2} (cadeias entre aspas, sem o espaço inicial dos números). */
+function formatAggregate(v: StructVal | ObjVal, depth: number): string {
+  const decl = v instanceof StructVal ? v.decl : v.cls;
+  if (depth > 3) return `${decl.name}{…}`;
+  const item = (x: unknown): string => {
+    if (x === null) return "nulo";
+    if (typeof x === "string") return JSON.stringify(x);
+    if (typeof x === "boolean") return x ? "VERDADEIRO" : "FALSO";
+    if (typeof x === "number") return formatNumberVisualg(x, false);
+    if (x instanceof StructVal || x instanceof ObjVal) return formatAggregate(x, depth + 1);
+    if (x && typeof x === "object" && Array.isArray((x as { data?: unknown[] }).data)) return "[" + (x as { data: unknown[] }).data.map(item).join(", ") + "]";
+    return String(x ?? "");
+  };
+  return `${decl.name}{${v.f.map((x, i) => `${decl.fieldNames[i]}: ${item(x)}`).join(", ")}}`;
+}
+
 export function formatWithWidth(v: unknown, width: number | null, decimals: number | null, t: TypeRef): string {
+  if (v instanceof StructVal || v instanceof ObjVal || v === null) {
+    const s = formatVisualg(v, t);
+    return width !== null ? s.padStart(width, " ") : s;
+  }
   if (typeof v === "number") {
     let s: string;
     if (decimals !== null) s = v.toFixed(Math.max(0, decimals));
