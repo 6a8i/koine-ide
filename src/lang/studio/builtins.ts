@@ -1,6 +1,7 @@
 import { Builtin, T, TypeRef } from "./ast";
 import { PortugolError } from "../shared/types";
 import { formatRealJava, parseIntStrict, parseRealStrict, StructVal, ObjVal } from "../shared/runtime";
+import { ASSERTS } from "../shared/testing";
 
 const INT = T("inteiro"), REAL = T("real"), CAD = T("cadeia"), CAR = T("caracter"), LOG = T("logico"), VAZ = T("vazio");
 
@@ -137,4 +138,11 @@ export const GLOBAL_BUILTINS: Record<string, Builtin> = {
   escreva: { name: "escreva", params: [], variadic: true, ret: VAZ },
   leia: { name: "leia", params: [], variadic: true, ret: VAZ, blocking: true },
   limpa: { name: "limpa", params: [], ret: VAZ },
+  // testes (ver shared/testing.ts); saida/entrada são tratadas pelo interpretador, que tem o console
+  afirme: { name: "afirme", params: [LOG, CAD], optional: 1, ret: VAZ, impl: ASSERTS.afirme },
+  afirme_igual: { name: "afirme_igual", params: ["*", "*", CAD], optional: 1, ret: VAZ, impl: ASSERTS.afirme_igual },
+  afirme_diferente: { name: "afirme_diferente", params: ["*", "*", CAD], optional: 1, ret: VAZ, impl: ASSERTS.afirme_diferente },
+  afirme_aproximado: { name: "afirme_aproximado", params: [REAL, REAL, REAL, CAD], optional: 1, ret: VAZ, impl: ASSERTS.afirme_aproximado },
+  saida: { name: "saida", params: [], ret: CAD },
+  entrada: { name: "entrada", params: [CAD], ret: VAZ },
 };

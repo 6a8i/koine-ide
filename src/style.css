@@ -536,3 +536,68 @@ body:not(.tauri) .tauri-only { display: none !important; }
   .brand span { display: none; }
   .btn kbd { display: none; }
 }
+
+/* ---- painel de testes ---- */
+.tests-state { text-transform: none; letter-spacing: 0; font-size: 11.5px; color: var(--fg-faint); }
+.tests-state.running { color: var(--warn); }
+.tests-state.ok { color: var(--success); }
+.tests-state.fail { color: var(--danger); }
+.tests-file { margin-bottom: 8px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.tests-file-head { display: flex; align-items: center; gap: 6px; padding: 5px 8px 5px 4px; background: var(--bg-hover); font-weight: 600; }
+.tests-file-name { color: inherit; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tests-file-name:hover { color: var(--accent); text-decoration: underline; }
+.tests-counts { margin-left: auto; font-weight: 400; font-size: 11.5px; color: var(--fg-muted); white-space: nowrap; }
+.tests-counts.ok { color: var(--success); }
+.tests-counts.fail { color: var(--danger); }
+.tests-row { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 4px; border-top: 1px solid var(--border); }
+.tests-run {
+  flex: none; width: 20px; height: 20px; border: none; border-radius: 4px; background: transparent; color: var(--fg-faint);
+  font-size: 10px; cursor: pointer; padding: 0;
+}
+.tests-run:hover:not(:disabled) { background: var(--bg-active); color: var(--success); }
+.tests-run:disabled { opacity: 0.4; cursor: default; }
+.tests-icon { flex: none; width: 14px; text-align: center; font-weight: 700; color: var(--fg-faint); }
+.tests-row.passou .tests-icon { color: var(--success); }
+.tests-row.falhou .tests-icon, .tests-row.erro .tests-icon { color: var(--danger); }
+.tests-row.rodando .tests-icon { color: var(--warn); }
+.tests-name { color: inherit; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tests-name:hover { color: var(--accent); text-decoration: underline; }
+.tests-ms { margin-left: auto; font-size: 11px; color: var(--fg-faint); white-space: nowrap; }
+.tests-msg { padding: 2px 8px 6px 44px; font-size: 12px; line-height: 1.4; }
+.tests-msg.fail { color: var(--danger); }
+.tests-msg.err { color: var(--warn); }
+.tests-msg a { color: inherit; opacity: 0.85; }
+.tests-output {
+  margin: 0 8px 6px 44px; padding: 4px 6px; max-height: 120px; overflow: auto; font-family: var(--font-mono); font-size: 11.5px;
+  background: var(--bg-active); border-radius: 4px; color: var(--fg-muted); white-space: pre-wrap;
+}
+.tests-cov { margin-top: 10px; }
+.tests-cov-title { font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; color: var(--fg-muted); padding: 4px 2px 6px; }
+.tests-cov-file { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; overflow: hidden; }
+.tests-cov-head { display: flex; align-items: center; gap: 6px; padding: 5px 8px; cursor: pointer; }
+.tests-cov-head:hover { background: var(--bg-hover); }
+.tests-cov-caret { width: 10px; color: var(--fg-faint); }
+.tests-cov-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tests-bar { flex: 1; min-width: 40px; height: 6px; border-radius: 3px; background: var(--bg-active); overflow: hidden; }
+.tests-bar-fill { display: block; height: 100%; background: var(--success); }
+.tests-bar-fill.part { background: var(--warn); }
+.tests-bar-fill.zero { background: var(--danger); }
+.tests-cov-pct { font-size: 11.5px; min-width: 34px; text-align: right; }
+.tests-cov-pct.full { color: var(--success); }
+.tests-cov-pct.part { color: var(--warn); }
+.tests-cov-pct.zero { color: var(--danger); }
+.tests-cov-fns { display: none; border-top: 1px solid var(--border); }
+.tests-cov-file.open .tests-cov-fns { display: block; }
+.tests-cov-fn {
+  display: flex; justify-content: space-between; gap: 8px; padding: 3px 8px 3px 24px; font-family: var(--font-mono); font-size: 12px;
+  color: inherit; text-decoration: none;
+}
+.tests-cov-fn:hover { background: var(--bg-hover); }
+.tests-cov-fn.zero { color: var(--danger); }
+.tests-cov-fn.part { color: var(--warn); }
+.tests-cov-fn.full { color: var(--success); }
+.tests-cov-fn-pct { font-family: var(--font-ui); font-size: 11px; opacity: 0.9; }
+
+/* marcas de cobertura no editor */
+.cm-cov-hit { background: rgba(61, 220, 151, 0.10); box-shadow: inset 3px 0 0 var(--success); }
+.cm-cov-miss { background: rgba(255, 107, 107, 0.10); box-shadow: inset 3px 0 0 var(--danger); }

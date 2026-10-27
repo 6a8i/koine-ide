@@ -3,11 +3,11 @@ import { Completion, CompletionContext, CompletionResult } from "@codemirror/aut
 import { Lang } from "../lang/shared/types";
 
 // ---------------- Portugol Studio ----------------
-const STUDIO_KW = ["programa", "funcao", "inclua", "biblioteca", "const", "se", "senao", "enquanto", "faca", "para", "escolha", "caso", "contrario", "pare", "retorne", "modulo", "importe", "publico", "privado", "estrutura", "classe", "herda", "este", "super", "nulo", "ref"];
+const STUDIO_KW = ["programa", "funcao", "inclua", "biblioteca", "const", "se", "senao", "enquanto", "faca", "para", "escolha", "caso", "contrario", "pare", "retorne", "modulo", "importe", "publico", "privado", "estrutura", "classe", "herda", "este", "super", "nulo", "ref", "teste"];
 const STUDIO_TYPES = ["inteiro", "real", "cadeia", "caracter", "logico", "vazio"];
 const STUDIO_CONST = ["verdadeiro", "falso"];
 const STUDIO_LOGIC = ["e", "ou", "nao"];
-const STUDIO_BUILTIN = ["escreva", "leia", "limpa"];
+const STUDIO_BUILTIN = ["escreva", "leia", "limpa", "afirme", "afirme_igual", "afirme_diferente", "afirme_aproximado", "saida", "entrada"];
 const STUDIO_LIBS = ["Matematica", "Texto", "Util", "Tipos"];
 
 interface State { inComment: boolean }
@@ -51,12 +51,12 @@ const studioStream = StreamLanguage.define<State>({
 });
 
 // ---------------- VisuAlg ----------------
-const VA_KW = ["algoritmo", "var", "inicio", "fimalgoritmo", "const", "se", "entao", "senao", "fimse", "enquanto", "faca", "fimenquanto", "para", "de", "ate", "passo", "fimpara", "repita", "fimrepita", "escolha", "caso", "outrocaso", "fimescolha", "funcao", "fimfuncao", "procedimento", "fimprocedimento", "retorne", "interrompa", "vetor", "tipo", "registro", "fimregistro", "modulo", "fimmodulo", "importe", "como", "publico", "privado", "classe", "fimclasse", "herda", "novo", "este", "super", "nulo", "ref"];
+const VA_KW = ["algoritmo", "var", "inicio", "fimalgoritmo", "const", "se", "entao", "senao", "fimse", "enquanto", "faca", "fimenquanto", "para", "de", "ate", "passo", "fimpara", "repita", "fimrepita", "escolha", "caso", "outrocaso", "fimescolha", "funcao", "fimfuncao", "procedimento", "fimprocedimento", "retorne", "interrompa", "vetor", "tipo", "registro", "fimregistro", "modulo", "fimmodulo", "importe", "como", "publico", "privado", "classe", "fimclasse", "herda", "novo", "este", "super", "nulo", "ref", "teste", "fimteste"];
 const VA_TYPES = ["inteiro", "real", "caractere", "caracter", "literal", "logico"];
 const VA_CONST = ["verdadeiro", "falso"];
 const VA_LOGIC = ["e", "ou", "nao", "xou", "div", "mod"];
 const VA_BUILTIN = ["escreva", "escreval", "leia", "limpatela", "pausa", "aleatorio", "timer", "eco", "cronometro", "debug", "arquivo"];
-const VA_FUNCS = ["abs", "arccos", "arcsen", "arctan", "cos", "cotan", "exp", "grauprad", "int", "log", "logn", "pi", "quad", "radpgrau", "raizq", "rand", "randi", "sen", "tan", "asc", "carac", "caracpnum", "compr", "copia", "maiusc", "minusc", "numpcarac", "pos"];
+const VA_FUNCS = ["afirme", "afirme_igual", "afirme_diferente", "afirme_aproximado", "saida", "entrada", "executar_algoritmo", "abs", "arccos", "arcsen", "arctan", "cos", "cotan", "exp", "grauprad", "int", "log", "logn", "pi", "quad", "radpgrau", "raizq", "rand", "randi", "sen", "tan", "asc", "carac", "caracpnum", "compr", "copia", "maiusc", "minusc", "numpcarac", "pos"];
 const vKw = words(VA_KW), vTy = words(VA_TYPES), vCo = words(VA_CONST), vLo = words(VA_LOGIC), vBi = words(VA_BUILTIN), vFn = words(VA_FUNCS);
 
 const visualgStream = StreamLanguage.define<State>({

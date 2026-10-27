@@ -375,8 +375,8 @@ export class Project {
     this.ev.entry();
   }
 
-  /** Monta o conjunto de arquivos da execução para a linguagem dada. */
-  async collectRunFiles(lang: Lang): Promise<RunSet | { error: string }> {
+  /** Monta o conjunto de arquivos da execução para a linguagem dada. Com `needEntry = false` (testes) não exige ponto de entrada. */
+  async collectRunFiles(lang: Lang, needEntry = true): Promise<RunSet | { error: string }> {
     const files: SourceFile[] = [];
     const fileMap = new Map<string, string>();
     const unsaved: string[] = [];
@@ -408,6 +408,10 @@ export class Project {
         files.push({ path: d.name, source: this.textOf(d) });
         fileMap.set(d.name, d.key);
       }
+    }
+    if (!needEntry) {
+      if (!files.length) return { error: `Nenhum arquivo ${LANG_INFO[lang].name} para testar.` };
+      return { files, entry: "", fileMap, unsaved };
     }
     const candidates = files.map((f) => ({ path: f.path, hasEntry: hasEntryPoint(lang, f.source) }));
     const entry = resolveEntry({

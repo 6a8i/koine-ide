@@ -1,10 +1,21 @@
-import { FileBreakpoint, FromWorker, SourceFile, ToWorker } from "./lang/protocol";
+import { FileBreakpoint, FromWorker, SourceFile, TestSelector, ToWorker } from "./lang/protocol";
 import { Lang } from "./lang/shared/types";
 import { DebugCommand, Snapshot } from "./lang/shared/debug";
+import { CoverageReport, TestResult } from "./lang/shared/testing";
 
 export interface RunError { message: string; line: number; col: number; kind: string; file: string }
 
+export interface TestsSummary { total: number; passed: number; ms: number; coverage: CoverageReport }
+
 export interface RunnerEvents {
+  /** testes: um teste começou */
+  testStart?(file: string, name: string, line: number): void;
+  /** testes: resultado de um teste */
+  test?(result: TestResult): void;
+  /** testes: um arquivo de testes não compilou */
+  testFileError?(file: string, message: string, line: number, col: number, errFile: string): void;
+  /** testes: todos terminaram */
+  testsDone?(summary: TestsSummary): void;
   out(text: string): void;
   clear(): void;
   inputRequest(): void;
@@ -38,11 +49,26 @@ export class Runner {
 
   constructor(private ev: RunnerEvents) {}
 
+  /** true enquanto uma execução de testes está em andamento */
+  testing = false;
+
   run(lang: Lang, files: SourceFile[], entry: string, debug?: { breakpoints: FileBreakpoint[] }) {
+    this.startWorker(!!debug, false);
+    this.post({ type: "run", lang, files, entry, debug });
+  }
+
+  /** Executa os testes do projeto (todos, ou só os selecionados). */
+  runTests(lang: Lang, files: SourceFile[], only?: TestSelector[]) {
+    this.startWorker(false, true);
+    this.post({ type: "runTests", lang, files, only });
+  }
+
+  private startWorker(debugging: boolean, testing: boolean) {
     this.stop(true);
     this.worker = new Worker(new URL("./lang/worker.ts", import.meta.url), { type: "module" });
     this.running = true;
-    this.debugging = !!debug;
+    this.debugging = debugging;
+    this.testing = testing;
     this.waitingInput = false;
     this.paused = false;
     this.pendingStep = null;
@@ -51,6 +77,10 @@ export class Runner {
     this.worker.onmessage = (e: MessageEvent<FromWorker>) => {
       const m = e.data;
       switch (m.type) {
+        case "test-start": this.ev.testStart?.(m.file, m.name, m.line); break;
+        case "test": this.ev.test?.(m.result); break;
+        case "test-file-error": this.ev.testFileError?.(m.file, m.message, m.line, m.col, m.errFile); break;
+        case "tests-done": { const ms = this.elapsed(); this.finish(); this.ev.testsDone?.({ total: m.total, passed: m.passed, ms, coverage: m.coverage }); break; }
         case "out": this.ev.out(m.text); break;
         case "clear": this.ev.clear(); break;
         case "input-request": this.waitingInput = true; this.beginWait(); this.ev.inputRequest(); break;
@@ -68,10 +98,12 @@ export class Runner {
       }
     };
     this.worker.onerror = (e) => {
+      const ms = this.elapsed();
+      const wasTesting = this.testing;
       this.finish();
-      this.ev.error({ message: "Falha ao executar: " + e.message, line: 0, col: 0, kind: "interno", file: entry }, this.elapsed(), null);
+      if (wasTesting) this.ev.testsDone?.({ total: 0, passed: 0, ms, coverage: { files: {}, functions: [] } });
+      this.ev.error({ message: "Falha ao executar: " + e.message, line: 0, col: 0, kind: "interno", file: "" }, ms, null);
     };
-    this.post({ type: "run", lang, files, entry, debug });
   }
 
   sendInput(value: string) {
@@ -127,6 +159,7 @@ export class Runner {
     this.worker = null;
     this.running = false;
     this.debugging = false;
+    this.testing = false;
     this.waitingInput = false;
     this.paused = false;
   }

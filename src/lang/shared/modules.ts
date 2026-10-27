@@ -57,14 +57,20 @@ export function stemOf(p: string): string {
   return dot > 0 ? base.slice(0, dot) : base;
 }
 
-export function linkModules<M extends RawModuleHeader>(mods: M[], entry: M, caseInsensitive: boolean): LinkResult<M> {
+export interface LinkOptions<M> {
+  /** true se `from` pode importar um programa principal (arquivo de testes importando o programa que testa) */
+  canImportProgram?: (from: M) => boolean;
+}
+
+export function linkModules<M extends RawModuleHeader>(mods: M[], entry: M, caseInsensitive: boolean, opts: LinkOptions<M> = {}): LinkResult<M> {
   const fold = (s: string) => (caseInsensitive ? s.toLowerCase() : s);
   const byName = new Map<string, M>();
+  const programsByName = new Map<string, M>();
   const byPath = new Map<string, M>();
   for (const m of mods) {
     byPath.set(fold(normalizePath(m.file)), m);
-    if (!m.importable) continue;
     const key = fold(m.moduleName);
+    if (!m.importable) { if (!programsByName.has(key)) programsByName.set(key, m); continue; }
     const other = byName.get(key);
     if (other) {
       throw new PortugolError(`Há dois módulos chamados "${m.moduleName}": ${other.file} e ${m.file}. Dê nomes diferentes com "modulo"`, 1, 1, "sintaxe", m.fileIndex);
@@ -75,17 +81,18 @@ export function linkModules<M extends RawModuleHeader>(mods: M[], entry: M, case
   const resolved = new Map<M, LinkedImport<M>[]>();
   const resolveImport = (from: M, imp: RawImport): M => {
     let target: M | undefined;
+    const mayImportProgram = opts.canImportProgram?.(from) ?? false;
     if (imp.path !== undefined) {
       const full = normalizePath((dirOf(from.file) ? dirOf(from.file) + "/" : "") + imp.path);
       target = byPath.get(fold(full)) ?? byPath.get(fold(normalizePath(imp.path)));
       if (!target) {
         throw new PortugolError(`O arquivo "${imp.path}" não foi encontrado no projeto. Arquivos disponíveis: ${mods.map((m) => m.file).join(", ")}`, imp.line, imp.col, "sintaxe", from.fileIndex);
       }
-      if (!target.importable) {
-        throw new PortugolError(`"${target.file}" é um programa principal e não pode ser importado. Só arquivos de módulo (sem "inicio"/"algoritmo") podem ser importados`, imp.line, imp.col, "sintaxe", from.fileIndex);
+      if (!target.importable && !mayImportProgram) {
+        throw new PortugolError(`"${target.file}" é um programa principal e não pode ser importado. Só arquivos de módulo (sem "inicio"/"algoritmo") podem ser importados (exceto por um arquivo de testes)`, imp.line, imp.col, "sintaxe", from.fileIndex);
       }
     } else {
-      target = byName.get(fold(imp.name!));
+      target = byName.get(fold(imp.name!)) ?? (mayImportProgram ? programsByName.get(fold(imp.name!)) : undefined);
       if (!target) {
         const available = [...byName.values()].map((m) => m.moduleName);
         throw new PortugolError(

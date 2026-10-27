@@ -40,6 +40,9 @@
           <button id="btn-debug" class="btn" title="Depurar: executa passo a passo, parando nos pontos de parada (F6)">
             <svg viewBox="0 0 24 24"><path d="M9 7V5a3 3 0 0 1 6 0v2M5 9l3 2M19 9l-3 2M4 15h4M16 15h4M6 21l3-3M18 21l-3-3"/><rect x="8" y="7" width="8" height="12" rx="4"/></svg><span>Depurar</span><kbd>F6</kbd>
           </button>
+          <button id="btn-run-tests" class="btn" title="Executar todos os testes do projeto (F7)">
+            <svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg><span>Testar</span><kbd>F7</kbd>
+          </button>
           <button id="btn-stop" class="btn danger" title="Parar (Shift+F5)" disabled>
             <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></svg><span>Parar</span>
           </button>
@@ -115,6 +118,7 @@
                 <span class="run-state" id="run-state"></span>
                 <div class="spacer"></div>
                 <button id="btn-vars" class="btn ghost small" title="Mostrar/ocultar o painel de variáveis" aria-pressed="true">Variáveis</button>
+                <button id="btn-tests" class="btn ghost small" title="Mostrar/ocultar o painel de testes" aria-pressed="false">Testes</button>
                 <button id="btn-clear" class="btn ghost small" title="Limpar console (Ctrl+L)">Limpar</button>
               </div>
               <div class="console" id="console">
@@ -131,6 +135,15 @@
                 <span class="vars-state" id="vars-state"></span>
               </div>
               <div class="vars-body"></div>
+            </aside>
+            <aside class="vars-pane tests-pane" id="tests-pane" hidden>
+              <div class="pane-header">
+                <span class="pane-title">Testes</span>
+                <span class="tests-state" id="tests-state"></span>
+                <div class="spacer"></div>
+                <button id="btn-tests-run-all" class="btn ghost small" title="Executar todos os testes (F7)">▶ Todos</button>
+              </div>
+              <div class="vars-body tests-body"></div>
             </aside>
           </section>
         </div>

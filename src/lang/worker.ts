@@ -3,6 +3,7 @@ import { compileProject } from "./index";
 import { FromWorker, ToWorker } from "./protocol";
 import { Host, PortugolError, Program } from "./shared/types";
 import { Debugger } from "./shared/debug";
+import { CoverageCollector, TestHost, hasTests } from "./shared/testing";
 
 const post = (m: FromWorker) => (self as unknown as Worker).postMessage(m);
 
@@ -57,8 +58,66 @@ function fileOf(e: PortugolError): string {
   return e.file ?? fileNames[e.fileIndex] ?? entryFile;
 }
 
+/** Executa os testes de todos os arquivos com blocos `teste` (ou só os selecionados) e mede a cobertura. */
+async function runTests(m: Extract<ToWorker, { type: "runTests" }>) {
+  const cov = new CoverageCollector();
+  const wanted = (file: string, name?: string) => !m.only || m.only.some((s) => s.file === file && (s.name === undefined || name === undefined || s.name === name));
+  const testFiles = m.files.filter((f) => hasTests(m.lang, f.source) && wanted(f.path));
+  const compiledFiles = new Set<string>();
+  let total = 0, passed = 0;
+  for (const tf of testFiles) {
+    let program: Program;
+    try {
+      program = compileProject(m.lang, m.files, tf.path, { tests: true });
+    } catch (e) {
+      const pe = e instanceof PortugolError ? e : new PortugolError("Erro interno: " + (e as Error)?.message, 0, 0, "interno");
+      post({ type: "test-file-error", file: tf.path, message: pe.message, line: pe.line, col: pe.col, errFile: pe.file ?? m.files[pe.fileIndex]?.path ?? tf.path });
+      continue;
+    }
+    program.attachCoverage(cov);
+    for (const f of program.files) compiledFiles.add(f);
+    for (const t of program.tests) {
+      if (!wanted(tf.path, t.name)) continue;
+      total++;
+      post({ type: "test-start", file: tf.path, name: t.name, line: t.line });
+      const host = new TestHost();
+      const t0 = performance.now();
+      try {
+        await program.runTest(host, t.id);
+        passed++;
+        post({ type: "test", result: { file: tf.path, name: t.name, line: t.line, status: "passou", ms: performance.now() - t0, output: host.out } });
+      } catch (e) {
+        const ms = performance.now() - t0;
+        if (e instanceof PortugolError) {
+          post({ type: "test", result: { file: tf.path, name: t.name, line: t.line, status: e.kind === "teste" ? "falhou" : "erro", message: e.message, errFile: e.file ?? program.files[e.fileIndex] ?? tf.path, errLine: e.line, errCol: e.col, ms, output: host.out } });
+        } else if (e instanceof RangeError) {
+          post({ type: "test", result: { file: tf.path, name: t.name, line: t.line, status: "erro", message: "Estouro de pilha: recursão sem fim?", ms, output: host.out } });
+        } else {
+          post({ type: "test", result: { file: tf.path, name: t.name, line: t.line, status: "erro", message: "Erro interno do interpretador: " + (e as Error)?.message, ms, output: host.out } });
+        }
+      }
+    }
+  }
+  // arquivos que nenhum teste alcançou entram no relatório com 0% (só para saber o que falta cobrir)
+  if (!m.only) {
+    for (const f of m.files) {
+      if (compiledFiles.has(f.path) || hasTests(m.lang, f.source)) continue;
+      try {
+        const p = compileProject(m.lang, m.files, f.path, { tests: true });
+        p.attachCoverage(cov);
+        for (const x of p.files) compiledFiles.add(x);
+      } catch { /* arquivo com erro: fica fora do relatório */ }
+    }
+  }
+  post({ type: "tests-done", coverage: cov.report(), total, passed });
+}
+
 self.onmessage = async (ev: MessageEvent<ToWorker>) => {
   const m = ev.data;
+  if (m.type === "runTests") {
+    await runTests(m);
+    return;
+  }
   if (m.type === "input") {
     const r = pendingInput;
     pendingInput = null;
