@@ -1,6 +1,7 @@
 import { Builtin, T, TypeRef } from "./ast";
 import { PortugolError } from "../shared/types";
 import { StructVal, ObjVal } from "../shared/runtime";
+import { ASSERTS } from "../shared/testing";
 
 const INT = T("inteiro"), REAL = T("real"), CAR = T("caractere");
 const rt = (m: string, at: { line: number; col: number; file?: number }) => new PortugolError(m, at.line, at.col, "execucao", at.file ?? 0);
@@ -9,8 +10,18 @@ function b(name: string, params: TypeRef[], ret: TypeRef | "arg0", impl: Builtin
   return { name, params, ret, impl };
 }
 
+const VAZ = T("vazio");
+const LOG = T("logico");
 export const BUILTINS: Record<string, Builtin> = {};
 for (const f of [
+  // testes (ver shared/testing.ts); saida/entrada/executar_algoritmo são tratadas pelo interpretador
+  { name: "afirme", params: [LOG, CAR], optional: 1, ret: VAZ, impl: ASSERTS.afirme },
+  { name: "afirme_igual", params: [CAR, CAR, CAR], optional: 1, anyType: true, ret: VAZ, impl: ASSERTS.afirme_igual },
+  { name: "afirme_diferente", params: [CAR, CAR, CAR], optional: 1, anyType: true, ret: VAZ, impl: ASSERTS.afirme_diferente },
+  { name: "afirme_aproximado", params: [REAL, REAL, REAL, CAR], optional: 1, ret: VAZ, impl: ASSERTS.afirme_aproximado },
+  { name: "saida", params: [], ret: CAR, impl: () => "" },
+  { name: "entrada", params: [CAR], ret: VAZ, impl: () => undefined },
+  { name: "executar_algoritmo", params: [], ret: VAZ, impl: () => undefined },
   b("abs", [REAL], "arg0", ([x]) => Math.abs(x)),
   b("arccos", [REAL], REAL, ([x]) => Math.acos(x)),
   b("arcsen", [REAL], REAL, ([x]) => Math.asin(x)),

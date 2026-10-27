@@ -13,6 +13,11 @@ import { Lang } from "./lang/shared/types";
 import { LANG_INFO, langFromFilename, detectLang } from "./lang";
 import { DebugCommand, Snapshot } from "./lang/shared/debug";
 import { EXAMPLES, NEW_STUDIO, NEW_VISUALG } from "./examples";
+import { TestsPanel, TestsState, applyResult } from "./ui/tests";
+import { coverageSpec } from "./ui/coverage";
+import { discoverTests, hasTests } from "./lang/shared/testing";
+import type { TestSelector } from "./lang/protocol";
+import type { TestsSummary as RunnerTestsSummary } from "./runner";
 import {
   openFile, saveFile, confirmDialog, setWindowTitle, isTauri, readTextFile, writeTextFile, listDir, pickFolder, statPath,
   createFile, createDir, renamePath, deletePath, revealPath, startupPath, joinPath, dirName,
@@ -36,6 +41,8 @@ const prefs = {
   set showSidebar(v: boolean) { localStorage.setItem("showSidebar", v ? "1" : "0"); },
   get showVars() { return localStorage.getItem("showVars") !== "0"; },
   set showVars(v: boolean) { localStorage.setItem("showVars", v ? "1" : "0"); },
+  get showTests() { return localStorage.getItem("showTests") === "1"; },
+  set showTests(v: boolean) { localStorage.setItem("showTests", v ? "1" : "0"); },
   get showRef() { return localStorage.getItem("showRef") === "1"; },
   set showRef(v: boolean) { localStorage.setItem("showRef", v ? "1" : "0"); },
   get lastRoot() { return localStorage.getItem("lastRoot"); },
@@ -62,6 +69,7 @@ const stFile = $("#st-file"), stDirty = $("#st-dirty"), stPos = $("#st-pos"), st
 const stRoot = $("#st-root"), stEntry = $<HTMLButtonElement>("#st-entry"), btnSidebar = $<HTMLButtonElement>("#btn-sidebar");
 const examplesPanel = $("#examples-panel");
 const varsPane = $("#vars-pane"), varsState = $("#vars-state"), btnVars = $<HTMLButtonElement>("#btn-vars");
+const testsPane = $("#tests-pane"), btnTests = $<HTMLButtonElement>("#btn-tests"), btnRunTests = $<HTMLButtonElement>("#btn-run-tests");
 const refPanel = $("#ref-panel"), btnReference = $<HTMLButtonElement>("#btn-reference"), refLang = $("#ref-lang");
 const sidebar = $("#sidebar"), sidebarSplitter = $("#sidebar-splitter"), sidebarRoot = $("#sidebar-root");
 
@@ -101,6 +109,7 @@ function setRunState(cls: string, text: string) {
 function setRunning(on: boolean) {
   btnRun.disabled = on;
   btnDebug.disabled = on;
+  btnRunTests.disabled = on;
   btnStop.disabled = !on;
   debugControls.hidden = !(on && runner.debugging);
   if (!on) { clearDebugLine(); setDebugButtons(false); }
@@ -145,6 +154,31 @@ async function revealLocation(file: string | undefined, line: number, col: numbe
 }
 
 const runner = new Runner({
+  testStart: (file, name) => {
+    const t = testsState.files.find((x) => x.file === file)?.tests.find((x) => x.name === name);
+    if (t) t.status = "rodando";
+    testsPanel.render(testsState);
+  },
+  test: (r) => {
+    applyResult(testsState.files, r);
+    testsPanel.render(testsState);
+    if (r.status === "passou") consolePanel.system(`✓ ${r.name} (${fmtMs(r.ms)})`);
+    else consolePanel.error(`✗ ${r.name}: ${r.message ?? ""}`, r.errLine ?? r.line, r.errCol ?? 1, fileLabel(r.errFile ?? r.file));
+  },
+  testFileError: (file, message, line, col, errFile) => {
+    const f = testsState.files.find((x) => x.file === file);
+    if (f) f.error = { message, line, col, errFile };
+    testsPanel.render(testsState);
+    consolePanel.error(`Erro em ${baseName(file)}: ${message}`, line, col, fileLabel(errFile));
+    void revealLocation(errFile, line, col, "error", message);
+  },
+  testsDone: (s) => {
+    const failed = s.total - s.passed;
+    setRunState(failed ? "error" : "", failed ? `${failed} teste${failed > 1 ? "s" : ""} falhou` : "");
+    stTime.textContent = fmtMs(s.ms);
+    setRunning(false);
+    finishTestsRun(s);
+  },
   out: (t) => consolePanel.write(t),
   clear: () => consolePanel.clear(),
   inputRequest: () => { consolePanel.showInput(); setRunState("waiting", "aguardando entrada"); },
@@ -167,6 +201,7 @@ const runner = new Runner({
     setRunning(false);
   },
   stopped: (ms) => {
+    if (testsState.running) finishTestsRun(null);
     consolePanel.hideInput();
     consolePanel.system(`\nPrograma interrompido após ${fmtMs(ms)}.`);
     setRunState("", "");
@@ -199,9 +234,133 @@ function setVarsVisible(on: boolean) {
   varsPane.hidden = !on;
   btnVars.setAttribute("aria-pressed", String(on));
   prefs.showVars = on;
+  if (on && !testsPane.hidden) setTestsVisible(false);
+}
+function setTestsVisible(on: boolean) {
+  testsPane.hidden = !on;
+  btnTests.setAttribute("aria-pressed", String(on));
+  prefs.showTests = on;
+  if (on) {
+    if (!varsPane.hidden) setVarsVisible(false);
+    void refreshTests();
+  }
 }
 setVarsVisible(prefs.showVars);
 btnVars.addEventListener("click", () => setVarsVisible(varsPane.hidden));
+btnTests.addEventListener("click", () => setTestsVisible(testsPane.hidden));
+btnRunTests.addEventListener("click", () => void runTests());
+
+// ---------- testes ----------
+const testsPanel = new TestsPanel(testsPane);
+const testsState: TestsState = { files: [], running: false, summary: null, coverage: null, otherFiles: [] };
+/** documentos editados depois da última medição: as marcas de cobertura não valem mais para eles */
+const coverageStale = new Set<string>();
+let lastTestsPartial = false;
+testsPanel.onRunAll = () => void runTests();
+testsPanel.onRunFile = (file) => void runTests([{ file }]);
+testsPanel.onRunTest = (file, name) => void runTests([{ file, name }]);
+testsPanel.onGoTo = (file, line, col) => void revealLocation(file, line, col, "goto");
+
+/** Lista (sem compilar) os arquivos com blocos `teste` do projeto, preservando os últimos resultados. */
+async function refreshTests() {
+  const doc = project.activeDoc;
+  if (!doc) return;
+  const set = await project.collectRunFiles(doc.lang, false);
+  const files = "error" in set ? [] : set.files;
+  const prev = new Map(testsState.files.map((f) => [f.file, f]));
+  testsState.files = files.filter((f) => hasTests(doc.lang, f.source)).map((f) => {
+    const old = prev.get(f.path);
+    return {
+      file: f.path, label: baseName(f.path), error: old?.error,
+      tests: discoverTests(doc.lang, f.source).map((t) => {
+        const o = old?.tests.find((x) => x.name === t.name);
+        return o ? { ...o, line: t.line } : { name: t.name, line: t.line, status: "pendente" as const };
+      }),
+    };
+  });
+  testsState.otherFiles = files.filter((f) => !hasTests(doc.lang, f.source)).map((f) => f.path);
+  testsPanel.render(testsState);
+}
+let refreshTestsTimer = 0;
+function refreshTestsSoon() {
+  if (testsPane.hidden || testsState.running) return;
+  clearTimeout(refreshTestsTimer);
+  refreshTestsTimer = window.setTimeout(() => void refreshTests(), 400);
+}
+
+/** Executa todos os testes do projeto (ou só os de `only`). */
+async function runTests(only?: TestSelector[]) {
+  if (runner.running) return;
+  const doc = project.activeDoc;
+  if (!doc) return;
+  const set = await project.collectRunFiles(doc.lang, false);
+  if ("error" in set) { toast(set.error, true); return; }
+  if (!testsPane.hidden) { /* já visível */ } else setTestsVisible(true);
+  await refreshTests();
+  if (!testsState.files.length) {
+    toast('Nenhum teste encontrado. Escreva blocos teste "nome" no programa ou em um arquivo de testes que o importe.', true);
+    return;
+  }
+  consolePanel.clear();
+  editor.clearError();
+  stTime.textContent = "";
+  lastRun = { lang: doc.lang, entry: "", fileMap: set.fileMap };
+  const selected = (file: string, name?: string) => !only || only.some((s) => s.file === file && (s.name === undefined || name === undefined || s.name === name));
+  for (const f of testsState.files) {
+    if (!selected(f.file)) continue;
+    f.error = undefined;
+    for (const t of f.tests) {
+      if (!selected(f.file, t.name)) continue;
+      t.status = "pendente"; t.message = undefined; t.errLine = undefined; t.ms = undefined; t.output = undefined;
+    }
+  }
+  lastTestsPartial = !!only;
+  testsState.running = true;
+  testsState.summary = null;
+  if (!only) testsState.coverage = null;
+  testsPanel.render(testsState);
+  setRunState("running", "testando");
+  setRunning(true);
+  const what = !only
+    ? `todos os testes (${testsState.files.length} arquivo${testsState.files.length === 1 ? "" : "s"})`
+    : only.length === 1 && only[0].name ? `o teste "${only[0].name}"` : `os testes de ${only.map((s) => baseName(s.file)).join(", ")}`;
+  consolePanel.system(`Executando ${what}…`);
+  runner.runTests(doc.lang, set.files, only);
+}
+
+function finishTestsRun(s: RunnerTestsSummary | null) {
+  testsState.running = false;
+  for (const f of testsState.files) for (const t of f.tests) if (t.status === "rodando") t.status = "pendente";
+  if (s) {
+    testsState.summary = { total: s.total, passed: s.passed, ms: s.ms };
+    if (!lastTestsPartial) { testsState.coverage = s.coverage; coverageStale.clear(); }
+    const failed = s.total - s.passed;
+    consolePanel.system(`\n${s.total === 0 ? "Nenhum teste executado" : failed ? `${s.passed} de ${s.total} teste${s.total > 1 ? "s" : ""} passaram` : s.total === 1 ? "O teste passou" : `Todos os ${s.total} testes passaram`} em ${fmtMs(s.ms)}.${!lastTestsPartial && testsState.coverage ? " " + coverageLine(testsState.coverage) : ""}`);
+  } else {
+    consolePanel.system("\nTestes interrompidos.");
+  }
+  testsPanel.render(testsState);
+  applyCoverageToActive();
+}
+
+function coverageLine(cov: NonNullable<TestsState["coverage"]>) {
+  let exec = 0, hit = 0;
+  for (const f of Object.values(cov.files)) { exec += f.executable.length; hit += f.hit.length; }
+  const untested = cov.functions.filter((f) => f.hit === 0).length;
+  return exec ? `Cobertura: ${Math.round((hit / exec) * 100)}% das linhas${untested ? `; ${untested} função${untested > 1 ? "ões" : ""} sem nenhum teste` : ""}.` : "";
+}
+
+/** Pinta no editor as linhas cobertas/não cobertas do documento ativo (quando há medição válida para ele). */
+function applyCoverageToActive() {
+  const doc = project.activeDoc;
+  const cov = testsState.coverage;
+  if (!doc || !cov || !lastRun || coverageStale.has(doc.key)) { editor.view.dispatch(coverageSpec(null)); return; }
+  const rel = [...lastRun.fileMap.entries()].find(([, k]) => k === doc.key)?.[0];
+  const fc = rel ? cov.files[rel] : undefined;
+  if (!fc) { editor.view.dispatch(coverageSpec(null)); return; }
+  const hit = new Set(fc.hit);
+  editor.view.dispatch(coverageSpec({ hit: fc.hit, miss: fc.executable.filter((l) => !hit.has(l)) }));
+}
 
 const refPanelUi = new ReferencePanel(refPanel);
 refPanelUi.onInsert = (code) => editor.insertSnippet(code);
@@ -230,6 +389,7 @@ const shortcuts = Prec.highest(keymap.of([
   { key: "Ctrl-Enter", mac: "Cmd-Enter", run: () => { runProgram(); return true; } },
   { key: "Shift-F5", run: () => { stopProgram(); return true; } },
   { key: "F6", run: () => { runProgram(true); return true; } },
+  { key: "F7", run: () => { void runTests(); return true; } },
   { key: "F8", run: () => { debugCmd("continue"); return true; } },
   { key: "F10", run: () => { debugCmd("over"); return true; } },
   { key: "F11", run: () => { debugCmd("into"); return true; } },
@@ -266,6 +426,8 @@ const project = new Project(
       setLangUi(doc.lang);
       updateTitle();
       renderTree();
+      applyCoverageToActive();
+      refreshTestsSoon();
     },
     meta: (doc) => { tabs.updateMeta(doc, project.rel(doc)); if (doc.key === project.active) updateTitle(); },
     entry: () => renderEntry(),
@@ -357,6 +519,8 @@ editor.onBreakpoints = (lines) => {
 editor.onChange = () => {
   project.noteChange();
   editor.clearError();
+  if (project.active) coverageStale.add(project.active);
+  refreshTestsSoon();
 };
 
 /** Pontos de parada de todos os documentos da última execução. */
@@ -721,6 +885,7 @@ document.addEventListener("keydown", (e) => {
   const typing = target.matches?.("input, textarea, [contenteditable]");
   if (e.key === "F5") { e.preventDefault(); if (e.shiftKey) stopProgram(); else runProgram(); }
   else if (e.key === "F6") { e.preventDefault(); runProgram(true); }
+  else if (e.key === "F7") { e.preventDefault(); void runTests(); }
   else if (e.key === "F8") { e.preventDefault(); debugCmd("continue"); }
   else if (e.key === "F10") { e.preventDefault(); debugCmd("over"); }
   else if (e.key === "F11") { e.preventDefault(); debugCmd(e.shiftKey ? "out" : "into"); }
@@ -870,6 +1035,7 @@ window.addEventListener("beforeunload", (e) => {
 
 // ---------- início ----------
 if (!project.restoreDrafts()) project.newUntitled(prefs.lang, undefined, undefined, false);
+if (prefs.showTests) setTestsVisible(true);
 project.activate(project.order[project.order.length - 1]);
 refPanelUi.render();
 if (prefs.showRef) setRefVisible(true);

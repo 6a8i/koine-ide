@@ -53,6 +53,8 @@ interface LinkedInput {
   entry: RawModule;
   link: LinkResult<RawModule>;
   files: string[];
+  /** modo de testes (ver CompileOptions) */
+  tests?: boolean;
 }
 
 export function resolveStudio(input: LinkedInput): A.ProgramAst {
@@ -91,6 +93,7 @@ class Resolver {
       const info: A.ModuleInfo = {
         index: raw.fileIndex, file: raw.file, name: raw.moduleName, imports: [],
         scope: { fns: new Map(), globals: new Map(), types: new Map(), libAlias: new Map(), modAlias: new Map() },
+        isTest: !!this.input.tests && raw.importable && raw.tests.length > 0,
       };
       this.modules.push(info);
       this.infoOf.set(raw, info);
@@ -130,6 +133,7 @@ class Resolver {
     for (const raw of this.input.modules) {
       this.curModule = this.infoOf.get(raw)!;
       for (const f of raw.functions) this.resolveFn(f, null);
+      for (const t of raw.tests) { t.module = this.curModule; this.resolveFn(t, null); this.allFns.push(t); }
     }
     for (const c of this.classes) {
       this.curModule = c.module;
@@ -138,13 +142,18 @@ class Resolver {
     }
     // 7. entrada
     const entryInfo = this.infoOf.get(this.input.entry)!;
-    const main = entryInfo.scope.fns.get("inicio");
-    if (!main) throw err('O programa precisa ter a função "inicio": funcao inicio() { ... }', { line: 1, col: 1, file: this.input.entry.fileIndex });
+    let main = entryInfo.scope.fns.get("inicio");
+    if (!main) {
+      if (!this.input.tests) throw err('O programa precisa ter a função "inicio": funcao inicio() { ... }', { line: 1, col: 1, file: this.input.entry.fileIndex });
+      // arquivo só de testes: programa principal vazio
+      main = { name: "inicio", qname: "inicio", ret: T("vazio"), params: [], body: [], nslots: 0, blocking: false, visibility: "privado", module: entryInfo, line: 1, col: 1, file: this.input.entry.fileIndex };
+    }
     if (main.params.length > 0) throw err('A função "inicio" não pode ter parâmetros', main);
     this.computeBlocking();
     return {
       files: this.input.files, modules: this.modules, globals: this.globals, nglobals: this.nglobals,
       functions: this.functions, structs: this.structs, classes: this.classes, main, entry: entryInfo,
+      tests: this.input.entry.tests,
     };
   }
 
@@ -235,7 +244,7 @@ class Resolver {
       }
       const t = target.scope.types.get(tn);
       if (!t) throw err(`O módulo ${target.name} não tem uma estrutura ou classe chamada "${tn}"`, n);
-      if (t.visibility !== "publico") throw err(`"${tn}" é privado no módulo ${target.name}; declare-o como "publico" para usá-lo em outro módulo`, n);
+      if (!this.visible(t.visibility, mod)) throw err(`"${tn}" é privado no módulo ${target.name}; declare-o como "publico" para usá-lo em outro módulo`, n);
       return t;
     }
     const local = mod.scope.types.get(name);
@@ -243,7 +252,7 @@ class Resolver {
     const hits: { m: A.ModuleInfo; t: A.StructDecl | A.ClassDecl }[] = [];
     for (const imp of mod.imports) {
       const t = imp.target.scope.types.get(name);
-      if (t && t.visibility === "publico") hits.push({ m: imp.target, t });
+      if (t && this.visible(t.visibility, mod)) hits.push({ m: imp.target, t });
     }
     if (hits.length > 1) throw err(`"${name}" existe em ${hits.map((h) => h.m.name).join(" e ")}. Use ${hits[0].m.name}.${name} ou ${hits[1].m.name}.${name}`, n);
     if (hits.length === 1) return hits[0].t;
@@ -397,7 +406,7 @@ class Resolver {
     const hits: { m: A.ModuleInfo; g: A.GlobalSym }[] = [];
     for (const imp of this.curModule.imports) {
       const g = imp.target.scope.globals.get(name);
-      if (g && g.visibility === "publico") hits.push({ m: imp.target, g });
+      if (g && this.visible(g.visibility)) hits.push({ m: imp.target, g });
     }
     if (hits.length > 1) throw err(`"${name}" existe em ${hits.map((h) => h.m.name).join(" e ")}. Use ${hits[0].m.name}.${name} ou ${hits[1].m.name}.${name}`, n);
     return hits[0]?.g ?? null;
@@ -409,10 +418,15 @@ class Resolver {
     const hits: { m: A.ModuleInfo; f: A.FuncDecl }[] = [];
     for (const imp of this.curModule.imports) {
       const f = imp.target.scope.fns.get(name);
-      if (f && f.visibility === "publico") hits.push({ m: imp.target, f });
+      if (f && this.visible(f.visibility)) hits.push({ m: imp.target, f });
     }
     if (hits.length > 1) throw err(`"${name}" existe em ${hits.map((h) => h.m.name).join(" e ")}. Use ${hits[0].m.name}.${name} ou ${hits[1].m.name}.${name}`, n);
     return hits[0]?.f ?? null;
+  }
+
+  /** Visibilidade efetiva: público, ou qualquer coisa quando o módulo que olha é um arquivo de testes. */
+  private visible(v: A.Visibility, from: A.ModuleInfo = this.curModule): boolean {
+    return v === "publico" || !!from.isTest;
   }
 
   private lookupTypeSoft(name: string): A.StructDecl | A.ClassDecl | null {
@@ -808,7 +822,7 @@ class Resolver {
         if (alias.mod.scope.fns.has(e.name)) throw err(`"${alias.alias}.${e.name}" é uma função: use ${alias.alias}.${e.name}(...)`, e);
         throw err(`O módulo ${alias.mod.name} não tem uma variável chamada "${e.name}"`, e);
       }
-      if (g.visibility !== "publico") throw err(`"${e.name}" é privado no módulo ${alias.mod.name}; declare-o como "publico" para usá-lo em outro módulo`, e);
+      if (!this.visible(g.visibility)) throw err(`"${e.name}" é privado no módulo ${alias.mod.name}; declare-o como "publico" para usá-lo em outro módulo`, e);
       return { k: "var", line: e.line, col: e.col, file: e.file, blocking: false, name: e.name, slot: g.slot, global: true, ref: false, t: g.t, isConst: g.isConst };
     }
     e.obj = this.expr(e.obj);
@@ -922,8 +936,8 @@ class Resolver {
     const gb = GLOBAL_BUILTINS[e.name];
     if (gb) {
       e.builtin = gb;
-      e.t = gb.ret as TypeRef;
-      if (gb.blocking) e.blocking = true;
+      this.checkBuiltinArgs(e, gb, e.name);
+      if ((e.name === "saida" || e.name === "entrada") && !this.input.tests) throw err(`"${e.name}" só pode ser usada em testes (teste "nome" { ... })`, e);
       if (e.name === "leia") {
         if (e.args.length === 0) throw err('"leia" precisa de pelo menos uma variável para guardar o valor lido', e);
         for (const a of e.args) {
@@ -983,10 +997,11 @@ class Resolver {
   }
 
   private checkBuiltinArgs(e: A.Call, b: A.Builtin, display: string) {
-    if (!b.variadic && e.args.length !== b.params.length)
-      throw err(`A função ${display} espera ${b.params.length} parâmetro(s), mas recebeu ${e.args.length}`, e);
+    const min = b.params.length - (b.optional ?? 0);
+    if (!b.variadic && (e.args.length < min || e.args.length > b.params.length))
+      throw err(`A função ${display} espera ${min === b.params.length ? `${min}` : `de ${min} a ${b.params.length}`} parâmetro(s), mas recebeu ${e.args.length}`, e);
     b.params.forEach((p, i) => {
-      if (p === "*") return;
+      if (p === "*" || i >= e.args.length) return;
       const a = e.args[i];
       if (!assignable(p, a.t)) throw err(`O parâmetro ${i + 1} de ${display} deve ser ${typeName(p)}, mas recebeu ${typeName(a.t)}`, a);
     });
@@ -1006,12 +1021,12 @@ class Resolver {
       if (!fn) {
         const type = alias.mod.scope.types.get(e.name);
         if (type) {
-          if (type.visibility !== "publico") throw err(`"${e.name}" é privado no módulo ${alias.mod.name}; declare-o como "publico" para usá-lo em outro módulo`, e);
+          if (!this.visible(type.visibility)) throw err(`"${e.name}" é privado no módulo ${alias.mod.name}; declare-o como "publico" para usá-lo em outro módulo`, e);
           return this.construct({ k: "new", line: e.line, col: e.col, file: e.file, blocking: false, name: e.name, decl: type, args: e.args, copyArgs: [], t: T_UNK }, true);
         }
         throw err(`O módulo ${alias.mod.name} não tem uma função chamada "${e.name}"`, e);
       }
-      if (fn.visibility !== "publico") throw err(`A função "${e.name}" é privada no módulo ${alias.mod.name}; declare-a como "publico" para usá-la em outro módulo`, e);
+      if (!this.visible(fn.visibility)) throw err(`A função "${e.name}" é privada no módulo ${alias.mod.name}; declare-a como "publico" para usá-la em outro módulo`, e);
       const call: A.Call = { k: "call", line: e.line, col: e.col, file: e.file, blocking: e.args.some((a) => a.blocking), name: e.name, fn, builtin: null, args: e.args, copyArgs: [], t: fn.ret };
       call.copyArgs = this.checkArgs(fn, fn.params, e.args, e, `A função "${alias.alias}.${fn.name}"`);
       if (this.curFn) this.calls.get(this.curFn)!.add(fn);

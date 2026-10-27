@@ -13,6 +13,7 @@ import { Lang } from "../lang/shared/types";
 import { Snapshot } from "../lang/shared/debug";
 import { languageSupport, completionSource } from "./languages";
 import { debugExtensions, breakpointLines, setDebugLine, clearBreakpoints } from "./debug";
+import { coverageExtension } from "./coverage";
 import { referenceTip } from "./reference";
 
 const highlight = HighlightStyle.define([
@@ -116,6 +117,7 @@ export class Editor {
   private baseExtensions(lang: Lang, breakpoints: number[]): Extension {
     return [
         this.keymaps,
+        coverageExtension,
         debugExtensions({
           snapshot: () => this.snapshot,
           caseInsensitive: () => this.lang === "visualg",

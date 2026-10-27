@@ -134,6 +134,8 @@ export interface Sub {
   file: number;
   /** slot reservado para o valor de retorno (atribuição `nome <- valor` dentro da função) */
   retSlot: number;
+  /** bloco `teste "nome"` (name = título) */
+  isTest?: boolean;
 }
 
 export interface Field {
@@ -207,11 +209,17 @@ export interface ModuleInfo {
   name: string;
   imports: { target: ModuleInfo; alias: string }[];
   scope: ModuleScope;
+  /** arquivo só de testes: enxerga membros privados dos módulos que importa */
+  isTest?: boolean;
 }
 
 export interface Builtin {
   name: string;
   params: TypeRef[];
+  /** quantos dos últimos parâmetros são opcionais */
+  optional?: number;
+  /** true: aceita qualquer tipo nos parâmetros (só confere a quantidade) */
+  anyType?: boolean;
   ret: TypeRef | "arg0";
   impl: (args: any[], at: { line: number; col: number; file?: number }) => any;
 }
@@ -229,5 +237,9 @@ export interface ProgramAst {
   records: RecordDecl[];
   classes: ClassDecl[];
   body: Stmt[];
+  /** blocos `teste` do arquivo de entrada */
+  tests: Sub[];
+  /** corpos (inicio...fimalgoritmo) de programas importados por um arquivo de testes */
+  bodies: { module: ModuleInfo; body: Stmt[] }[];
   nslots: number; // slots do bloco principal (sempre 0, variáveis do principal são globais)
 }

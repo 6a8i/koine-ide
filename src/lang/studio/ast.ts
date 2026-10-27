@@ -148,6 +148,8 @@ export interface FuncDecl {
   module?: ModuleInfo;
   /** classe dona, quando é método/construtor */
   cls?: ClassDecl;
+  /** bloco `teste "nome"` (name = título) */
+  isTest?: boolean;
   line: number;
   col: number;
   file: number;
@@ -234,6 +236,8 @@ export interface ModuleInfo {
   index: number;
   file: string;
   name: string;
+  /** arquivo só de testes: enxerga membros privados dos módulos que importa */
+  isTest?: boolean;
   imports: { target: ModuleInfo; alias: string }[];
   scope: ModuleScope;
 }
@@ -245,6 +249,8 @@ export interface Builtin {
   variadic?: boolean;
   ret: TypeRef | "arg0"; // "arg0": mesmo tipo do primeiro argumento (ex.: maior_numero)
   blocking?: boolean;
+  /** quantos dos últimos parâmetros são opcionais */
+  optional?: number;
   /** Implementação. Recebe valores já avaliados. Para bloqueantes, pode retornar Promise. */
   impl?: (args: any[], ctx: BuiltinCtx) => any;
 }
@@ -266,4 +272,6 @@ export interface ProgramAst {
   main: FuncDecl;
   /** módulo de entrada */
   entry: ModuleInfo;
+  /** blocos `teste` do módulo de entrada */
+  tests: FuncDecl[];
 }

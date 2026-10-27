@@ -1,4 +1,5 @@
-import { BREAK, Host, PortugolError, Program, ReturnSignal } from "../shared/types";
+import { BREAK, CompileOptions, Host, PortugolError, Program, ReturnSignal } from "../shared/types";
+import { CoverageCollector, CoverageUnit, TestInfo, statementLines } from "../shared/testing";
 import { SourceFile } from "../protocol";
 import { MAX_CALL_DEPTH, Ref, StructVal, ObjVal, copyStruct, structEquals, finalizeError, parseIntStrict, parseRealStrict, stackOverflow, wrapJsError } from "../shared/runtime";
 import * as A from "./ast";
@@ -51,8 +52,8 @@ export function compileVisualg(src: string): Program {
 }
 
 /** Compila um projeto: liga os módulos a partir da entrada e analisa tudo. */
-export function compileVisualgProject(files: SourceFile[], entry: string): Program {
-  const ast = parseVisualgProject(files, entry);
+export function compileVisualgProject(files: SourceFile[], entry: string, opts: CompileOptions = {}): Program {
+  const ast = parseVisualgProject(files, entry, 0, opts);
   return new VisualgProgram(ast, ast.files);
 }
 
@@ -97,13 +98,83 @@ class VisualgProgram implements Program {
   private host!: Host;
   private depth = 0;
   private dbg: Debugger | null = null;
+  private cov: CoverageCollector | null = null;
+  tests: TestInfo[];
 
-  constructor(private ast: A.ProgramAst, public files: string[] = ["principal.alg"]) {}
+  constructor(private ast: A.ProgramAst, public files: string[] = ["principal.alg"]) {
+    this.tests = ast.tests.map((t, id) => ({ id, name: t.name, file: files[t.file] ?? files[0], line: t.line }));
+  }
 
   attachDebugger(d: Debugger) {
     this.dbg = d;
     d.setFiles(this.files);
     markAllBlocking(this.ast);
+  }
+
+  attachCoverage(c: CoverageCollector) {
+    this.cov = c;
+    c.bind(this.files, this.coverageUnits());
+  }
+
+  /** Funções, procedimentos, métodos e corpos de algoritmo (sem os testes). */
+  private coverageUnits(): CoverageUnit[] {
+    const subs = new Set<A.Sub>(this.ast.subs.values());
+    for (const c of this.ast.classes) { for (const m of c.methods) subs.add(m); if (c.ctor) subs.add(c.ctor); }
+    const units: CoverageUnit[] = [];
+    for (const f of subs) {
+      if (f.isTest || !f.body.length) continue;
+      units.push({ name: f.qname, file: this.files[f.file] ?? this.files[0], line: f.line, lines: statementLines(f.body) });
+    }
+    const mains = [{ module: this.ast.entry, body: this.ast.body }, ...this.ast.bodies];
+    for (const m of mains) {
+      if (!m.body.length) continue;
+      units.push({ name: "algoritmo", file: m.module.file, line: m.body[0].line, lines: statementLines(m.body) });
+    }
+    return units;
+  }
+
+  /** Executa um teste: globais reiniciadas, corpo como um procedimento sem parâmetros. */
+  async runTest(host: Host, id: number) {
+    const t = this.ast.tests[id];
+    if (!t) throw new PortugolError(`Teste ${id} não existe`, 0, 0, "interno");
+    this.initGlobals(host);
+    const F = this.newFrame(t, []);
+    this.dbg?.enter(namesOf(t), F);
+    try {
+      if (t.blocking) await this.runBodyA(t.body, F);
+      else this.runBody(t.body, F);
+    } catch (e) {
+      if (e instanceof ReturnSignal) return;
+      throw finalizeError(e);
+    } finally {
+      this.dbg?.leave();
+    }
+  }
+
+  private initGlobals(host: Host) {
+    this.host = host;
+    this.G = new Array(this.ast.nglobals);
+    for (const d of this.ast.globals) this.G[d.slot] = makeVar(d.t, d.ranges);
+    for (const c of this.ast.constInits) this.G[c.slot] = c.value.value;
+    this.dbg?.setGlobals(globalNames(this.ast), this.G);
+  }
+
+  /** Corpo principal que `executar_algoritmo()` deve rodar: o do próprio arquivo ou o do único programa importado. */
+  private programBody(at: Loc): A.Stmt[] {
+    if (this.ast.body.length) return this.ast.body;
+    if (this.ast.bodies.length === 1) return this.ast.bodies[0].body;
+    if (this.ast.bodies.length === 0) throw rt('"executar_algoritmo" precisa de um algoritmo: escreva os testes no próprio arquivo do algoritmo ou importe-o no arquivo de testes', at);
+    throw rt(`"executar_algoritmo" não sabe qual algoritmo rodar: o arquivo de testes importa ${this.ast.bodies.length} programas (${this.ast.bodies.map((b) => b.module.file).join(", ")})`, at);
+  }
+
+  private captured(at: Loc): string {
+    if (!this.host.captured) throw rt('"saida" só funciona dentro de um teste', at);
+    return this.host.captured();
+  }
+
+  private feed(text: unknown, at: Loc) {
+    if (!this.host.feed) throw rt('"entrada" só funciona dentro de um teste', at);
+    this.host.feed(String(text));
   }
 
   snapshot(): Snapshot {
@@ -112,11 +183,7 @@ class VisualgProgram implements Program {
   }
 
   async run(host: Host) {
-    this.host = host;
-    this.G = new Array(this.ast.nglobals);
-    for (const d of this.ast.globals) this.G[d.slot] = makeVar(d.t, d.ranges);
-    for (const c of this.ast.constInits) this.G[c.slot] = c.value.value;
-    this.dbg?.setGlobals(globalNames(this.ast), this.G);
+    this.initGlobals(host);
     const F: Frame = [];
     const blocking = this.ast.body.some((s) => s.blocking);
     this.dbg?.enter(MAIN_NAMES, F);
@@ -136,6 +203,7 @@ class VisualgProgram implements Program {
   }
 
   private exec(s: A.Stmt, F: Frame): void {
+    if (this.cov && s.k !== "nop") this.cov.hit(s.file, s.line);
     switch (s.k) {
       case "assign": {
         let v = this.coerce(this.evalE(s.value, F), s.target.t);
@@ -348,7 +416,18 @@ class VisualgProgram implements Program {
   }
 
   private call(e: A.Call, F: Frame): any {
-    if (e.builtin) return e.builtin.impl(e.args.map((a) => this.evalE(a, F)), e);
+    if (e.builtin) {
+      const b = e.builtin;
+      if (b.name === "saida") return this.captured(e);
+      if (b.name === "entrada") { this.feed(this.evalE(e.args[0], F), e); return; }
+      if (b.name === "executar_algoritmo") {
+        const body = this.programBody(e);
+        if (body.some((x) => x.blocking)) throw rt("Erro interno: executar_algoritmo fora do caminho assíncrono", e);
+        this.runBody(body, []);
+        return;
+      }
+      return b.impl(e.args.map((a) => this.evalE(a, F)), e);
+    }
     const fn = e.fn!;
     return this.invoke(fn, this.argsFor(fn.params, e.args, e.copyArgs, F, 0), e);
   }
@@ -416,6 +495,7 @@ class VisualgProgram implements Program {
 
   private async execA(s: A.Stmt, F: Frame): Promise<void> {
     if (!s.blocking) return this.exec(s, F);
+    if (this.cov && s.k !== "nop") this.cov.hit(s.file, s.line);
     switch (s.k) {
       case "assign": {
         let v = this.coerce(await this.evalA(s.value, F), s.target.t);
@@ -550,9 +630,13 @@ class VisualgProgram implements Program {
 
   private async callA(e: A.Call, F: Frame): Promise<any> {
     if (e.builtin) {
+      const b = e.builtin;
+      if (b.name === "saida") return this.captured(e);
+      if (b.name === "executar_algoritmo") { await this.runBodyA(this.programBody(e), []); return; }
       const args: any[] = [];
       for (const a of e.args) args.push(await this.evalA(a, F));
-      return e.builtin.impl(args, e);
+      if (b.name === "entrada") { this.feed(args[0], e); return; }
+      return b.impl(args, e);
     }
     const fn = e.fn!;
     const args = await this.argsForA(fn.params, e.args, e.copyArgs, F, 0);

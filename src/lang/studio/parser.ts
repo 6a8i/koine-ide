@@ -11,6 +11,7 @@ const KEYWORDS = new Set([
   "verdadeiro", "falso", "e", "ou", "nao",
   // módulos, visibilidade, estruturas, classes, referências
   "modulo", "importe", "publico", "privado", "estrutura", "classe", "herda", "este", "super", "nulo", "ref",
+  "teste",
 ]);
 
 const OPERATORS = [
@@ -36,6 +37,8 @@ export interface RawModule {
   /** nome declarado explicitamente com `modulo` */
   declaredName: string | null;
   importable: boolean;
+  /** blocos `teste "nome" { ... }` */
+  tests: A.FuncDecl[];
   imports: RawImport[];
   includes: { lib: string; alias: string; line: number; col: number; file: number }[];
   globals: A.Decl[];
@@ -74,7 +77,7 @@ class Parser {
     const s = this.s;
     const out: RawModule = {
       fileIndex: s.fileIndex, file: this.file, moduleName: stem(this.file), declaredName: null, importable: true,
-      imports: [], includes: [], globals: [], functions: [], structs: [], classes: [],
+      imports: [], includes: [], globals: [], functions: [], structs: [], classes: [], tests: [],
     };
     if (!s.isKw("programa")) {
       throw s.error(
@@ -120,6 +123,15 @@ class Parser {
         if (s.acceptOp("-->")) alias = s.expectIdent("o apelido da biblioteca").value;
         out.includes.push({ lib: lib.value, alias, line: lib.line, col: lib.col, file: this.s.fileIndex });
         s.acceptOp(";");
+        continue;
+      }
+      if (s.isKw("teste")) {
+        const kw = s.next();
+        if (!s.is("string")) throw s.error('Depois de "teste" vem o nome do teste, entre aspas (ex.: teste "soma de dois números" { ... })');
+        const title = s.next();
+        if (s.isOp("(")) throw s.error('Um teste não tem parâmetros: teste "nome" { ... }');
+        const body = this.block(`do teste "${title.value}"`);
+        out.tests.push({ name: title.value, qname: `teste "${title.value}"`, ret: T("vazio"), params: [], body, nslots: 0, blocking: false, visibility: "privado", isTest: true, line: kw.line, col: kw.col, file: this.s.fileIndex });
         continue;
       }
       const visibility = this.visibility();

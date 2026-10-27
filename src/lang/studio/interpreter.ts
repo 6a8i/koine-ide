@@ -1,4 +1,5 @@
-import { BREAK, Host, PortugolError, Program, ReturnSignal } from "../shared/types";
+import { BREAK, CompileOptions, Host, PortugolError, Program, ReturnSignal } from "../shared/types";
+import { CoverageCollector, CoverageUnit, TestInfo, statementLines } from "../shared/testing";
 import { SourceFile } from "../protocol";
 import { MAX_CALL_DEPTH, Ref, StructVal, ObjVal, copyStruct, structEquals, finalizeError, parseIntStrict, parseRealStrict, stackOverflow, wrapJsError } from "../shared/runtime";
 import { linkModules } from "../shared/modules";
@@ -52,17 +53,18 @@ export function compileStudio(src: string): Program {
 }
 
 /** Compila um projeto: analisa todos os arquivos, liga os módulos a partir da entrada e resolve o programa inteiro. */
-export function compileStudioProject(files: SourceFile[], entry: string): Program {
+export function compileStudioProject(files: SourceFile[], entry: string, opts: CompileOptions = {}): Program {
   const names = files.map((f) => f.path);
   let entryIndex = names.indexOf(entry);
   if (entryIndex < 0) entryIndex = 0;
   const raws: RawModule[] = files.map((f, i) => parseStudio(f.source, i, f.path));
   const entryRaw = raws[entryIndex];
-  if (entryRaw.importable) {
+  if (entryRaw.importable && !opts.tests) {
     throw new PortugolError(`O arquivo ${entryRaw.file} não tem a função "inicio" e não pode ser executado diretamente. Execute o arquivo principal do projeto`, 1, 1, "sintaxe", entryIndex);
   }
-  const link = linkModules(raws, entryRaw, false);
-  const ast = resolveStudio({ modules: link.order, entry: entryRaw, link, files: names });
+  // um arquivo só de testes pode importar o programa que testa
+  const link = linkModules(raws, entryRaw, false, { canImportProgram: (from) => !!opts.tests && from.importable && from.tests.length > 0 });
+  const ast = resolveStudio({ modules: link.order, entry: entryRaw, link, files: names, tests: opts.tests });
   return new StudioProgram(ast, names);
 }
 
@@ -122,9 +124,13 @@ class StudioProgram implements Program {
   private host!: Host;
   private depth = 0;
   private dbg: Debugger | null = null;
+  private cov: CoverageCollector | null = null;
   private mainF: Frame = [];
+  tests: TestInfo[];
 
-  constructor(private ast: A.ProgramAst, public files: string[] = ["principal.por"]) {}
+  constructor(private ast: A.ProgramAst, public files: string[] = ["principal.por"]) {
+    this.tests = ast.tests.map((t, id) => ({ id, name: t.name, file: files[t.file] ?? files[0], line: t.line }));
+  }
 
   attachDebugger(d: Debugger) {
     this.dbg = d;
@@ -132,15 +138,32 @@ class StudioProgram implements Program {
     markAllBlocking(this.ast);
   }
 
-  snapshot(): Snapshot {
-    if (this.dbg && this.dbg.depth > 0) return this.dbg.snapshot();
-    return {
-      frames: [{ name: this.ast.main.name, line: 0, vars: describeFrame(namesOf(this.ast.main), this.mainF) }],
-      globals: describeFrame(globalNames(this.ast), this.G),
-    };
+  attachCoverage(c: CoverageCollector) {
+    this.cov = c;
+    c.bind(this.files, this.coverageUnits());
   }
 
-  async run(host: Host) {
+  /** Funções, métodos e construtores (sem os testes), com as linhas de comando de cada um. */
+  private coverageUnits(): CoverageUnit[] {
+    const fns = new Set<A.FuncDecl>([...this.ast.functions.values(), this.ast.main]);
+    for (const c of this.ast.classes) { for (const m of c.methods) fns.add(m); if (c.ctor) fns.add(c.ctor); }
+    const units: CoverageUnit[] = [];
+    for (const f of fns) {
+      if (f.isTest || !f.body.length) continue;
+      units.push({ name: f.qname, file: this.files[f.file] ?? this.files[0], line: f.line, lines: statementLines(f.body) });
+    }
+    return units;
+  }
+
+  /** Executa um teste: globais reiniciadas, corpo como uma função sem parâmetros. */
+  async runTest(host: Host, id: number) {
+    const t = this.ast.tests[id];
+    if (!t) throw new PortugolError(`Teste ${id} não existe`, 0, 0, "interno");
+    await this.initGlobals(host);
+    await this.runMain(t);
+  }
+
+  private async initGlobals(host: Host) {
     this.host = host;
     this.G = new Array(this.ast.nglobals);
     this.dbg?.setGlobals(globalNames(this.ast), this.G);
@@ -148,7 +171,9 @@ class StudioProgram implements Program {
       if (d.blocking) await this.execA(d, this.G);
       else this.exec(d, this.G);
     }
-    const main = this.ast.main;
+  }
+
+  private async runMain(main: A.FuncDecl) {
     const F: Frame = new Array(main.nslots);
     this.mainF = F;
     this.dbg?.enter(namesOf(main), F);
@@ -163,12 +188,36 @@ class StudioProgram implements Program {
     }
   }
 
+  private captured(at: Loc): string {
+    if (!this.host.captured) throw rt('"saida" só funciona dentro de um teste', at);
+    return this.host.captured();
+  }
+
+  private feed(text: unknown, at: Loc) {
+    if (!this.host.feed) throw rt('"entrada" só funciona dentro de um teste', at);
+    this.host.feed(String(text));
+  }
+
+  snapshot(): Snapshot {
+    if (this.dbg && this.dbg.depth > 0) return this.dbg.snapshot();
+    return {
+      frames: [{ name: this.ast.main.name, line: 0, vars: describeFrame(namesOf(this.ast.main), this.mainF) }],
+      globals: describeFrame(globalNames(this.ast), this.G),
+    };
+  }
+
+  async run(host: Host) {
+    await this.initGlobals(host);
+    await this.runMain(this.ast.main);
+  }
+
   // ======================= Execução síncrona =======================
   private runBody(body: A.Stmt[], F: Frame) {
     for (let i = 0; i < body.length; i++) this.exec(body[i], F);
   }
 
   private exec(s: A.Stmt, F: Frame): void {
+    if (this.cov) this.cov.hit(s.file, s.line);
     switch (s.k) {
       case "decl": {
         const M = s.global ? this.G : F;
@@ -424,6 +473,8 @@ class StudioProgram implements Program {
         return;
       }
       if (b.name === "limpa") { this.host.clear(); return; }
+      if (b.name === "saida") return this.captured(e);
+      if (b.name === "entrada") { this.feed(this.evalE(e.args[0], F), e); return; }
       const args = e.args.map((a) => this.evalE(a, F));
       return b.impl!(args, e);
     }
@@ -546,6 +597,7 @@ class StudioProgram implements Program {
 
   private async execA(s: A.Stmt, F: Frame): Promise<void> {
     if (!s.blocking) return this.exec(s, F);
+    if (this.cov) this.cov.hit(s.file, s.line);
     switch (s.k) {
       case "decl": {
         const M = s.global ? this.G : F;
@@ -708,8 +760,11 @@ class StudioProgram implements Program {
         this.host.write(out);
         return;
       }
+      if (b.name === "limpa") { this.host.clear(); return; }
+      if (b.name === "saida") return this.captured(e);
       const args: any[] = [];
       for (const a of e.args) args.push(await this.evalA(a, F));
+      if (b.name === "entrada") { this.feed(args[0], e); return; }
       if (b.name === "aguarde") { await this.host.sleep(args[0]); return; }
       return b.impl!(args, e);
     }

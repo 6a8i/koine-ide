@@ -1,5 +1,5 @@
 import { tokenize, Token, TokenStream } from "../shared/lexer";
-import { PortugolError } from "../shared/types";
+import { CompileOptions, PortugolError } from "../shared/types";
 import { RawImport, RawModuleHeader, linkModules, stemOf } from "../shared/modules";
 import { SourceFile } from "../protocol";
 import * as A from "./ast";
@@ -17,12 +17,13 @@ const KEYWORDS = new Set([
   "on", "off", "tipo", "registro", "fimregistro", "dos", "fimrepita",
   // módulos, visibilidade, classes, referências
   "modulo", "fimmodulo", "importe", "como", "publico", "privado", "classe", "fimclasse", "herda", "novo", "este", "super", "nulo", "ref",
+  "teste", "fimteste",
 ]);
 
 const OPERATORS = ["<-", ":=", "<=", ">=", "<>", "..", "+", "-", "*", "/", "\\", "^", "%", "=", "<", ">", "(", ")", "[", "]", ",", ":", ";", ".", "&"];
 
-const SECTION_KW = new Set(["var", "const", "tipo", "funcao", "procedimento", "inicio", "fimmodulo", "publico", "privado"]);
-const CLOSERS = new Set(["fimalgoritmo", "fimse", "fimenquanto", "fimpara", "fimescolha", "fimfuncao", "fimprocedimento", "senao", "outrocaso", "caso", "ate", "fimrepita", "fimmodulo"]);
+const SECTION_KW = new Set(["var", "const", "tipo", "funcao", "procedimento", "inicio", "fimmodulo", "publico", "privado", "teste"]);
+const CLOSERS = new Set(["fimalgoritmo", "fimse", "fimenquanto", "fimpara", "fimescolha", "fimfuncao", "fimprocedimento", "senao", "outrocaso", "caso", "ate", "fimrepita", "fimmodulo", "fimteste"]);
 
 type Loc = { line: number; col: number; file?: number };
 const err = (msg: string, n: Loc) => new PortugolError(msg, n.line, n.col, "sintaxe", n.file ?? 0);
@@ -119,26 +120,37 @@ interface Shared {
   modules: A.ModuleInfo[];
   calls: Map<A.Sub, Set<A.Sub>>;
   callNodes: (A.Call | A.MethodCall | A.New)[];
+  /** modo de testes (CompileOptions.tests) */
+  testMode: boolean;
+  tests: A.Sub[];
+  bodies: { module: A.ModuleInfo; body: A.Stmt[] }[];
 }
+
+/** true se o arquivo tem algum bloco `teste`. */
+const headerHasTests = (h: Header) => h.toks.some((t) => t.type === "keyword" && t.value === "teste");
 
 export function parseVisualg(src: string, fileIndex = 0, file = "principal.alg"): A.ProgramAst {
   return parseVisualgProject([{ path: file, source: src }], file, fileIndex);
 }
 
-export function parseVisualgProject(files: SourceFile[], entry: string, baseIndex = 0): A.ProgramAst {
+export function parseVisualgProject(files: SourceFile[], entry: string, baseIndex = 0, opts: CompileOptions = {}): A.ProgramAst {
   const names = files.map((f) => f.path);
   let entryIndex = names.indexOf(entry);
   if (entryIndex < 0) entryIndex = 0;
   const headers = files.map((f, i) => scanHeader(lex(f.source, baseIndex + i), baseIndex + i, f.path));
   const entryHeader = headers[entryIndex];
-  if (entryHeader.importable) {
+  if (entryHeader.importable && !opts.tests) {
     throw new PortugolError(`O arquivo ${entryHeader.file} é um módulo (começa com "modulo") e não pode ser executado diretamente. Execute o arquivo do algoritmo principal`, 1, 1, "sintaxe", entryHeader.fileIndex);
   }
-  const link = linkModules(headers, entryHeader, true);
-  const shared: Shared = { nglobals: 0, globals: [], constInits: [], subs: new Map(), allSubs: [], records: [], classes: [], modules: [], calls: new Map(), callNodes: [] };
+  // um arquivo só de testes pode importar o algoritmo que testa
+  const link = linkModules(headers, entryHeader, true, { canImportProgram: (from) => !!opts.tests && from.importable && headerHasTests(from) });
+  const shared: Shared = { nglobals: 0, globals: [], constInits: [], subs: new Map(), allSubs: [], records: [], classes: [], modules: [], calls: new Map(), callNodes: [], testMode: !!opts.tests, tests: [], bodies: [] };
   const infoOf = new Map<Header, A.ModuleInfo>();
   for (const h of link.order) {
-    const info: A.ModuleInfo = { index: h.fileIndex, file: h.file, name: h.moduleName, imports: [], scope: { subs: new Map(), globals: new Map(), types: new Map(), modAlias: new Map() } };
+    const info: A.ModuleInfo = {
+      index: h.fileIndex, file: h.file, name: h.moduleName, imports: [], scope: { subs: new Map(), globals: new Map(), types: new Map(), modAlias: new Map() },
+      isTest: !!opts.tests && h.importable && headerHasTests(h),
+    };
     infoOf.set(h, info);
     shared.modules.push(info);
   }
@@ -155,12 +167,14 @@ export function parseVisualgProject(files: SourceFile[], entry: string, baseInde
     const p = new ModuleParser(h, info, shared, h === entryHeader);
     const b = p.parse();
     if (h === entryHeader) body = b;
+    else if (!h.importable) shared.bodies.push({ module: info, body: b });
   }
   computeBlocking(shared, body);
+  for (const extra of shared.bodies) remarkStmts(extra.body, shared.classes);
   return {
     name: entryHeader.programName, files: names, modules: shared.modules, entry: infoOf.get(entryHeader)!,
     globals: shared.globals, nglobals: shared.nglobals, constInits: shared.constInits, subs: shared.subs,
-    records: shared.records, classes: shared.classes, body, nslots: 0,
+    records: shared.records, classes: shared.classes, body, nslots: 0, tests: shared.tests, bodies: shared.bodies,
   };
 }
 
@@ -184,6 +198,9 @@ class ModuleParser {
   private pass: 1 | 2 = 1;
   /** corpos qualificados (funcao Classe.metodo) vistos no passe 1 */
   private qualified: { header: SubHeader }[] = [];
+  /** blocos `teste` na ordem em que aparecem (criados no passe 1, corpos no passe 2) */
+  private tests: A.Sub[] = [];
+  private testIndex = 0;
 
   constructor(private h: Header, private info: A.ModuleInfo, private shared: Shared, private isEntry: boolean) {
     this.s = new TokenStream(h.toks, h.fileIndex);
@@ -258,6 +275,8 @@ class ModuleParser {
         this.typeSection(vis);
       } else if (s.isKw("funcao") || s.isKw("procedimento")) {
         this.subprogram(vis);
+      } else if (s.isKw("teste")) {
+        this.testBlock();
       } else {
         s.pos = save;
         break;
@@ -340,7 +359,7 @@ class ModuleParser {
       if (!target) throw this.err(`O módulo "${name.slice(0, dot)}" não foi importado. Use: importe ${name.slice(0, dot)}`, n);
       const t = target.scope.types.get(tn);
       if (!t) throw this.err(`O módulo ${target.name} não tem um registro ou classe chamado "${name.slice(dot + 1)}"`, n);
-      if (t.visibility !== "publico") throw this.err(`"${t.name}" é privado no módulo ${target.name}; declare-o como "publico" para usá-lo em outro arquivo`, n);
+      if (!this.visible(t.visibility)) throw this.err(`"${t.name}" é privado no módulo ${target.name}; declare-o como "publico" para usá-lo em outro arquivo`, n);
       return t;
     }
     const key = name.toLowerCase();
@@ -349,7 +368,7 @@ class ModuleParser {
     const hits: { m: A.ModuleInfo; t: A.RecordDecl | A.ClassDecl }[] = [];
     for (const imp of this.info.imports) {
       const t = imp.target.scope.types.get(key);
-      if (t && t.visibility === "publico") hits.push({ m: imp.target, t });
+      if (t && this.visible(t.visibility)) hits.push({ m: imp.target, t });
     }
     if (hits.length > 1) throw this.err(`"${name}" existe em ${hits.map((h) => h.m.name).join(" e ")}. Use ${hits[0].m.name}.${name} ou ${hits[1].m.name}.${name}`, n);
     if (hits.length === 1) return hits[0].t;
@@ -587,6 +606,50 @@ class ModuleParser {
     this.curClass = null;
     this.locals = null;
     this.nslots = 0;
+  }
+
+  /** `teste "nome"` [var ...] inicio ... fimteste: um procedimento sem parâmetros, identificado pelo título. */
+  private testBlock() {
+    const s = this.s;
+    const kw = s.next();
+    if (!s.is("string")) throw s.error('Depois de "teste" vem o nome do teste, entre aspas (ex.: teste "soma de dois números")');
+    const title = s.next();
+    if (this.pass === 1) {
+      const nameTok: Token = { ...title, type: "ident", raw: title.value, value: title.value.toLowerCase() };
+      const sub = this.makeSub({ kw, name: nameTok, className: null, isFunction: false, params: [], ret: T("vazio"), visibility: "privado" }, null);
+      sub.qname = `teste "${title.value}"`;
+      sub.isTest = true;
+      sub.hasBody = true;
+      this.tests.push(sub);
+      if (this.isEntry) this.shared.tests.push(sub);
+      while (!s.is("eof") && !s.isKw("fimteste")) {
+        if (s.isKw("fimalgoritmo") || s.isKw("fimmodulo")) throw this.err(`Faltou "fimteste" para fechar o teste "${title.value}"`, title);
+        s.next();
+      }
+      s.expectKw("fimteste", `para fechar o teste "${title.value}"`);
+      return;
+    }
+    const sub = this.tests[this.testIndex++];
+    this.curSub = sub;
+    this.curClass = null;
+    this.locals = new Map();
+    this.nslots = sub.nslots;
+    sub.locals = [];
+    if (s.acceptKw("var")) this.varSection(false, "privado");
+    s.expectKw("inicio", `para começar o corpo do teste "${title.value}"`);
+    this.loopDepth = 0;
+    sub.body = this.block(["fimteste"], `do teste "${title.value}"`);
+    s.expectKw("fimteste");
+    sub.nslots = this.nslots;
+    sub.blocking = sub.body.some((x) => x.blocking);
+    this.curSub = null;
+    this.locals = null;
+    this.nslots = 0;
+  }
+
+  /** Visibilidade efetiva: público, ou qualquer coisa quando este módulo é um arquivo de testes. */
+  private visible(v: A.Visibility): boolean {
+    return v === "publico" || !!this.info.isTest;
   }
 
   /** Depois do passe 1: resolve tipos nomeados, liga herança/vtables e confere os corpos dos métodos. */
@@ -849,6 +912,13 @@ class ModuleParser {
           const call = this.finishCall(t, sub, null);
           return { k: "callstmt", ...this.pos(t), call, blocking: call.blocking };
         }
+        // procedimento nativo usado como comando (afirme(...), entrada(...), executar_algoritmo())
+        const bi = BUILTINS[t.value];
+        if (bi && bi.ret !== "arg0" && bi.ret.base === "vazio" && !this.info.scope.globals.has(t.value)) {
+          s.next();
+          const call = this.finishCall(t, null, bi);
+          return { k: "callstmt", ...this.pos(t), call, blocking: call.blocking };
+        }
         // alias de módulo: geo.proc(...)
         const alias = this.info.scope.modAlias.get(t.value);
         if (alias && s.peek().type === "op" && s.peek().value === "." && !this.info.scope.globals.has(t.value)) {
@@ -1057,7 +1127,7 @@ class ModuleParser {
   }
 
   private checkExported(vis: A.Visibility, name: string, mod: A.ModuleInfo, n: Loc, what: string) {
-    if (vis !== "publico") throw this.err(`${what} "${name}" é privad${what.startsWith("A ") ? "a" : "o"} no módulo ${mod.name}; declare com "publico" para usar em outro arquivo`, n);
+    if (!this.visible(vis)) throw this.err(`${what} "${name}" é privad${what.startsWith("A ") ? "a" : "o"} no módulo ${mod.name}; declare com "publico" para usar em outro arquivo`, n);
   }
 
   private lookupSub(key: string, n: Loc): A.Sub | null {
@@ -1066,7 +1136,7 @@ class ModuleParser {
     const hits: { m: A.ModuleInfo; f: A.Sub }[] = [];
     for (const imp of this.info.imports) {
       const f = imp.target.scope.subs.get(key);
-      if (f && f.visibility === "publico") hits.push({ m: imp.target, f });
+      if (f && this.visible(f.visibility)) hits.push({ m: imp.target, f });
     }
     if (hits.length > 1) throw this.err(`"${key}" existe em ${hits.map((h) => h.m.name).join(" e ")}. Use ${hits[0].m.name}.${key} ou ${hits[1].m.name}.${key}`, n);
     return hits[0]?.f ?? null;
@@ -1078,7 +1148,7 @@ class ModuleParser {
     const hits: { m: A.ModuleInfo; g: A.GlobalSym }[] = [];
     for (const imp of this.info.imports) {
       const g = imp.target.scope.globals.get(key);
-      if (g && g.visibility === "publico") hits.push({ m: imp.target, g });
+      if (g && this.visible(g.visibility)) hits.push({ m: imp.target, g });
     }
     if (hits.length > 1) throw this.err(`"${key}" existe em ${hits.map((h) => h.m.name).join(" e ")}. Use ${hits[0].m.name}.${key} ou ${hits[1].m.name}.${key}`, n);
     return hits[0]?.g ?? null;
@@ -1461,13 +1531,17 @@ class ModuleParser {
       if (this.curSub) this.shared.calls.get(this.curSub)!.add(sub);
     } else {
       const b = bi!;
-      if (args.length !== b.params.length) throw this.err(`A função "${b.name}" espera ${b.params.length} parâmetro(s), mas recebeu ${args.length}`, t);
-      b.params.forEach((p, i) => {
-        if (!assignable(p, args[i].t)) throw this.err(`O parâmetro ${i + 1} de "${b.name}" deve ser ${typeName(p)}, mas recebeu ${typeName(args[i].t)}`, args[i]);
+      const min = b.params.length - (b.optional ?? 0);
+      if (args.length < min || args.length > b.params.length)
+        throw this.err(`A função "${b.name}" espera ${min === b.params.length ? `${min}` : `de ${min} a ${b.params.length}`} parâmetro(s), mas recebeu ${args.length}`, t);
+      if (!b.anyType) b.params.forEach((p, i) => {
+        if (i < args.length && !assignable(p, args[i].t)) throw this.err(`O parâmetro ${i + 1} de "${b.name}" deve ser ${typeName(p)}, mas recebeu ${typeName(args[i].t)}`, args[i]);
       });
+      if ((b.name === "saida" || b.name === "entrada" || b.name === "executar_algoritmo") && !this.shared.testMode) throw this.err(`"${b.name}" só pode ser usada em testes (teste "nome" ... fimteste)`, t);
       ret = b.ret === "arg0" ? args[0].t : b.ret;
     }
-    const node: A.Call = { k: "call", ...this.pos(t), name: t.raw, fn: sub, builtin: bi, args, copyArgs, t: ret, blocking };
+    // executar_algoritmo roda o corpo principal, que pode ler dados: sempre pelo caminho assíncrono
+    const node: A.Call = { k: "call", ...this.pos(t), name: t.raw, fn: sub, builtin: bi, args, copyArgs, t: ret, blocking: blocking || bi?.name === "executar_algoritmo" };
     if (sub) this.shared.callNodes.push(node);
     return node;
   }
@@ -1543,7 +1617,7 @@ function remarkExpr(e: A.Expr, classes: A.ClassDecl[]): boolean {
     case "addr": b = rx(e.target); break;
     case "bin": if (rx(e.l)) b = true; if (rx(e.r)) b = true; break;
     case "un": b = rx(e.e); break;
-    case "call": for (const a of e.args) if (rx(a)) b = true; if (e.fn?.blocking) b = true; break;
+    case "call": for (const a of e.args) if (rx(a)) b = true; if (e.fn?.blocking || e.builtin?.name === "executar_algoritmo") b = true; break;
     case "new": for (const a of e.args) if (rx(a)) b = true; if (e.decl?.ctor?.blocking) b = true; break;
     case "mcall": {
       b = rx(e.obj);
