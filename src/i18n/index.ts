@@ -58,7 +58,8 @@ export function onLocaleChange(fn: (l: Locale) => void): () => void {
 
 /** Traduz um texto da interface (chave = texto em português). */
 export function t(text: string, params?: Record<string, string | number>): string {
-  let s = DICTS[current]?.[text] ?? (current !== "en" ? DICTS.en[text] : undefined) ?? text;
+  // em pt-BR a chave já é o texto; nos outros idiomas, chave ausente cai no inglês e depois no português
+  let s = current === "pt-BR" ? text : DICTS[current]?.[text] ?? DICTS.en[text] ?? text;
   if (params) for (const [k, v] of Object.entries(params)) s = s.split(`{${k}}`).join(String(v));
   return s;
 }
