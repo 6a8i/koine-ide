@@ -3,6 +3,7 @@ import { PortugolError } from "../shared/types";
 import { RawImport } from "../shared/modules";
 import * as A from "./ast";
 import { T, T_UNK, TypeRef, Visibility } from "./ast";
+import { Locale, registerLexerConfig, toCanonicalMap } from "../i18n";
 
 const KEYWORDS = new Set([
   "programa", "funcao", "inclua", "biblioteca", "const",
@@ -53,7 +54,9 @@ function stem(file: string) {
   return dot > 0 ? base.slice(0, dot) : base;
 }
 
-export function parseStudio(src: string, fileIndex = 0, file = "principal.por"): RawModule {
+registerLexerConfig("studio", KEYWORDS, OPERATORS);
+
+export function parseStudio(src: string, fileIndex = 0, file = "principal.por", locale: Locale = "pt-BR"): RawModule {
   const toks = tokenize(src, {
     keywords: KEYWORDS,
     caseInsensitive: false,
@@ -62,6 +65,7 @@ export function parseStudio(src: string, fileIndex = 0, file = "principal.por"):
     braceComments: false,
     singleQuoteChar: true,
     escapes: true,
+    translate: toCanonicalMap("studio", locale),
   }, fileIndex);
   return new Parser(new TokenStream(toks, fileIndex), file).program();
 }

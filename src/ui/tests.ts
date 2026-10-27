@@ -3,6 +3,7 @@
  * mostra o resultado de cada um e a cobertura (por arquivo e por função).
  */
 import { CoverageReport, TestResult } from "../lang/shared/testing";
+import { t, tn } from "../i18n";
 
 export type TestStatus = "pendente" | "rodando" | "passou" | "falhou" | "erro";
 
@@ -66,8 +67,8 @@ export class TestsPanel {
     if (!st.files.length) {
       this.empty(
         st.running
-          ? "Procurando testes…"
-          : 'Nenhum teste encontrado. Escreva blocos teste "nome" { ... } (Portugol Studio) ou teste "nome" ... fimteste (VisuAlg) no próprio programa ou em um arquivo separado que o importe, e use afirme, afirme_igual, saida() e entrada().',
+          ? t("Procurando testes…")
+          : t('Nenhum teste encontrado. Escreva blocos teste "nome" { ... } (Portugol Studio) ou teste "nome" ... fimteste (VisuAlg) no próprio programa ou em um arquivo separado que o importe, e use afirme, afirme_igual, saida() e entrada().'),
       );
     }
     for (const f of st.files) this.body.appendChild(this.fileSection(f, st.running));
@@ -76,11 +77,11 @@ export class TestsPanel {
 
   private renderState(st: TestsState) {
     const el = this.stateEl;
-    if (st.running) { el.className = "tests-state running"; el.textContent = "executando…"; return; }
+    if (st.running) { el.className = "tests-state running"; el.textContent = t("executando…"); return; }
     if (!st.summary) { el.className = "tests-state"; el.textContent = ""; return; }
     const failed = st.summary.total - st.summary.passed;
     el.className = "tests-state " + (failed ? "fail" : "ok");
-    el.textContent = st.summary.total === 0 ? "nenhum teste executado" : failed ? `${st.summary.passed} de ${st.summary.total} passaram` : st.summary.total === 1 ? "1 passou" : `${st.summary.total} passaram`;
+    el.textContent = st.summary.total === 0 ? t("nenhum teste executado") : failed ? t("{passed} de {total} passaram", { passed: st.summary.passed, total: st.summary.total }) : tn(st.summary.total, "1 passou", "{n} passaram");
   }
 
   private empty(msg: string) {
@@ -102,57 +103,57 @@ export class TestsPanel {
     counts.className = "tests-counts";
     const passed = f.tests.filter((t) => t.status === "passou").length;
     const bad = f.tests.filter((t) => t.status === "falhou" || t.status === "erro").length;
-    counts.textContent = f.error ? "não compilou" : bad ? `${passed} ✓ ${bad} ✗` : passed ? `${passed} ✓` : `${f.tests.length} teste${f.tests.length === 1 ? "" : "s"}`;
+    counts.textContent = f.error ? t("não compilou") : bad ? `${passed} ✓ ${bad} ✗` : passed ? `${passed} ✓` : tn(f.tests.length, "{n} teste", "{n} testes");
     if (f.error || bad) counts.classList.add("fail"); else if (passed) counts.classList.add("ok");
-    const run = this.runButton("Executar os testes deste arquivo", running, () => this.onRunFile?.(f.file));
+    const run = this.runButton(t("Executar os testes deste arquivo"), running, () => this.onRunFile?.(f.file));
     head.append(run, name, counts);
     sec.appendChild(head);
     if (f.error) {
       const err = document.createElement("div");
       err.className = "tests-msg fail";
       const link = document.createElement("a");
-      link.href = "#"; link.textContent = `${f.error.errFile === f.file ? "" : f.error.errFile + ":"}linha ${f.error.line}`;
+      link.href = "#"; link.textContent = (f.error.errFile === f.file ? "" : f.error.errFile + ":") + t("linha {line}", { line: f.error.line });
       const errAt = f.error;
       link.addEventListener("click", (e) => { e.preventDefault(); this.onGoTo?.(errAt.errFile, errAt.line, errAt.col); });
       err.append(document.createTextNode(f.error.message + " "), link);
       sec.appendChild(err);
     }
-    for (const t of f.tests) sec.appendChild(this.testRow(f, t, running));
+    for (const te of f.tests) sec.appendChild(this.testRow(f, te, running));
     return sec;
   }
 
-  private testRow(f: TestFileEntry, t: TestEntry, running: boolean): HTMLElement {
+  private testRow(f: TestFileEntry, te: TestEntry, running: boolean): HTMLElement {
     const row = document.createElement("div");
-    row.className = "tests-row " + t.status;
+    row.className = "tests-row " + te.status;
     const icon = document.createElement("span");
-    icon.className = "tests-icon"; icon.textContent = ICON[t.status];
+    icon.className = "tests-icon"; icon.textContent = ICON[te.status];
     const name = document.createElement("a");
-    name.href = "#"; name.className = "tests-name"; name.textContent = t.name; name.title = `linha ${t.line}`;
-    name.addEventListener("click", (e) => { e.preventDefault(); this.onGoTo?.(f.file, t.line, 1); });
+    name.href = "#"; name.className = "tests-name"; name.textContent = te.name; name.title = t("linha {line}", { line: te.line });
+    name.addEventListener("click", (e) => { e.preventDefault(); this.onGoTo?.(f.file, te.line, 1); });
     const ms = document.createElement("span");
-    ms.className = "tests-ms"; ms.textContent = t.ms !== undefined ? fmt(t.ms) : "";
-    const run = this.runButton("Executar só este teste", running, () => this.onRunTest?.(f.file, t.name));
+    ms.className = "tests-ms"; ms.textContent = te.ms !== undefined ? fmt(te.ms) : "";
+    const run = this.runButton(t("Executar só este teste"), running, () => this.onRunTest?.(f.file, te.name));
     row.append(run, icon, name, ms);
     const wrap = document.createElement("div");
     wrap.appendChild(row);
-    if (t.message) {
+    if (te.message) {
       const msg = document.createElement("div");
-      msg.className = "tests-msg " + (t.status === "erro" ? "err" : "fail");
-      msg.appendChild(document.createTextNode(t.message + " "));
-      if (t.errLine) {
+      msg.className = "tests-msg " + (te.status === "erro" ? "err" : "fail");
+      msg.appendChild(document.createTextNode(te.message + " "));
+      if (te.errLine) {
         const link = document.createElement("a");
         link.href = "#";
-        link.textContent = `(${t.errFile && t.errFile !== f.file ? t.errFile + ":" : "linha "}${t.errLine})`;
-        link.addEventListener("click", (e) => { e.preventDefault(); this.onGoTo?.(t.errFile ?? f.file, t.errLine!, t.errCol ?? 1); });
+        link.textContent = te.errFile && te.errFile !== f.file ? `(${te.errFile}:${te.errLine})` : t("(linha {line})", { line: te.errLine });
+        link.addEventListener("click", (e) => { e.preventDefault(); this.onGoTo?.(te.errFile ?? f.file, te.errLine!, te.errCol ?? 1); });
         msg.appendChild(link);
       }
       wrap.appendChild(msg);
     }
-    if (t.output && t.status !== "passou") {
+    if (te.output && te.status !== "passou") {
       const out = document.createElement("pre");
       out.className = "tests-output";
-      out.textContent = t.output.length > 2000 ? t.output.slice(0, 2000) + "…" : t.output;
-      out.title = "Saída escrita durante o teste";
+      out.textContent = te.output.length > 2000 ? te.output.slice(0, 2000) + "…" : te.output;
+      out.title = t("Saída escrita durante o teste");
       wrap.appendChild(out);
     }
     return wrap;
@@ -174,11 +175,11 @@ export class TestsPanel {
     const files = Object.keys(cov.files).sort();
     let totalExec = 0, totalHit = 0;
     for (const f of files) { totalExec += cov.files[f].executable.length; totalHit += cov.files[f].hit.length; }
-    h.textContent = `Cobertura ${pct(totalHit, totalExec)}`;
-    h.title = "Linhas de comando executadas por algum teste (os próprios testes não contam)";
+    h.textContent = t("Cobertura {pct}", { pct: pct(totalHit, totalExec) });
+    h.title = t("Linhas de comando executadas por algum teste (os próprios testes não contam)");
     sec.appendChild(h);
     if (!files.length) {
-      const e = document.createElement("div"); e.className = "vars-none"; e.textContent = "nenhum código para medir"; sec.appendChild(e);
+      const e = document.createElement("div"); e.className = "vars-none"; e.textContent = t("nenhum código para medir"); sec.appendChild(e);
       return sec;
     }
     for (const file of files) {
@@ -192,7 +193,7 @@ export class TestsPanel {
       const bar = this.bar(fc.hit.length, fc.executable.length);
       const p = document.createElement("span"); p.className = "tests-cov-pct " + level(fc.hit.length, fc.executable.length);
       p.textContent = pct(fc.hit.length, fc.executable.length);
-      p.title = `${fc.hit.length} de ${fc.executable.length} linhas`;
+      p.title = t("{hit} de {total} linhas", { hit: fc.hit.length, total: fc.executable.length });
       head.append(caret, name, bar, p);
       head.addEventListener("click", () => {
         if (this.openCov.has(file)) this.openCov.delete(file); else this.openCov.add(file);
@@ -208,9 +209,9 @@ export class TestsPanel {
         r.href = "#"; r.className = "tests-cov-fn " + level(fn.hit, fn.total);
         r.textContent = fn.name;
         const fp = document.createElement("span"); fp.className = "tests-cov-fn-pct";
-        fp.textContent = fn.hit === 0 ? "sem testes" : pct(fn.hit, fn.total);
+        fp.textContent = fn.hit === 0 ? t("sem testes") : pct(fn.hit, fn.total);
         r.appendChild(fp);
-        r.title = `linha ${fn.line}: ${fn.hit} de ${fn.total} linhas executadas`;
+        r.title = t("linha {line}: {hit} de {total} linhas executadas", { line: fn.line, hit: fn.hit, total: fn.total });
         r.addEventListener("click", (e) => { e.preventDefault(); this.onGoTo?.(fn.file, fn.line, 1); });
         fns.appendChild(r);
       }
@@ -240,7 +241,7 @@ function level(hit: number, total: number) {
   return r >= 0.999 ? "full" : r > 0 ? "part" : "zero";
 }
 function fmt(ms: number) {
-  return ms < 1 ? "<1 ms" : ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`;
+  return ms < 1 ? t("<1 ms") : ms < 1000 ? t("{ms} ms", { ms: Math.round(ms) }) : t("{s} s", { s: (ms / 1000).toFixed(2) });
 }
 
 /** Aplica um resultado vindo do worker na lista. */

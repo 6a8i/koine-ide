@@ -3,6 +3,8 @@
  * Usada no painel lateral "Referência" e nas dicas ao passar o mouse no editor.
  */
 import { Lang } from "../lang/shared/types";
+import { Locale, toCanonicalMap, translateSource, word } from "../lang/i18n";
+import { REF_I18N } from "./i18n";
 
 export type RefCategory = "estrutura" | "tipo" | "controle" | "operador" | "entrada-saida" | "funcao" | "outro";
 
@@ -230,8 +232,35 @@ export const CATEGORIES: RefCategory[] = ["estrutura", "tipo", "controle", "oper
 
 const indexCache = new Map<Lang, Map<string, RefEntry>>();
 
-/** Encontra a entrada para uma palavra do código (nome, apelido ou primeira palavra do nome). */
-export function findReference(lang: Lang, word: string): RefEntry | null {
+/** Nome de entrada no idioma: traduz cada palavra canônica (ex.: "Matematica.raiz", "inclua biblioteca"). */
+export function localizeName(lang: Lang, locale: Locale, name: string): string {
+  if (locale === "pt-BR") return name;
+  return name.replace(/[\p{L}_][\p{L}\p{N}_]*/gu, (w) => word(lang, locale, w));
+}
+
+/** Entrada pronta para exibir no idioma: nome e apelidos traduzidos, resumo do dicionário, código convertido. */
+export function localizeEntry(lang: Lang, locale: Locale, e: RefEntry): RefEntry {
+  if (locale === "pt-BR") return e;
+  const tr = REF_I18N[locale]?.[`${lang}:${e.name}`];
+  return {
+    ...e,
+    name: localizeName(lang, locale, e.name),
+    summary: tr?.summary ?? e.summary,
+    syntax: tr?.syntax ?? (e.syntax ? translateSource(lang, e.syntax, "pt-BR", locale) : undefined),
+    example: e.example ? translateSource(lang, e.example, "pt-BR", locale) : undefined,
+    aliases: e.aliases?.map((a) => localizeName(lang, locale, a)),
+  };
+}
+
+/** Encontra a entrada para uma palavra do código (nome, apelido ou primeira palavra do nome), no idioma dado ou em português. */
+export function findReference(lang: Lang, word: string, locale: Locale = "pt-BR"): RefEntry | null {
+  const key0 = lang === "visualg" ? word.toLowerCase() : word;
+  const canon = toCanonicalMap(lang, locale)?.get(key0) ?? word;
+  const found = findCanonical(lang, canon);
+  return found ? localizeEntry(lang, locale, found) : null;
+}
+
+function findCanonical(lang: Lang, word: string): RefEntry | null {
   let idx = indexCache.get(lang);
   if (!idx) {
     idx = new Map();

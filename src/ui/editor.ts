@@ -1,4 +1,4 @@
-import { EditorState, Compartment, Extension, StateEffect } from "@codemirror/state";
+import { EditorState, Compartment, Extension, StateEffect, TransactionSpec } from "@codemirror/state";
 import {
   EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection,
   highlightSpecialChars, rectangularSelection, crosshairCursor, dropCursor,
@@ -10,6 +10,7 @@ import { searchKeymap, highlightSelectionMatches, search } from "@codemirror/sea
 import { lintKeymap, setDiagnostics, Diagnostic } from "@codemirror/lint";
 import { tags as t } from "@lezer/highlight";
 import { Lang } from "../lang/shared/types";
+import { Locale } from "../lang/i18n";
 import { Snapshot } from "../lang/shared/debug";
 import { languageSupport, completionSource } from "./languages";
 import { debugExtensions, breakpointLines, setDebugLine, clearBreakpoints } from "./debug";
@@ -79,6 +80,8 @@ export class Editor {
   private langConf = new Compartment();
   private wrapConf = new Compartment();
   lang: Lang;
+  /** idioma das palavras reservadas (destaque, autocompletar, dicas) */
+  locale: Locale = "pt-BR";
   onChange: (() => void) | null = null;
   onCursor: ((line: number, col: number) => void) | null = null;
   onBreakpoints: ((lines: number[]) => void) | null = null;
@@ -121,7 +124,7 @@ export class Editor {
         debugExtensions({
           snapshot: () => this.snapshot,
           caseInsensitive: () => this.lang === "visualg",
-          reference: (w) => referenceTip(this.lang, w),
+          reference: (w) => referenceTip(this.lang, w, this.locale),
         }, breakpoints),
         lineNumbers(),
         highlightActiveLineGutter(),
@@ -162,13 +165,24 @@ export class Editor {
   }
 
   private langExt(lang: Lang) {
-    const support = languageSupport(lang);
-    return [support, support.language.data.of({ autocomplete: completionSource(lang) })];
+    const support = languageSupport(lang, this.locale);
+    return [support, support.language.data.of({ autocomplete: completionSource(lang, this.locale) })];
   }
 
   setLang(lang: Lang) {
     this.lang = lang;
     this.view.dispatch({ effects: this.langConf.reconfigure(this.langExt(lang)) });
+  }
+
+  /** Troca o idioma das palavras reservadas no editor ativo (os outros documentos passam por `relocalize`). */
+  setLocale(locale: Locale) {
+    this.locale = locale;
+    this.view.dispatch({ effects: this.langConf.reconfigure(this.langExt(this.lang)) });
+  }
+
+  /** Transação que atualiza destaque/autocompletar de um estado guardado (aba em segundo plano) para o idioma atual. */
+  relocalize(lang: Lang): TransactionSpec {
+    return { effects: this.langConf.reconfigure(this.langExt(lang)) };
   }
 
   get text() {

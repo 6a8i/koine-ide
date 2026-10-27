@@ -1,7 +1,7 @@
 import { BREAK, CompileOptions, Host, PortugolError, Program, ReturnSignal } from "../shared/types";
 import { CoverageCollector, CoverageUnit, TestInfo, statementLines } from "../shared/testing";
 import { SourceFile } from "../protocol";
-import { MAX_CALL_DEPTH, Ref, StructVal, ObjVal, copyStruct, structEquals, finalizeError, parseIntStrict, parseRealStrict, stackOverflow, wrapJsError } from "../shared/runtime";
+import { MAX_CALL_DEPTH, Ref, StructVal, ObjVal, copyStruct, structEquals, finalizeError, parseIntStrict, parseRealStrict, stackOverflow, wrapJsError, parseBool, BOOL_WORDS } from "../shared/runtime";
 import { linkModules } from "../shared/modules";
 import * as A from "./ast";
 import { TypeRef, typeName } from "./ast";
@@ -57,7 +57,7 @@ export function compileStudioProject(files: SourceFile[], entry: string, opts: C
   const names = files.map((f) => f.path);
   let entryIndex = names.indexOf(entry);
   if (entryIndex < 0) entryIndex = 0;
-  const raws: RawModule[] = files.map((f, i) => parseStudio(f.source, i, f.path));
+  const raws: RawModule[] = files.map((f, i) => parseStudio(f.source, i, f.path, opts.locale ?? "pt-BR"));
   const entryRaw = raws[entryIndex];
   if (entryRaw.importable && !opts.tests) {
     throw new PortugolError(`O arquivo ${entryRaw.file} não tem a função "inicio" e não pode ser executado diretamente. Execute o arquivo principal do projeto`, 1, 1, "sintaxe", entryIndex);
@@ -857,10 +857,9 @@ class StudioProgram implements Program {
         return v;
       }
       case "logico": {
-        const s = line.trim().toLowerCase();
-        if (s === "verdadeiro" || s === "v" || s === "true" || s === "1") return true;
-        if (s === "falso" || s === "f" || s === "false" || s === "0") return false;
-        throw rt(`Valor inválido: "${line}" não é um valor lógico (digite verdadeiro ou falso)`, n);
+        const b = parseBool(line);
+        if (b !== null) return b;
+        throw rt(`Valor inválido: "${line}" não é um valor lógico (digite ${BOOL_WORDS.yes} ou ${BOOL_WORDS.no})`, n);
       }
       case "caracter": return line.length ? line[0] : "";
       default: return line;

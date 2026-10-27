@@ -1,5 +1,6 @@
 /** Painel "Projeto": árvore de arquivos da pasta aberta. */
 import { TreeNode } from "../project";
+import { t } from "../i18n";
 
 export interface FileTreeEvents {
   open(node: TreeNode): void;
@@ -31,16 +32,16 @@ export class FileTree {
       const empty = document.createElement("div");
       empty.className = "tree-empty";
       const p = document.createElement("p");
-      p.textContent = "Nenhuma pasta aberta.";
+      p.textContent = t("Nenhuma pasta aberta.");
       const b = document.createElement("button");
       b.className = "btn small";
-      b.textContent = "Abrir pasta…";
+      b.textContent = t("Abrir pasta…");
       b.addEventListener("click", () => this.ev.openFolder());
       empty.append(p, b);
       if (recents.length) {
         const h = document.createElement("div");
         h.className = "ex-group";
-        h.textContent = "Recentes";
+        h.textContent = t("Recentes");
         empty.appendChild(h);
         for (const r of recents) {
           const row = document.createElement("div");
@@ -53,7 +54,7 @@ export class FileTree {
           const x = document.createElement("button");
           x.className = "recent-forget";
           x.textContent = "×";
-          x.title = "Remover da lista";
+          x.title = t("Remover da lista");
           x.addEventListener("click", () => this.ev.forgetRecent(r));
           row.append(a, x);
           empty.appendChild(row);
@@ -75,7 +76,8 @@ export class FileTree {
       if (n.key === activeKey) row.classList.add("active");
       if (n.key === entryKey) row.classList.add("entry");
       if (n.lang) row.dataset.lang = n.lang;
-      row.innerHTML = `<span class="tree-chevron">${n.kind === "dir" ? (isOpen ? "▾" : "▸") : ""}</span><span class="tree-icon"></span><span class="tree-name"></span>${n.key === entryKey ? '<span class="tree-badge" title="Arquivo principal">▶</span>' : ""}`;
+      row.innerHTML = `<span class="tree-chevron">${n.kind === "dir" ? (isOpen ? "▾" : "▸") : ""}</span><span class="tree-icon"></span><span class="tree-name"></span>${n.key === entryKey ? '<span class="tree-badge">▶</span>' : ""}`;
+      if (n.key === entryKey) row.querySelector<HTMLElement>(".tree-badge")!.title = t("Arquivo principal");
       row.querySelector(".tree-name")!.textContent = n.name;
       row.title = n.path;
       row.addEventListener("click", () => { this.focusedKey = n.key; n.kind === "dir" ? this.ev.toggle(n) : this.ev.open(n); });

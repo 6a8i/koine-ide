@@ -208,5 +208,5 @@ pub fn run() {
             read_file, write_file, list_dir, stat_path, create_file, create_dir, rename_path, delete_path, reveal_path, startup_path
         ])
         .run(tauri::generate_context!())
-        .expect("erro ao iniciar o Portugol IDE");
+        .expect("erro ao iniciar o Koiné IDE");
 }

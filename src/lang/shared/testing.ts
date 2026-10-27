@@ -5,6 +5,7 @@
 import { Host, Lang, PortugolError } from "./types";
 import { StructVal, ObjVal, structEquals } from "./runtime";
 import { describeValue } from "./debug";
+import { Locale, escapeRe, wordAlternatives } from "../i18n";
 
 // ======================= descoberta =======================
 
@@ -17,14 +18,15 @@ export interface TestInfo {
 }
 
 /** true se o arquivo tem pelo menos um bloco `teste "..."`. */
-export function hasTests(lang: Lang, src: string): boolean {
-  return discoverTests(lang, src).length > 0;
+export function hasTests(lang: Lang, src: string, locale: Locale = "pt-BR"): boolean {
+  return discoverTests(lang, src, locale).length > 0;
 }
 
-/** Lista rápida (por texto, sem compilar) dos testes de um arquivo: nome e linha. */
-export function discoverTests(_lang: Lang, src: string): { name: string; line: number }[] {
+/** Lista rápida (por texto, sem compilar) dos testes de um arquivo: nome e linha. Aceita a palavra do idioma e a portuguesa. */
+export function discoverTests(lang: Lang, src: string, locale: Locale = "pt-BR"): { name: string; line: number }[] {
   const out: { name: string; line: number }[] = [];
-  const re = /^[ \t]*teste[ \t]+"((?:[^"\\]|\\.)*)"/gim;
+  const kw = wordAlternatives(lang, locale, "teste").map(escapeRe).join("|");
+  const re = new RegExp(`^[ \\t]*(?:${kw})[ \\t]+"((?:[^"\\\\]|\\\\.)*)"`, "gimu");
   let m: RegExpExecArray | null;
   while ((m = re.exec(src))) {
     const line = src.slice(0, m.index).split("\n").length;

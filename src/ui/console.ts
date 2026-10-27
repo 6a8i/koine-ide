@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+
 const MAX_CHARS = 150_000;
 const FLUSH_MS = 40;
 
@@ -106,7 +108,7 @@ export class ConsolePanel {
     if (this.out.querySelector(".c-trim")) return;
     const s = document.createElement("span");
     s.className = "c-trim c-sys";
-    s.textContent = "… (saída anterior removida para economizar memória)\n";
+    s.textContent = t("… (saída anterior removida para economizar memória)") + "\n";
     this.out.prepend(s);
   }
 
@@ -132,7 +134,7 @@ export class ConsolePanel {
       const link = document.createElement("a");
       link.href = "#";
       link.className = "c-error-pos";
-      link.textContent = (file ? file + ": " : "") + `Linha ${line}` + (col > 0 ? `, coluna ${col}` : "");
+      link.textContent = (file ? file + ": " : "") + t("Linha {line}", { line }) + (col > 0 ? t(", coluna {col}", { col }) : "");
       link.addEventListener("click", (e) => { e.preventDefault(); this.onGoTo?.(line, col, file || undefined); });
       body.appendChild(link);
       body.appendChild(document.createTextNode(": "));

@@ -1,12 +1,13 @@
 /** Abertura/salvamento de arquivos: usa o Tauri quando disponível; no navegador usa fallbacks. */
+import { t } from "../i18n";
 
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-const FILTERS = [
-  { name: "Programas Portugol", extensions: ["por", "alg"] },
+const FILTERS = () => [
+  { name: t("Programas Portugol"), extensions: ["por", "alg"] },
   { name: "Portugol Studio", extensions: ["por"] },
   { name: "VisuAlg", extensions: ["alg"] },
-  { name: "Todos os arquivos", extensions: ["*"] },
+  { name: t("Todos os arquivos"), extensions: ["*"] },
 ];
 
 export interface OpenedFile {
@@ -18,7 +19,7 @@ export interface OpenedFile {
 export async function openFile(): Promise<OpenedFile | null> {
   if (isTauri) {
     const { open } = await import("@tauri-apps/plugin-dialog");
-    const path = await open({ multiple: false, directory: false, filters: FILTERS, title: "Abrir programa" });
+    const path = await open({ multiple: false, directory: false, filters: FILTERS(), title: t("Abrir programa") });
     if (!path) return null;
     const content = await readTextFile(path);
     return { path, name: baseName(path), content };
@@ -62,7 +63,7 @@ export interface PathInfo { exists: boolean; isDir: boolean; mtimeMs: number }
 export async function pickFolder(): Promise<string | null> {
   if (!isTauri) return null;
   const { open } = await import("@tauri-apps/plugin-dialog");
-  const p = await open({ directory: true, multiple: false, title: "Abrir pasta do projeto" });
+  const p = await open({ directory: true, multiple: false, title: t("Abrir pasta do projeto") });
   return typeof p === "string" ? p : null;
 }
 /** Lista recursivamente a pasta (só .por/.alg e subpastas). */
@@ -98,7 +99,7 @@ export async function saveFile(content: string, path: string | null, suggestedNa
     const { save } = await import("@tauri-apps/plugin-dialog");
     let target = path;
     if (!target || forceDialog) {
-      target = await save({ defaultPath: path ?? suggestedName, filters: FILTERS, title: "Salvar programa" });
+      target = await save({ defaultPath: path ?? suggestedName, filters: FILTERS(), title: t("Salvar programa") });
       if (!target) return null;
       if (!/\.[^./\\]+$/.test(target)) target += "." + (suggestedName.split(".").pop() ?? "por");
     }
@@ -115,10 +116,10 @@ export async function saveFile(content: string, path: string | null, suggestedNa
   return { path: null, name: suggestedName };
 }
 
-export async function confirmDialog(message: string, title = "Portugol IDE"): Promise<boolean> {
+export async function confirmDialog(message: string, title = "Koiné IDE"): Promise<boolean> {
   if (isTauri) {
     const { ask } = await import("@tauri-apps/plugin-dialog");
-    return ask(message, { title, kind: "warning", okLabel: "Sim", cancelLabel: "Não" });
+    return ask(message, { title, kind: "warning", okLabel: t("Sim"), cancelLabel: t("Não") });
   }
   return window.confirm(message);
 }

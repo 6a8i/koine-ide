@@ -34,6 +34,8 @@ export interface LexerOptions {
   singleQuoteChar: boolean;
   /** Permite escapes \n \t \" dentro de strings. */
   escapes: boolean;
+  /** Idioma: palavra localizada → palavra canônica (português). Chaves em minúsculas quando caseInsensitive. */
+  translate?: Map<string, string>;
 }
 
 const isIdentStart = (c: string) => /[\p{L}_]/u.test(c);
@@ -138,8 +140,9 @@ export function tokenize(src: string, opt: LexerOptions, fileIndex = 0): Token[]
       while (i < n && isIdentPart(src[i])) adv();
       const raw = src.slice(start, i);
       const key = opt.caseInsensitive ? raw.toLowerCase() : raw;
-      if (opt.keywords.has(key)) push("keyword", key, raw, l, c, start);
-      else push("ident", opt.caseInsensitive ? key : raw, raw, l, c, start);
+      const canon = opt.translate?.get(key) ?? key;
+      if (opt.keywords.has(canon)) push("keyword", canon, raw, l, c, start);
+      else push("ident", opt.caseInsensitive || canon !== key ? canon : raw, raw, l, c, start);
       continue;
     }
     // strings

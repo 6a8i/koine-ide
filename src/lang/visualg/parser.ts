@@ -5,6 +5,7 @@ import { SourceFile } from "../protocol";
 import * as A from "./ast";
 import { T, T_UNK, TypeRef, typeName, isAggregate, withDims } from "./ast";
 import { BUILTINS } from "./builtins";
+import { Locale, registerLexerConfig, toCanonicalMap } from "../i18n";
 
 const KEYWORDS = new Set([
   "algoritmo", "var", "inicio", "fimalgoritmo", "const",
@@ -52,7 +53,9 @@ function assignable(to: TypeRef, from: TypeRef): boolean {
 const isNum = (t: TypeRef) => t.dims === 0 && (t.base === "inteiro" || t.base === "real");
 const needsCopy = (t: TypeRef, e: A.Expr) => t.base === "registro" && t.dims === 0 && A.isLValue(e);
 
-function lex(src: string, fileIndex: number): Token[] {
+registerLexerConfig("visualg", KEYWORDS, OPERATORS);
+
+function lex(src: string, fileIndex: number, locale: Locale = "pt-BR"): Token[] {
   return tokenize(src, {
     keywords: KEYWORDS,
     caseInsensitive: true,
@@ -61,6 +64,7 @@ function lex(src: string, fileIndex: number): Token[] {
     braceComments: true,
     singleQuoteChar: false,
     escapes: false,
+    translate: toCanonicalMap("visualg", locale),
   }, fileIndex);
 }
 
@@ -137,7 +141,7 @@ export function parseVisualgProject(files: SourceFile[], entry: string, baseInde
   const names = files.map((f) => f.path);
   let entryIndex = names.indexOf(entry);
   if (entryIndex < 0) entryIndex = 0;
-  const headers = files.map((f, i) => scanHeader(lex(f.source, baseIndex + i), baseIndex + i, f.path));
+  const headers = files.map((f, i) => scanHeader(lex(f.source, baseIndex + i, opts.locale ?? "pt-BR"), baseIndex + i, f.path));
   const entryHeader = headers[entryIndex];
   if (entryHeader.importable && !opts.tests) {
     throw new PortugolError(`O arquivo ${entryHeader.file} é um módulo (começa com "modulo") e não pode ser executado diretamente. Execute o arquivo do algoritmo principal`, 1, 1, "sintaxe", entryHeader.fileIndex);

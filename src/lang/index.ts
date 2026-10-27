@@ -2,6 +2,7 @@ import { compileStudio, compileStudioProject } from "./studio/interpreter";
 import { compileVisualg, compileVisualgProject } from "./visualg/interpreter";
 import { CompileOptions, Lang, Program } from "./shared/types";
 import { SourceFile } from "./protocol";
+import { Locale, escapeRe, wordAlternatives } from "./i18n";
 
 /** Compila um único arquivo (atalho usado pelos testes). */
 export function compile(lang: Lang, src: string): Program {
@@ -25,16 +26,21 @@ export function langFromFilename(name: string): Lang | null {
   return null;
 }
 
-/** true se o arquivo tem um ponto de entrada (funcao inicio / algoritmo) e pode ser executado. */
-export function hasEntryPoint(lang: Lang, src: string): boolean {
-  return lang === "visualg" ? /^\s*algoritmo\b/im.test(src) : /\bfuncao\s+inicio\s*\(/.test(src);
+const alt = (lang: Lang, locale: Locale, canonical: string) => wordAlternatives(lang, locale, canonical).map(escapeRe).join("|");
+
+/** true se o arquivo tem um ponto de entrada (funcao inicio / algoritmo) e pode ser executado. Aceita as palavras do idioma e as portuguesas. */
+export function hasEntryPoint(lang: Lang, src: string, locale: Locale = "pt-BR"): boolean {
+  return lang === "visualg"
+    ? new RegExp(`^\\s*(?:${alt(lang, locale, "algoritmo")})(?![\\p{L}\\p{N}_])`, "imu").test(src)
+    : new RegExp(`(?<![\\p{L}\\p{N}_])(?:${alt(lang, locale, "funcao")})\\s+(?:${alt(lang, locale, "inicio")})\\s*\\(`, "u").test(src);
 }
 
 /** Detecta a linguagem pelo conteúdo (quando o arquivo não tem extensão conhecida). */
-export function detectLang(src: string): Lang {
-  const head = src.slice(0, 2000).toLowerCase();
-  if (/^\s*(\/\/.*\n\s*)*programa\s*\{/.test(head) || /\bfuncao\s+inicio\s*\(/.test(head)) return "studio";
-  if (/\balgoritmo\b/.test(head) || /\bfimalgoritmo\b/.test(head)) return "visualg";
+export function detectLang(src: string, locale: Locale = "pt-BR"): Lang {
+  const head = src.slice(0, 2000);
+  const low = head.toLowerCase();
+  if (new RegExp(`^\\s*(\\/\\/.*\\n\\s*)*(?:${alt("studio", locale, "programa")})\\s*\\{`, "u").test(head) || hasEntryPoint("studio", head, locale)) return "studio";
+  if (new RegExp(`(?<![\\p{L}\\p{N}_])(?:${alt("visualg", locale, "algoritmo")}|${alt("visualg", locale, "fimalgoritmo")})(?![\\p{L}\\p{N}_])`, "iu").test(low)) return "visualg";
   return "studio";
 }
 

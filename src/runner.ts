@@ -2,6 +2,7 @@ import { FileBreakpoint, FromWorker, SourceFile, TestSelector, ToWorker } from "
 import { Lang } from "./lang/shared/types";
 import { DebugCommand, Snapshot } from "./lang/shared/debug";
 import { CoverageReport, TestResult } from "./lang/shared/testing";
+import { Locale } from "./lang/i18n";
 
 export interface RunError { message: string; line: number; col: number; kind: string; file: string }
 
@@ -52,15 +53,15 @@ export class Runner {
   /** true enquanto uma execução de testes está em andamento */
   testing = false;
 
-  run(lang: Lang, files: SourceFile[], entry: string, debug?: { breakpoints: FileBreakpoint[] }) {
+  run(lang: Lang, files: SourceFile[], entry: string, debug?: { breakpoints: FileBreakpoint[] }, locale?: Locale) {
     this.startWorker(!!debug, false);
-    this.post({ type: "run", lang, files, entry, debug });
+    this.post({ type: "run", lang, files, entry, debug, locale });
   }
 
   /** Executa os testes do projeto (todos, ou só os selecionados). */
-  runTests(lang: Lang, files: SourceFile[], only?: TestSelector[]) {
+  runTests(lang: Lang, files: SourceFile[], only?: TestSelector[], locale?: Locale) {
     this.startWorker(false, true);
-    this.post({ type: "runTests", lang, files, only });
+    this.post({ type: "runTests", lang, files, only, locale });
   }
 
   private startWorker(debugging: boolean, testing: boolean) {

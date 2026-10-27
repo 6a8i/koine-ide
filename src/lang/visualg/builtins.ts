@@ -1,6 +1,6 @@
 import { Builtin, T, TypeRef } from "./ast";
 import { PortugolError } from "../shared/types";
-import { StructVal, ObjVal } from "../shared/runtime";
+import { StructVal, ObjVal, formatBool } from "../shared/runtime";
 import { ASSERTS } from "../shared/testing";
 
 const INT = T("inteiro"), REAL = T("real"), CAR = T("caractere");
@@ -69,7 +69,7 @@ export function formatNumberVisualg(v: number, leadingSpace = true): string {
 }
 
 export function formatVisualg(v: unknown, t: TypeRef): string {
-  if (typeof v === "boolean") return v ? " VERDADEIRO" : " FALSO";
+  if (typeof v === "boolean") return " " + formatBool(v).toUpperCase();
   if (typeof v === "number") return formatNumberVisualg(v);
   if (v === null) return "nulo";
   if (v === undefined) return "";
@@ -85,7 +85,7 @@ function formatAggregate(v: StructVal | ObjVal, depth: number): string {
   const item = (x: unknown): string => {
     if (x === null) return "nulo";
     if (typeof x === "string") return JSON.stringify(x);
-    if (typeof x === "boolean") return x ? "VERDADEIRO" : "FALSO";
+    if (typeof x === "boolean") return formatBool(x).toUpperCase();
     if (typeof x === "number") return formatNumberVisualg(x, false);
     if (x instanceof StructVal || x instanceof ObjVal) return formatAggregate(x, depth + 1);
     if (x && typeof x === "object" && Array.isArray((x as { data?: unknown[] }).data)) return "[" + (x as { data: unknown[] }).data.map(item).join(", ") + "]";
@@ -108,7 +108,7 @@ export function formatWithWidth(v: unknown, width: number | null, decimals: numb
     else if (v >= 0 && decimals === null) s = " " + s;
     return s;
   }
-  let s = typeof v === "boolean" ? (v ? "VERDADEIRO" : "FALSO") : String(v ?? "");
+  let s = typeof v === "boolean" ? formatBool(v).toUpperCase() : String(v ?? "");
   if (width !== null) s = s.padStart(width, " ");
   return s;
 }
