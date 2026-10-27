@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --bg1: #0b1020; --bg2: #16213f; --accent: #6b94ff; --fg: #eef2ff; --muted: #a7b1c8; }
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1280px; height: 640px; overflow: hidden; font-family: "Segoe UI", system-ui, sans-serif; color: var(--fg);
+    background: radial-gradient(1100px 600px at 85% 10%, #2a3f86 0%, transparent 60%), radial-gradient(800px 500px at 10% 100%, #1f7a5c 0%, transparent 55%), linear-gradient(135deg, var(--bg1), var(--bg2)); }
+  .wrap { position: relative; width: 100%; height: 100%; padding: 56px 64px; display: grid; grid-template-columns: 1.05fr 1fr; gap: 36px; align-items: center; }
+  .brand { display: flex; align-items: center; gap: 16px; margin-bottom: 26px; }
+  .brand img { width: 64px; height: 64px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+  .brand .name { font-size: 40px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand .name span { color: var(--accent); }
+  h1 { font-size: 54px; line-height: 1.08; letter-spacing: -0.02em; font-weight: 800; margin-bottom: 18px; }
+  h1 em { font-style: normal; color: #9fe3c2; }
+  p.lead { font-size: 22px; color: var(--muted); line-height: 1.4; max-width: 560px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+  .pill { font-size: 15px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); }
+  .url { position: absolute; left: 64px; bottom: 36px; font-size: 20px; color: var(--muted); }
+  .url b { color: var(--fg); font-weight: 600; }
+  .free { display: inline-block; margin-top: 22px; font-size: 15px; color: #9fe3c2; border: 1px solid rgba(159,227,194,.5); padding: 6px 12px; border-radius: 8px; }
+  .codes { display: grid; gap: 14px; }
+  .code { background: rgba(5, 8, 18, .78); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 14px 18px; font-family: "Cascadia Code", Consolas, monospace; font-size: 17px; line-height: 1.5; box-shadow: 0 16px 40px rgba(0,0,0,.35); }
+  .code .lang { font-family: "Segoe UI", sans-serif; font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 4px; }
+  .kw { color: #c678dd; font-weight: 600; } .ty { color: #56b6c2; } .st { color: #98c379; } .fn { color: #61afef; } .bi { color: #e5c07b; } .nu { color: #d19a66; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <div class="brand"><img src="../../docs/img/icon.png" alt=""><div class="name">Koiné<span>IDE</span></div></div>
+    <h1>Aprenda a programar <em>no seu idioma</em>.</h1>
+    <p class="lead">IDE gratuita e livre para os primeiros passos em programação: pseudocódigo com palavras reservadas em dez idiomas, depurador visual, testes e cobertura.</p>
+    <div class="pills">
+      <span class="pill">Português</span><span class="pill">English</span><span class="pill">Español</span><span class="pill">Ελληνικά</span><span class="pill">Русский</span>
+      <span class="pill">Українська</span><span class="pill">Polski</span><span class="pill">日本語</span><span class="pill">한국어</span><span class="pill">中文</span>
+    </div>
+    <div class="free">Gratuito · Livre (MIT) · Sem coleta de dados</div>
+  </div>
+  <div class="codes">
+    <div class="code"><div class="lang">Português</div><span class="kw">funcao</span> <span class="fn">inicio</span>()<br>{<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ty">inteiro</span> n = <span class="nu">5</span><br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">se</span> (n &gt; <span class="nu">3</span>) { <span class="bi">escreva</span>(<span class="st">"olá"</span>) }<br>}</div>
+    <div class="code"><div class="lang">Ελληνικά</div><span class="kw">συνάρτηση</span> <span class="fn">αρχή</span>()<br>{<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ty">ακέραιος</span> n = <span class="nu">5</span><br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">αν</span> (n &gt; <span class="nu">3</span>) { <span class="bi">γράψε</span>(<span class="st">"olá"</span>) }<br>}</div>
+    <div class="code"><div class="lang">English</div><span class="kw">function</span> <span class="fn">main</span>()<br>{<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="ty">integer</span> n = <span class="nu">5</span><br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">if</span> (n &gt; <span class="nu">3</span>) { <span class="bi">write</span>(<span class="st">"olá"</span>) }<br>}</div>
+  </div>
+  <div class="url">6a8i.github.io/<b>koine-ide</b></div>
+
+</div>
+</body>
+</html>

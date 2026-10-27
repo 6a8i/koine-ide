@@ -60,6 +60,7 @@ th { background: var(--bg-soft); }
 .samples pre { margin: 0; }
 .vocab td code, .vocab th { white-space: nowrap; }
 .vocab tr.group th { background: var(--bg); color: var(--accent); padding-top: 18px; border-bottom: 2px solid var(--border); }
+video.shot { display: block; width: 100%; height: auto; background: #000; }
 .shot { border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18); margin: 14px 0 6px; }
 figure.fig { margin: 18px 0 26px; }
 figure.fig figcaption { color: var(--fg-muted); font-size: 0.9rem; margin-top: 6px; }
