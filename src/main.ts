@@ -248,8 +248,8 @@ function setTestsVisible(on: boolean) {
   }
 }
 setVarsVisible(prefs.showVars);
-btnVars.addEventListener("click", () => setVarsVisible(varsPane.hidden));
-btnTests.addEventListener("click", () => setTestsVisible(testsPane.hidden));
+btnVars.addEventListener("click", () => setVarsVisible(!!varsPane.hidden));
+btnTests.addEventListener("click", () => setTestsVisible(!!testsPane.hidden));
 btnRunTests.addEventListener("click", () => void runTests());
 
 // ---------- testes ----------
@@ -415,7 +415,7 @@ const shortcuts = Prec.highest(keymap.of([
   { key: "Ctrl-Shift-Tab", run: () => { cycleTab(-1); return true; } },
   { key: "Ctrl-PageDown", run: () => { cycleTab(1); return true; } },
   { key: "Ctrl-PageUp", run: () => { cycleTab(-1); return true; } },
-  { key: "Ctrl-b", mac: "Cmd-b", run: () => { if (isTauri) setSidebarVisible(sidebar.hidden); return true; } },
+  { key: "Ctrl-b", mac: "Cmd-b", run: () => { if (isTauri) setSidebarVisible(!!sidebar.hidden); return true; } },
 ]));
 
 const editor = new Editor($("#editor"), "", shortcuts);
@@ -866,7 +866,7 @@ document.addEventListener("keydown", (e) => {
     else if (k === "l" && !typing) { e.preventDefault(); consolePanel.clear(); }
     else if (k === "enter") { e.preventDefault(); runProgram(); }
     else if (k === "w" && !typing) { e.preventDefault(); closeActive(); }
-    else if (k === "b" && !typing) { e.preventDefault(); if (isTauri) setSidebarVisible(sidebar.hidden); }
+    else if (k === "b" && !typing) { e.preventDefault(); if (isTauri) setSidebarVisible(!!sidebar.hidden); }
     else if (k === "tab" || k === "pagedown") { e.preventDefault(); cycleTab(e.shiftKey ? -1 : 1); }
     else if (k === "pageup") { e.preventDefault(); cycleTab(-1); }
   }
@@ -887,7 +887,7 @@ btnStepOver.addEventListener("click", () => debugCmd("over"));
 btnStepInto.addEventListener("click", () => debugCmd("into"));
 btnStepOut.addEventListener("click", () => debugCmd("out"));
 btnReference.addEventListener("click", () => toggleReference(false));
-btnSidebar.addEventListener("click", () => setSidebarVisible(sidebar.hidden));
+btnSidebar.addEventListener("click", () => setSidebarVisible(!!sidebar.hidden));
 $("#btn-tree-new-file").addEventListener("click", () => (project.root ? treeNewFile(null) : openFolder()));
 $("#btn-tree-new-folder").addEventListener("click", () => (project.root ? treeNewFolder(null) : openFolder()));
 $("#btn-tree-refresh").addEventListener("click", () => project.refreshTree());
