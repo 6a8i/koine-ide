@@ -15,7 +15,8 @@ Feita com [Tauri 2](https://tauri.app) (janela nativa, instalador de poucos MB),
   arquivos em abas, com árvore de arquivos à esquerda (criar, renomear, excluir para a lixeira, definir o arquivo principal).
   F5 executa o projeto inteiro da linguagem ativa; erros e pausas do depurador abrem o arquivo certo.
 - **Módulos**: um arquivo importa outro com `importe` e usa só o que foi declarado `publico`
-  (funções, variáveis, estruturas/registros e classes). Veja a sintaxe abaixo.
+  (funções, variáveis, estruturas/registros e classes). Veja a sintaxe abaixo. O exemplo **Projeto com vários arquivos**
+  (menu *Exemplos*, nas duas linguagens) abre três abas que se importam e executam juntas, mesmo sem salvar.
 - **Estruturas/registros, classes com herança e referências seguras** nas duas linguagens.
 
 - Editor com destaque de sintaxe, autocompletar, dobra de blocos, busca (Ctrl+F) e múltiplos cursores.
