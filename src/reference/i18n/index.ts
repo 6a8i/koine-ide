@@ -1,5 +1,5 @@
 /**
- * Traduções da referência: chave `studio:<nome>` ou `visualg:<nome>` (nome em português da entrada),
+ * Traduções da referência: chave = nome em português da entrada,
  * valor com o resumo traduzido e, opcionalmente, a forma de uso. Código (sintaxe/exemplo) é convertido
  * automaticamente pelo vocabulário do idioma.
  */

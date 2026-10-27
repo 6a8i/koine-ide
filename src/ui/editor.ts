@@ -9,7 +9,6 @@ import { closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap } 
 import { searchKeymap, highlightSelectionMatches, search } from "@codemirror/search";
 import { lintKeymap, setDiagnostics, Diagnostic } from "@codemirror/lint";
 import { tags as t } from "@lezer/highlight";
-import { Lang } from "../lang/shared/types";
 import { Locale } from "../lang/i18n";
 import { Snapshot } from "../lang/shared/debug";
 import { languageSupport, completionSource } from "./languages";
@@ -79,7 +78,6 @@ export class Editor {
   view: EditorView;
   private langConf = new Compartment();
   private wrapConf = new Compartment();
-  lang: Lang;
   /** idioma das palavras reservadas (destaque, autocompletar, dicas) */
   locale: Locale = "pt-BR";
   onChange: (() => void) | null = null;
@@ -90,24 +88,22 @@ export class Editor {
   private lastBps = "";
   private keymaps: Extension;
 
-  constructor(parent: HTMLElement, lang: Lang, doc: string, keymaps: Extension) {
-    this.lang = lang;
+  constructor(parent: HTMLElement, doc: string, keymaps: Extension) {
     this.keymaps = keymaps;
-    this.view = new EditorView({ state: this.createState(doc, lang), parent });
+    this.view = new EditorView({ state: this.createState(doc), parent });
   }
 
   /** Cria o estado de um documento (cada aba tem o seu: histórico, pontos de parada, seleção...). */
-  createState(doc: string, lang: Lang, breakpoints: number[] = []): EditorState {
-    return EditorState.create({ doc, extensions: this.baseExtensions(lang, breakpoints) });
+  createState(doc: string, breakpoints: number[] = []): EditorState {
+    return EditorState.create({ doc, extensions: this.baseExtensions(breakpoints) });
   }
 
   /**
    * Troca o documento mostrado. O estado anterior é devolvido em `save` para a aba guardar.
    * `setState` não dispara o updateListener, então cursor e pontos de parada são reemitidos aqui.
    */
-  swap(next: { state: EditorState; lang: Lang; scroll: StateEffect<unknown> | null }, save?: (state: EditorState, scroll: StateEffect<unknown>) => void) {
+  swap(next: { state: EditorState; scroll: StateEffect<unknown> | null }, save?: (state: EditorState, scroll: StateEffect<unknown>) => void) {
     if (save) save(this.view.state, this.view.scrollSnapshot());
-    this.lang = next.lang;
     this.view.setState(next.state);
     if (next.scroll) this.view.dispatch({ effects: next.scroll });
     this.lastBps = breakpointLines(this.view.state).join(",");
@@ -117,14 +113,13 @@ export class Editor {
     this.onBreakpoints?.(breakpointLines(this.view.state));
   }
 
-  private baseExtensions(lang: Lang, breakpoints: number[]): Extension {
+  private baseExtensions(breakpoints: number[]): Extension {
     return [
         this.keymaps,
         coverageExtension,
         debugExtensions({
           snapshot: () => this.snapshot,
-          caseInsensitive: () => this.lang === "visualg",
-          reference: (w) => referenceTip(this.lang, w, this.locale),
+          reference: (w) => referenceTip(w, this.locale),
         }, breakpoints),
         lineNumbers(),
         highlightActiveLineGutter(),
@@ -145,7 +140,7 @@ export class Editor {
         highlightSelectionMatches(),
         search({ top: true }),
         keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...foldKeymap, ...completionKeymap, ...lintKeymap, indentWithTab]),
-        this.langConf.of(this.langExt(lang)),
+        this.langConf.of(this.langExt()),
         this.wrapConf.of([]),
         theme,
         EditorView.updateListener.of((u) => {
@@ -164,25 +159,21 @@ export class Editor {
     ];
   }
 
-  private langExt(lang: Lang) {
-    const support = languageSupport(lang, this.locale);
-    return [support, support.language.data.of({ autocomplete: completionSource(lang, this.locale) })];
+  private langExt() {
+    const support = languageSupport(this.locale);
+    return [support, support.language.data.of({ autocomplete: completionSource(this.locale) })];
   }
 
-  setLang(lang: Lang) {
-    this.lang = lang;
-    this.view.dispatch({ effects: this.langConf.reconfigure(this.langExt(lang)) });
-  }
 
   /** Troca o idioma das palavras reservadas no editor ativo (os outros documentos passam por `relocalize`). */
   setLocale(locale: Locale) {
     this.locale = locale;
-    this.view.dispatch({ effects: this.langConf.reconfigure(this.langExt(this.lang)) });
+    this.view.dispatch({ effects: this.langConf.reconfigure(this.langExt()) });
   }
 
   /** Transação que atualiza destaque/autocompletar de um estado guardado (aba em segundo plano) para o idioma atual. */
-  relocalize(lang: Lang): TransactionSpec {
-    return { effects: this.langConf.reconfigure(this.langExt(lang)) };
+  relocalize(): TransactionSpec {
+    return { effects: this.langConf.reconfigure(this.langExt()) };
   }
 
   get text() {

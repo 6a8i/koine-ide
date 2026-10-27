@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-/// Lê um arquivo de texto. Aceita UTF-8 e, como alternativa, Latin-1 (arquivos antigos do VisuAlg).
+/// Lê um arquivo de texto. Aceita UTF-8 e, como alternativa, Latin-1 (arquivos antigos em Windows-1252).
 #[tauri::command]
 fn read_file(path: String) -> Result<String, String> {
     let bytes = std::fs::read(&path).map_err(|e| format!("{}: {}", path, e))?;
@@ -36,7 +36,7 @@ struct DirEntry {
     children: Option<Vec<DirEntry>>,
 }
 
-const SOURCE_EXTS: [&str; 2] = ["por", "alg"];
+const SOURCE_EXTS: [&str; 1] = ["koi"];
 const SKIP_DIRS: [&str; 10] = ["node_modules", "target", "dist", "build", "out", "__pycache__", "bin", "obj", "$RECYCLE.BIN", "System Volume Information"];
 const MAX_DEPTH: usize = 12;
 const MAX_ENTRIES: usize = 5000;
@@ -87,7 +87,7 @@ fn list_dir_rec(dir: &Path, depth: usize, count: &mut usize) -> Result<Vec<DirEn
     Ok(dirs)
 }
 
-/// Lista recursivamente a pasta do projeto: só pastas e arquivos .por/.alg.
+/// Lista recursivamente a pasta do projeto: só pastas e arquivos .koi.
 #[tauri::command]
 fn list_dir(root: String) -> Result<DirEntry, String> {
     let p = PathBuf::from(&root);

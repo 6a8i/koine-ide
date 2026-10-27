@@ -1,8 +1,8 @@
 /**
- * Suporte a testes escritos em Portugol: descoberta, host de captura, afirmações e cobertura.
- * Independente da linguagem; os interpretadores chamam `hit()` antes de cada comando quando há um coletor ligado.
+ * Suporte a testes escritos em Koiné: descoberta, host de captura, afirmações e cobertura.
+ * O interpretador chama `hit()` antes de cada comando quando há um coletor ligado.
  */
-import { Host, Lang, PortugolError } from "./types";
+import { Host, KoineError } from "./types";
 import { StructVal, ObjVal, structEquals } from "./runtime";
 import { describeValue } from "./debug";
 import { Locale, escapeRe, wordAlternatives } from "../i18n";
@@ -18,14 +18,14 @@ export interface TestInfo {
 }
 
 /** true se o arquivo tem pelo menos um bloco `teste "..."`. */
-export function hasTests(lang: Lang, src: string, locale: Locale = "pt-BR"): boolean {
-  return discoverTests(lang, src, locale).length > 0;
+export function hasTests(src: string, locale: Locale = "pt-BR"): boolean {
+  return discoverTests(src, locale).length > 0;
 }
 
 /** Lista rápida (por texto, sem compilar) dos testes de um arquivo: nome e linha. Aceita a palavra do idioma e a portuguesa. */
-export function discoverTests(lang: Lang, src: string, locale: Locale = "pt-BR"): { name: string; line: number }[] {
+export function discoverTests(src: string, locale: Locale = "pt-BR"): { name: string; line: number }[] {
   const out: { name: string; line: number }[] = [];
-  const kw = wordAlternatives(lang, locale, "teste").map(escapeRe).join("|");
+  const kw = wordAlternatives(locale, "teste").map(escapeRe).join("|");
   const re = new RegExp(`^[ \\t]*(?:${kw})[ \\t]+"((?:[^"\\\\]|\\\\.)*)"`, "gimu");
   let m: RegExpExecArray | null;
   while ((m = re.exec(src))) {
@@ -46,7 +46,7 @@ export class TestHost implements Host {
   }
   async readLine(): Promise<string> {
     if (this.inputs.length === 0) {
-      throw new PortugolError('O programa pediu uma entrada ("leia"), mas o teste não forneceu nenhuma. Use entrada("valor") antes de chamar o código testado', 0, 0, "execucao");
+      throw new KoineError('O programa pediu uma entrada ("leia"), mas o teste não forneceu nenhuma. Use entrada("valor") antes de chamar o código testado', 0, 0, "execucao");
     }
     return this.inputs.shift()!;
   }
@@ -74,15 +74,13 @@ export function valuesEqual(a: any, b: any): boolean {
   if (a instanceof ObjVal || b instanceof ObjVal) return false;
   if (a instanceof StructVal && b instanceof StructVal) return structEquals(a, b);
   if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => valuesEqual(x, b[i]));
-  // VArray do VisuAlg
-  if (Array.isArray(a.data) && Array.isArray(b.data)) return a.lo === b.lo && valuesEqual(a.data, b.data);
   return false;
 }
 
 const show = (v: any) => describeValue(v);
-const fail = (msg: string, at: { line: number; col: number; file?: number }) => new PortugolError(msg, at.line, at.col, "teste", at.file ?? 0);
+const fail = (msg: string, at: { line: number; col: number; file?: number }) => new KoineError(msg, at.line, at.col, "teste", at.file ?? 0);
 
-/** Implementações das afirmações (as duas linguagens usam as mesmas). */
+/** Implementações das afirmações (afirme, afirme_igual, …). */
 export const ASSERTS = {
   afirme(args: any[], at: { line: number; col: number; file?: number }) {
     const [cond, msg] = args;

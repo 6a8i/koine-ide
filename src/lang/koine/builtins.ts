@@ -1,11 +1,11 @@
 import { Builtin, T, TypeRef } from "./ast";
-import { PortugolError } from "../shared/types";
+import { KoineError } from "../shared/types";
 import { formatRealJava, parseIntStrict, parseRealStrict, StructVal, ObjVal, formatBool, parseBool } from "../shared/runtime";
 import { ASSERTS } from "../shared/testing";
 
 const INT = T("inteiro"), REAL = T("real"), CAD = T("cadeia"), CAR = T("caracter"), LOG = T("logico"), VAZ = T("vazio");
 
-const rt = (msg: string, c: { line: number; col: number; file?: number }) => new PortugolError(msg, c.line, c.col, "execucao", c.file ?? 0);
+const rt = (msg: string, c: { line: number; col: number; file?: number }) => new KoineError(msg, c.line, c.col, "execucao", c.file ?? 0);
 
 export function formatValue(v: unknown, t: TypeRef | null, depth = 0): string {
   if (typeof v === "boolean") return formatBool(v);
