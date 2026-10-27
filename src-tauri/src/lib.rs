@@ -7,10 +7,18 @@ use std::time::UNIX_EPOCH;
 fn read_file(path: String) -> Result<String, String> {
     let bytes = std::fs::read(&path).map_err(|e| format!("{}: {}", path, e))?;
     // remove BOM, se houver
-    let bytes = if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) { &bytes[3..] } else { &bytes[..] };
+    let bytes = if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
+        &bytes[3..]
+    } else {
+        &bytes[..]
+    };
     match std::str::from_utf8(bytes) {
         Ok(s) => Ok(s.replace("\r\n", "\n")),
-        Err(_) => Ok(bytes.iter().map(|&b| b as char).collect::<String>().replace("\r\n", "\n")),
+        Err(_) => Ok(bytes
+            .iter()
+            .map(|&b| b as char)
+            .collect::<String>()
+            .replace("\r\n", "\n")),
     }
 }
 
@@ -37,7 +45,18 @@ struct DirEntry {
 }
 
 const SOURCE_EXTS: [&str; 1] = ["koi"];
-const SKIP_DIRS: [&str; 10] = ["node_modules", "target", "dist", "build", "out", "__pycache__", "bin", "obj", "$RECYCLE.BIN", "System Volume Information"];
+const SKIP_DIRS: [&str; 10] = [
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    "out",
+    "__pycache__",
+    "bin",
+    "obj",
+    "$RECYCLE.BIN",
+    "System Volume Information",
+];
 const MAX_DEPTH: usize = 12;
 const MAX_ENTRIES: usize = 5000;
 
@@ -64,7 +83,10 @@ fn list_dir_rec(dir: &Path, depth: usize, count: &mut usize) -> Result<Vec<DirEn
         };
         *count += 1;
         if *count > MAX_ENTRIES {
-            return Err("A pasta tem arquivos demais para ser aberta como projeto. Abra uma subpasta.".into());
+            return Err(
+                "A pasta tem arquivos demais para ser aberta como projeto. Abra uma subpasta."
+                    .into(),
+            );
         }
         if meta.is_dir() {
             if name.starts_with('.') || SKIP_DIRS.iter().any(|s| s.eq_ignore_ascii_case(&name)) {
@@ -75,9 +97,19 @@ fn list_dir_rec(dir: &Path, depth: usize, count: &mut usize) -> Result<Vec<DirEn
                 continue;
             }
             let children = list_dir_rec(&path, depth + 1, count)?;
-            dirs.push(DirEntry { name, path: path.to_string_lossy().to_string(), kind: "dir", children: Some(children) });
+            dirs.push(DirEntry {
+                name,
+                path: path.to_string_lossy().to_string(),
+                kind: "dir",
+                children: Some(children),
+            });
         } else if meta.is_file() && is_source(&path) {
-            files.push(DirEntry { name, path: path.to_string_lossy().to_string(), kind: "file", children: None });
+            files.push(DirEntry {
+                name,
+                path: path.to_string_lossy().to_string(),
+                kind: "file",
+                children: None,
+            });
         }
     }
     let key = |e: &DirEntry| e.name.to_lowercase();
@@ -96,8 +128,16 @@ fn list_dir(root: String) -> Result<DirEntry, String> {
     }
     let mut count = 0usize;
     let children = list_dir_rec(&p, 0, &mut count)?;
-    let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| root.clone());
-    Ok(DirEntry { name, path: root, kind: "dir", children: Some(children) })
+    let name = p
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| root.clone());
+    Ok(DirEntry {
+        name,
+        path: root,
+        kind: "dir",
+        children: Some(children),
+    })
 }
 
 #[derive(Serialize)]
@@ -112,10 +152,23 @@ struct PathInfo {
 fn stat_path(path: String) -> Result<PathInfo, String> {
     match std::fs::metadata(&path) {
         Ok(m) => {
-            let mtime_ms = m.modified().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_millis() as u64).unwrap_or(0);
-            Ok(PathInfo { exists: true, is_dir: m.is_dir(), mtime_ms })
+            let mtime_ms = m
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            Ok(PathInfo {
+                exists: true,
+                is_dir: m.is_dir(),
+                mtime_ms,
+            })
         }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(PathInfo { exists: false, is_dir: false, mtime_ms: 0 }),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(PathInfo {
+            exists: false,
+            is_dir: false,
+            mtime_ms: 0,
+        }),
         Err(e) => Err(format!("{}: {}", path, e)),
     }
 }
@@ -133,7 +186,13 @@ fn create_file(path: String, content: String) -> Result<(), String> {
         .write(true)
         .create_new(true)
         .open(&path)
-        .map_err(|e| if e.kind() == std::io::ErrorKind::AlreadyExists { "Já existe um arquivo com esse nome".to_string() } else { format!("{}: {}", path, e) })?;
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::AlreadyExists {
+                "Já existe um arquivo com esse nome".to_string()
+            } else {
+                format!("{}: {}", path, e)
+            }
+        })?;
     f.write_all(content.as_bytes()).map_err(|e| e.to_string())
 }
 
@@ -167,19 +226,39 @@ fn reveal_path(path: String) -> Result<(), String> {
     let p = Path::new(&path);
     #[cfg(target_os = "windows")]
     {
-        let arg = if p.is_dir() { path.clone() } else { format!("/select,{}", path) };
-        std::process::Command::new("explorer").arg(arg).spawn().map_err(|e| e.to_string())?;
+        let arg = if p.is_dir() {
+            path.clone()
+        } else {
+            format!("/select,{}", path)
+        };
+        std::process::Command::new("explorer")
+            .arg(arg)
+            .spawn()
+            .map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "macos")]
     {
         let mut c = std::process::Command::new("open");
-        if p.is_dir() { c.arg(&path); } else { c.arg("-R").arg(&path); }
+        if p.is_dir() {
+            c.arg(&path);
+        } else {
+            c.arg("-R").arg(&path);
+        }
         c.spawn().map_err(|e| e.to_string())?;
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
-        let target = if p.is_dir() { p.to_path_buf() } else { p.parent().map(|x| x.to_path_buf()).unwrap_or_else(|| p.to_path_buf()) };
-        std::process::Command::new("xdg-open").arg(target).spawn().map_err(|e| e.to_string())?;
+        let target = if p.is_dir() {
+            p.to_path_buf()
+        } else {
+            p.parent()
+                .map(|x| x.to_path_buf())
+                .unwrap_or_else(|| p.to_path_buf())
+        };
+        std::process::Command::new("xdg-open")
+            .arg(target)
+            .spawn()
+            .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -194,10 +273,13 @@ struct StartupArg {
 /// Caminho (arquivo ou pasta) passado como argumento na linha de comando.
 #[tauri::command]
 fn startup_path() -> Option<StartupArg> {
-    std::env::args().skip(1).find(|a| !a.starts_with('-') && Path::new(a).exists()).map(|a| {
-        let is_dir = Path::new(&a).is_dir();
-        StartupArg { path: a, is_dir }
-    })
+    std::env::args()
+        .skip(1)
+        .find(|a| !a.starts_with('-') && Path::new(a).exists())
+        .map(|a| {
+            let is_dir = Path::new(&a).is_dir();
+            StartupArg { path: a, is_dir }
+        })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -205,7 +287,16 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            read_file, write_file, list_dir, stat_path, create_file, create_dir, rename_path, delete_path, reveal_path, startup_path
+            read_file,
+            write_file,
+            list_dir,
+            stat_path,
+            create_file,
+            create_dir,
+            rename_path,
+            delete_path,
+            reveal_path,
+            startup_path
         ])
         .run(tauri::generate_context!())
         .expect("erro ao iniciar o Koiné IDE");
