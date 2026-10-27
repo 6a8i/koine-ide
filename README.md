@@ -20,7 +20,10 @@ programa
 }
 ```
 
-![Koiné IDE com um projeto de três arquivos, o console e o painel de variáveis](docs/img/editor.png)
+![Escrevendo e executando um programa, depois trocando o idioma para grego e inglês](docs/media/uso.gif)
+
+Em um minuto: [vídeo de primeiro uso](https://6a8i.github.io/koine-ide/#video) (escrever, executar, corrigir um erro,
+depurar, testar e trocar o idioma).
 
 **Site e documentação completa: <https://6a8i.github.io/koine-ide/>** (guia da IDE, tour pela linguagem, referência,
 exemplos e a tabela dos dez idiomas).
