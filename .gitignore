@@ -8,3 +8,6 @@ src-tauri/gen
 docs/referencia.html
 docs/exemplos.html
 docs/idiomas.html
+
+# configuração local do assistente de código
+.claude/
