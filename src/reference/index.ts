@@ -1,0 +1,198 @@
+/**
+ * Referência das palavras reservadas, comandos e funções de cada linguagem.
+ * Usada no painel lateral "Referência" e nas dicas ao passar o mouse no editor.
+ */
+import { Lang } from "../lang/shared/types";
+
+export type RefCategory = "estrutura" | "tipo" | "controle" | "operador" | "entrada-saida" | "funcao" | "outro";
+
+export const CATEGORY_LABEL: Record<RefCategory, string> = {
+  estrutura: "Estrutura do programa",
+  tipo: "Tipos e valores",
+  controle: "Controle de fluxo",
+  operador: "Operadores",
+  "entrada-saida": "Entrada e saída",
+  funcao: "Funções prontas",
+  outro: "Outros",
+};
+
+export interface RefEntry {
+  /** palavra como aparece no código (ex.: "enquanto", "Matematica.raiz") */
+  name: string;
+  category: RefCategory;
+  /** o que faz, em uma ou duas frases */
+  summary: string;
+  /** forma de uso */
+  syntax?: string;
+  /** trecho de exemplo (inserível no editor) */
+  example?: string;
+  /** outras palavras que levam a esta entrada na busca/dica (ex.: "fimse" → "se") */
+  aliases?: string[];
+}
+
+// ======================= Portugol Studio =======================
+const STUDIO: RefEntry[] = [
+  // ---- estrutura ----
+  { name: "programa", category: "estrutura", summary: "Bloco que envolve todo o código. Tudo (funções, variáveis globais, inclusões) fica entre suas chaves.", syntax: "programa\n{\n    ...\n}", example: "programa\n{\n    funcao inicio()\n    {\n        escreva(\"Olá!\\n\")\n    }\n}" },
+  { name: "funcao", category: "estrutura", summary: "Declara uma função. Se tiver tipo de retorno, deve usar 'retorne'. Parâmetros com & são passados por referência (a função altera a variável original).", syntax: "funcao [tipo] nome([tipo param, tipo &param, tipo vetor[]])\n{\n    ...\n}", example: "funcao inteiro dobro(inteiro n)\n{\n    retorne n * 2\n}" },
+  { name: "inicio", category: "estrutura", summary: "A função 'inicio' é por onde o programa começa a executar. Todo programa precisa ter uma.", syntax: "funcao inicio()\n{\n    ...\n}", example: "funcao inicio()\n{\n    escreva(\"Começou!\\n\")\n}" },
+  { name: "inclua biblioteca", category: "estrutura", summary: "Importa uma biblioteca (Matematica, Texto, Util, Tipos) para usar suas funções. Pode dar um apelido com -->.", syntax: "inclua biblioteca Nome [--> apelido]", example: "inclua biblioteca Matematica --> mat\n", aliases: ["inclua", "biblioteca"] },
+  { name: "const", category: "estrutura", summary: "Declara uma constante: um valor que não pode ser alterado depois.", syntax: "const tipo NOME = valor", example: "const real PI = 3.14159\n" },
+  { name: "retorne", category: "estrutura", summary: "Encerra a função devolvendo um valor (ou nada, em funções sem tipo).", syntax: "retorne valor", example: "retorne n * 2\n" },
+  { name: "// comentário", category: "outro", summary: "Texto ignorado pelo programa. '//' comenta até o fim da linha; '/* ... */' comenta várias linhas.", syntax: "// uma linha\n/* várias\n   linhas */", example: "// calcula a média\n", aliases: ["comentario", "comentário", "/*"] },
+
+  // ---- tipos ----
+  { name: "inteiro", category: "tipo", summary: "Número inteiro (sem casas decimais): -3, 0, 42. A divisão entre inteiros descarta a parte decimal.", syntax: "inteiro nome [= valor]", example: "inteiro idade = 20\n" },
+  { name: "real", category: "tipo", summary: "Número com casas decimais: 3.14, -0.5. Use ponto, não vírgula.", syntax: "real nome [= valor]", example: "real altura = 1.75\n" },
+  { name: "cadeia", category: "tipo", summary: "Texto (sequência de caracteres) entre aspas duplas. Pode ser juntado com +.", syntax: "cadeia nome [= \"texto\"]", example: "cadeia nome = \"Maria\"\n" },
+  { name: "caracter", category: "tipo", summary: "Um único caractere, entre aspas simples: 'a', '7', ' '.", syntax: "caracter nome [= 'x']", example: "caracter letra = 'A'\n" },
+  { name: "logico", category: "tipo", summary: "Valor lógico: verdadeiro ou falso. Resultado de comparações e condições.", syntax: "logico nome [= verdadeiro|falso]", example: "logico aprovado = falso\n" },
+  { name: "vazio", category: "tipo", summary: "Usado como tipo de retorno de função que não devolve nada (o mesmo que omitir o tipo).", syntax: "funcao vazio nome()", example: "funcao vazio mostrar()\n{\n    escreva(\"oi\\n\")\n}" },
+  { name: "verdadeiro", category: "tipo", summary: "Valor lógico 'sim'. O oposto é falso.", example: "logico ok = verdadeiro\n" },
+  { name: "falso", category: "tipo", summary: "Valor lógico 'não'. O oposto é verdadeiro.", example: "logico ok = falso\n" },
+  { name: "vetor", category: "tipo", summary: "Lista de valores do mesmo tipo, com posições numeradas a partir de 0. Pode ter tamanho fixo ou ser inicializado com {…}.", syntax: "tipo nome[tamanho]\ntipo nome[] = {v1, v2, ...}", example: "inteiro notas[3]\nnotas[0] = 10\ninteiro primos[] = {2, 3, 5, 7}\n", aliases: ["[]", "array", "lista"] },
+  { name: "matriz", category: "tipo", summary: "Vetor de duas dimensões (linhas e colunas). Índices começam em 0.", syntax: "tipo nome[linhas][colunas]\ntipo nome[][] = {{...}, {...}}", example: "inteiro m[2][3]\nm[1][2] = 9\n", aliases: ["[][]"] },
+
+  // ---- controle ----
+  { name: "se", category: "controle", summary: "Executa o bloco somente se a condição for verdadeira. Pode ter um 'senao' para o caso contrário.", syntax: "se (condicao)\n{\n    ...\n}\nsenao\n{\n    ...\n}", example: "se (idade >= 18)\n{\n    escreva(\"maior de idade\\n\")\n}\nsenao\n{\n    escreva(\"menor de idade\\n\")\n}\n" },
+  { name: "senao", category: "controle", summary: "Parte do 'se' executada quando a condição é falsa. 'senao se' encadeia outra condição.", syntax: "senao { ... }\nsenao se (condicao) { ... }", example: "senao se (nota >= 5)\n{\n    escreva(\"recuperação\\n\")\n}\n" },
+  { name: "enquanto", category: "controle", summary: "Repete o bloco enquanto a condição for verdadeira. A condição é testada antes de cada repetição.", syntax: "enquanto (condicao)\n{\n    ...\n}", example: "inteiro i = 0\nenquanto (i < 5)\n{\n    escreva(i, \"\\n\")\n    i++\n}\n" },
+  { name: "faca … enquanto", category: "controle", summary: "Repete o bloco e só depois testa a condição: o bloco executa pelo menos uma vez.", syntax: "faca\n{\n    ...\n}\nenquanto (condicao)", example: "inteiro opcao\nfaca\n{\n    escreva(\"Digite 0 para sair: \")\n    leia(opcao)\n}\nenquanto (opcao != 0)\n", aliases: ["faca"] },
+  { name: "para", category: "controle", summary: "Laço com contador: inicialização; condição; passo. Ideal para repetir um número conhecido de vezes.", syntax: "para (inicializacao; condicao; passo)\n{\n    ...\n}", example: "para (inteiro i = 1; i <= 10; i++)\n{\n    escreva(i, \"\\n\")\n}\n" },
+  { name: "escolha", category: "controle", summary: "Compara um valor com vários 'caso'. Sem 'pare', a execução continua no próximo caso. 'caso contrario' trata os demais valores.", syntax: "escolha (valor)\n{\n    caso 1:\n        ...\n        pare\n    caso contrario:\n        ...\n}", example: "escolha (opcao)\n{\n    caso 1:\n        escreva(\"um\\n\")\n        pare\n    caso 2:\n        escreva(\"dois\\n\")\n        pare\n    caso contrario:\n        escreva(\"outro\\n\")\n}\n", aliases: ["caso", "contrario"] },
+  { name: "pare", category: "controle", summary: "Sai imediatamente do laço (enquanto, para, faca) ou do 'escolha' em que está.", syntax: "pare", example: "se (x == 0) pare\n" },
+
+  // ---- operadores ----
+  { name: "= (atribuição)", category: "operador", summary: "Guarda um valor na variável. Atenção: para comparar use '==', não '='.", syntax: "variavel = valor", example: "total = total + 1\n", aliases: ["="] },
+  { name: "+ - * / %", category: "operador", summary: "Aritmética: soma, subtração, multiplicação, divisão e resto da divisão (%). Com cadeias, '+' junta textos.", example: "resto = 7 % 3   // 1\nmedia = soma / 2.0\n", aliases: ["+", "-", "*", "/", "%"] },
+  { name: "++ --", category: "operador", summary: "Incrementa ou decrementa a variável em 1. Equivale a 'x = x + 1' / 'x = x - 1'.", example: "contador++\n", aliases: ["++", "--"] },
+  { name: "+= -= *= /=", category: "operador", summary: "Atribuição com operação: 'x += 2' é o mesmo que 'x = x + 2'.", example: "soma += nota\n", aliases: ["+=", "-=", "*=", "/="] },
+  { name: "== != < > <= >=", category: "operador", summary: "Comparação: igual, diferente, menor, maior, menor ou igual, maior ou igual. O resultado é lógico.", example: "se (nota >= 7 e faltas < 10)\n", aliases: ["==", "!=", "<", ">", "<=", ">="] },
+  { name: "e", category: "operador", summary: "E lógico: verdadeiro só se os dois lados forem verdadeiros.", example: "se (idade >= 18 e idade < 65)\n" },
+  { name: "ou", category: "operador", summary: "OU lógico: verdadeiro se pelo menos um dos lados for verdadeiro.", example: "se (dia == 6 ou dia == 7)\n" },
+  { name: "nao", category: "operador", summary: "NÃO lógico: inverte o valor (verdadeiro vira falso e vice-versa).", example: "se (nao achou)\n" },
+  { name: "& | ^ ~ << >>", category: "operador", summary: "Operadores bit a bit em inteiros: e, ou, ou-exclusivo, inversão, deslocamentos. Em parâmetros, '&' indica passagem por referência.", example: "inteiro mascara = 5 & 3\n", aliases: ["&", "|", "^", "~", "<<", ">>"] },
+
+  // ---- entrada e saída ----
+  { name: "escreva", category: "entrada-saida", summary: "Mostra valores no console. Aceita vários itens separados por vírgula. Use \"\\n\" para quebrar linha.", syntax: "escreva(valor1, valor2, ...)", example: "escreva(\"Resultado: \", total, \"\\n\")\n" },
+  { name: "leia", category: "entrada-saida", summary: "Lê um valor digitado pelo usuário e guarda na variável (convertido para o tipo dela). Aceita várias variáveis.", syntax: "leia(variavel1, variavel2, ...)", example: "inteiro idade\nescreva(\"Idade: \")\nleia(idade)\n" },
+  { name: "limpa", category: "entrada-saida", summary: "Limpa o console.", syntax: "limpa()", example: "limpa()\n" },
+
+  // ---- bibliotecas ----
+  { name: "Matematica.PI", category: "funcao", summary: "Constante π (3,14159…). Requer 'inclua biblioteca Matematica'.", example: "real area = Matematica.PI * raio * raio\n" },
+  { name: "Matematica.raiz", category: "funcao", summary: "Raiz de índice n de um número: raiz(x, 2) é a raiz quadrada.", syntax: "Matematica.raiz(real x, real indice) : real", example: "real r = Matematica.raiz(16, 2)   // 4.0\n" },
+  { name: "Matematica.potencia", category: "funcao", summary: "Base elevada ao expoente.", syntax: "Matematica.potencia(real base, real expoente) : real", example: "real p = Matematica.potencia(2, 10)   // 1024.0\n" },
+  { name: "Matematica.arredondar", category: "funcao", summary: "Arredonda para o número de casas decimais informado.", syntax: "Matematica.arredondar(real x, inteiro casas) : real", example: "real m = Matematica.arredondar(3.14159, 2)   // 3.14\n" },
+  { name: "Matematica.valor_absoluto", category: "funcao", summary: "Valor sem sinal (módulo).", syntax: "Matematica.valor_absoluto(x)", example: "inteiro d = Matematica.valor_absoluto(-7)   // 7\n" },
+  { name: "Matematica.maior_numero", category: "funcao", summary: "O maior entre dois números. 'menor_numero' faz o contrário.", syntax: "Matematica.maior_numero(a, b)\nMatematica.menor_numero(a, b)", example: "inteiro m = Matematica.maior_numero(3, 9)\n", aliases: ["Matematica.menor_numero"] },
+  { name: "Matematica.seno", category: "funcao", summary: "Funções trigonométricas (ângulo em radianos): seno, cosseno, tangente.", syntax: "Matematica.seno(real x) : real", example: "real s = Matematica.seno(Matematica.PI / 2)\n", aliases: ["Matematica.cosseno", "Matematica.tangente"] },
+  { name: "Matematica.logaritmo", category: "funcao", summary: "Logaritmo de x na base informada.", syntax: "Matematica.logaritmo(real x, real base) : real", example: "real l = Matematica.logaritmo(100, 10)   // 2.0\n" },
+  { name: "Texto.numero_caracteres", category: "funcao", summary: "Quantidade de caracteres de um texto.", syntax: "Texto.numero_caracteres(cadeia texto) : inteiro", example: "inteiro n = Texto.numero_caracteres(\"Portugol\")   // 8\n" },
+  { name: "Texto.caixa_alta", category: "funcao", summary: "Converte para MAIÚSCULAS. 'caixa_baixa' converte para minúsculas.", syntax: "Texto.caixa_alta(cadeia texto) : cadeia", example: "cadeia s = Texto.caixa_alta(\"olá\")   // \"OLÁ\"\n", aliases: ["Texto.caixa_baixa"] },
+  { name: "Texto.obter_caractere", category: "funcao", summary: "Caractere na posição indicada (a primeira é 0).", syntax: "Texto.obter_caractere(cadeia texto, inteiro posicao) : caracter", example: "caracter c = Texto.obter_caractere(\"abc\", 1)   // 'b'\n" },
+  { name: "Texto.extrair_subtexto", category: "funcao", summary: "Parte do texto entre as posições inicio (inclusive) e fim (exclusive).", syntax: "Texto.extrair_subtexto(cadeia texto, inteiro inicio, inteiro fim) : cadeia", example: "cadeia s = Texto.extrair_subtexto(\"Portugol\", 0, 4)   // \"Port\"\n" },
+  { name: "Texto.posicao_texto", category: "funcao", summary: "Posição em que 'busca' aparece em 'texto' a partir de 'inicio' (-1 se não achar).", syntax: "Texto.posicao_texto(cadeia busca, cadeia texto, inteiro inicio) : inteiro", example: "inteiro p = Texto.posicao_texto(\"go\", \"Portugol\", 0)   // 5\n" },
+  { name: "Texto.substituir", category: "funcao", summary: "Troca todas as ocorrências de um trecho por outro.", syntax: "Texto.substituir(cadeia texto, cadeia de, cadeia para) : cadeia", example: "cadeia s = Texto.substituir(\"a-b-c\", \"-\", \"+\")\n" },
+  { name: "Texto.preencher_a_esquerda", category: "funcao", summary: "Completa o texto com um caractere até o tamanho desejado (à esquerda ou à direita).", syntax: "Texto.preencher_a_esquerda(caracter c, inteiro tamanho, cadeia texto) : cadeia", example: "cadeia s = Texto.preencher_a_esquerda('0', 5, \"42\")   // \"00042\"\n", aliases: ["Texto.preencher_a_direita"] },
+  { name: "Texto.inverter", category: "funcao", summary: "Texto de trás para a frente. 'remover_espacos' tira espaços do início e do fim.", syntax: "Texto.inverter(cadeia texto) : cadeia", example: "cadeia s = Texto.inverter(\"abc\")   // \"cba\"\n", aliases: ["Texto.remover_espacos"] },
+  { name: "Util.sorteia", category: "funcao", summary: "Número inteiro aleatório entre min e max (inclusive).", syntax: "Util.sorteia(inteiro min, inteiro max) : inteiro", example: "inteiro dado = Util.sorteia(1, 6)\n" },
+  { name: "Util.aguarde", category: "funcao", summary: "Pausa o programa pelo tempo informado em milissegundos.", syntax: "Util.aguarde(inteiro milissegundos)", example: "Util.aguarde(1000)   // 1 segundo\n" },
+  { name: "Util.numero_elementos", category: "funcao", summary: "Tamanho de um vetor. Para matrizes use 'numero_linhas' e 'numero_colunas'.", syntax: "Util.numero_elementos(vetor) : inteiro", example: "inteiro n = Util.numero_elementos(notas)\n", aliases: ["Util.numero_linhas", "Util.numero_colunas"] },
+  { name: "Util.tempo_decorrido", category: "funcao", summary: "Milissegundos desde o início do programa. Útil para medir tempo.", syntax: "Util.tempo_decorrido() : inteiro", example: "inteiro t = Util.tempo_decorrido()\n" },
+  { name: "Tipos.cadeia_para_inteiro", category: "funcao", summary: "Converte texto em número inteiro (erro se o texto não for um número). Há também cadeia_para_real e cadeia_para_logico.", syntax: "Tipos.cadeia_para_inteiro(cadeia texto) : inteiro", example: "inteiro n = Tipos.cadeia_para_inteiro(\"42\")\n", aliases: ["Tipos.cadeia_para_real", "Tipos.cadeia_para_logico", "Tipos.cadeia_para_caracter"] },
+  { name: "Tipos.inteiro_para_cadeia", category: "funcao", summary: "Converte um número em texto. Há também real_para_cadeia, logico_para_cadeia e caracter_para_cadeia.", syntax: "Tipos.inteiro_para_cadeia(inteiro x) : cadeia", example: "cadeia s = Tipos.inteiro_para_cadeia(7) + \"!\"\n", aliases: ["Tipos.real_para_cadeia", "Tipos.logico_para_cadeia", "Tipos.caracter_para_cadeia"] },
+  { name: "Tipos.real_para_inteiro", category: "funcao", summary: "Descarta a parte decimal de um real. 'inteiro_para_real' faz o caminho inverso.", syntax: "Tipos.real_para_inteiro(real x) : inteiro", example: "inteiro i = Tipos.real_para_inteiro(3.9)   // 3\n", aliases: ["Tipos.inteiro_para_real"] },
+  { name: "Tipos.e_inteiro", category: "funcao", summary: "Verifica se um texto pode ser convertido em inteiro (ou real, com 'e_real'). Útil para validar entradas.", syntax: "Tipos.e_inteiro(cadeia texto) : logico", example: "se (Tipos.e_inteiro(entrada))\n", aliases: ["Tipos.e_real"] },
+  { name: "Tipos.inteiro_para_caracter", category: "funcao", summary: "Conversões entre caractere e código numérico, e entre inteiro e lógico.", syntax: "Tipos.inteiro_para_caracter(inteiro codigo) : caracter\nTipos.caracter_para_inteiro(caracter c) : inteiro", example: "caracter c = Tipos.inteiro_para_caracter(65)   // 'A'\n", aliases: ["Tipos.caracter_para_inteiro", "Tipos.inteiro_para_logico", "Tipos.logico_para_inteiro"] },
+];
+
+// ======================= VisuAlg =======================
+const VISUALG: RefEntry[] = [
+  // ---- estrutura ----
+  { name: "algoritmo", category: "estrutura", summary: "Primeira linha do programa, com o nome entre aspas. O programa termina com 'fimalgoritmo'.", syntax: "algoritmo \"nome\"\nvar\n    ...\ninicio\n    ...\nfimalgoritmo", example: "algoritmo \"exemplo\"\nvar\n    x: inteiro\ninicio\n    x <- 1\n    escreval(x)\nfimalgoritmo", aliases: ["fimalgoritmo"] },
+  { name: "var", category: "estrutura", summary: "Seção de declaração de variáveis (antes de 'inicio'). Em parâmetros, 'var' indica passagem por referência.", syntax: "var\n    nome1, nome2: tipo", example: "var\n    nome: caractere\n    idade: inteiro\n" },
+  { name: "const", category: "estrutura", summary: "Seção de constantes: valores que não mudam durante o programa.", syntax: "const\n    NOME = valor", example: "const\n    MAXIMO = 100\n" },
+  { name: "inicio", category: "estrutura", summary: "Marca o começo dos comandos do algoritmo (ou de uma função/procedimento).", example: "inicio\n    escreval(\"Olá\")\n" },
+  { name: "funcao", category: "estrutura", summary: "Subprograma que devolve um valor. O resultado é dado por 'retorne' ou atribuindo ao próprio nome da função.", syntax: "funcao nome(param: tipo): tipoRetorno\nvar ...\ninicio\n    retorne valor\nfimfuncao", example: "funcao dobro(n: inteiro): inteiro\ninicio\n    retorne n * 2\nfimfuncao\n", aliases: ["fimfuncao"] },
+  { name: "procedimento", category: "estrutura", summary: "Subprograma que não devolve valor. Use 'var' antes de um parâmetro para alterar a variável original.", syntax: "procedimento nome(var param: tipo)\ninicio\n    ...\nfimprocedimento", example: "procedimento troca(var a, b: inteiro)\nvar t: inteiro\ninicio\n    t <- a\n    a <- b\n    b <- t\nfimprocedimento\n", aliases: ["fimprocedimento"] },
+  { name: "retorne", category: "estrutura", summary: "Encerra a função devolvendo o valor.", syntax: "retorne valor", example: "retorne n * 2\n" },
+  { name: "// comentário", category: "outro", summary: "Texto ignorado pelo programa. '//' comenta até o fim da linha; '{ ... }' comenta um trecho.", syntax: "// uma linha\n{ várias linhas }", example: "// calcula a média\n", aliases: ["comentario", "comentário", "{"] },
+
+  // ---- tipos ----
+  { name: "inteiro", category: "tipo", summary: "Número inteiro: -3, 0, 42. Use 'div' ou '\\' para divisão inteira.", syntax: "nome: inteiro", example: "idade: inteiro\n" },
+  { name: "real", category: "tipo", summary: "Número com casas decimais: 3.14. Ao escrever, use ponto.", syntax: "nome: real", example: "altura: real\n" },
+  { name: "caractere", category: "tipo", summary: "Texto entre aspas duplas (também aceito como 'caracter' ou 'literal'). Junte textos com +.", syntax: "nome: caractere", example: "nome: caractere\n", aliases: ["caracter", "literal"] },
+  { name: "logico", category: "tipo", summary: "Valor lógico: verdadeiro ou falso.", syntax: "nome: logico", example: "achou: logico\n" },
+  { name: "verdadeiro", category: "tipo", summary: "Valor lógico 'sim'. É mostrado como VERDADEIRO.", example: "achou <- verdadeiro\n" },
+  { name: "falso", category: "tipo", summary: "Valor lógico 'não'. É mostrado como FALSO.", example: "achou <- falso\n" },
+  { name: "vetor", category: "tipo", summary: "Lista de valores com índices em um intervalo que você escolhe (ex.: 1..10). Matriz: dois intervalos separados por vírgula.", syntax: "nome: vetor[ini..fim] de tipo\nnome: vetor[1..L, 1..C] de tipo", example: "notas: vetor[1..5] de real\nm: vetor[1..2, 1..3] de inteiro\n", aliases: ["de", "matriz", "..", "[]"] },
+
+  // ---- controle ----
+  { name: "se", category: "controle", summary: "Executa os comandos somente se a condição for verdadeira. 'senao' trata o caso contrário. Termina com 'fimse'.", syntax: "se condicao entao\n    ...\nsenao\n    ...\nfimse", example: "se idade >= 18 entao\n    escreval(\"maior de idade\")\nsenao\n    escreval(\"menor de idade\")\nfimse\n", aliases: ["entao", "senao", "fimse"] },
+  { name: "enquanto", category: "controle", summary: "Repete enquanto a condição for verdadeira (testa antes de cada repetição). Termina com 'fimenquanto'.", syntax: "enquanto condicao faca\n    ...\nfimenquanto", example: "i <- 1\nenquanto i <= 5 faca\n    escreval(i)\n    i <- i + 1\nfimenquanto\n", aliases: ["faca", "fimenquanto"] },
+  { name: "para", category: "controle", summary: "Laço com contador: vai de um valor até outro, com 'passo' opcional (pode ser negativo). Termina com 'fimpara'.", syntax: "para i de inicio ate fim [passo p] faca\n    ...\nfimpara", example: "para i de 1 ate 10 faca\n    escreval(i)\nfimpara\n", aliases: ["ate", "passo", "fimpara"] },
+  { name: "repita", category: "controle", summary: "Repete o bloco até que a condição se torne verdadeira. O bloco executa pelo menos uma vez.", syntax: "repita\n    ...\nate condicao", example: "repita\n    escreva(\"Digite 0 para sair: \")\n    leia(opcao)\nate opcao = 0\n", aliases: ["fimrepita"] },
+  { name: "escolha", category: "controle", summary: "Compara um valor com vários 'caso' (valores, listas ou intervalos 'a'). 'outrocaso' trata os demais. Termina com 'fimescolha'.", syntax: "escolha valor\n    caso 1, 2\n        ...\n    caso 3 a 5\n        ...\n    outrocaso\n        ...\nfimescolha", example: "escolha opcao\n    caso 1\n        escreval(\"um\")\n    caso 2, 3\n        escreval(\"dois ou três\")\n    outrocaso\n        escreval(\"outro\")\nfimescolha\n", aliases: ["caso", "outrocaso", "fimescolha"] },
+  { name: "interrompa", category: "controle", summary: "Sai imediatamente do laço (enquanto, para, repita) em que está.", syntax: "interrompa", example: "se x = 0 entao\n    interrompa\nfimse\n" },
+
+  // ---- operadores ----
+  { name: "<- (atribuição)", category: "operador", summary: "Guarda um valor na variável. Para comparar igualdade use '='.", syntax: "variavel <- valor", example: "total <- total + 1\n", aliases: ["<-", ":="] },
+  { name: "+ - * /", category: "operador", summary: "Aritmética básica. '/' sempre dá resultado real; para inteiros use 'div' e 'mod'. Com textos, '+' junta.", example: "media <- soma / 2\n", aliases: ["+", "-", "*", "/"] },
+  { name: "div", category: "operador", summary: "Divisão inteira (descarta o resto). Também pode ser escrita como '\\'.", example: "metade <- 7 div 2   // 3\n", aliases: ["\\"] },
+  { name: "mod", category: "operador", summary: "Resto da divisão inteira. Também pode ser escrito como '%'.", example: "resto <- 7 mod 3   // 1\n", aliases: ["%"] },
+  { name: "^ (potência)", category: "operador", summary: "Potenciação: base ^ expoente.", example: "quadrado <- x ^ 2\n", aliases: ["^"] },
+  { name: "= <> < > <= >=", category: "operador", summary: "Comparação: igual, diferente, menor, maior, menor ou igual, maior ou igual. O resultado é lógico.", example: "se nota >= 7 e faltas < 10 entao\n", aliases: ["=", "<>", "<", ">", "<=", ">="] },
+  { name: "e", category: "operador", summary: "E lógico: verdadeiro só se os dois lados forem verdadeiros.", example: "se idade >= 18 e idade < 65 entao\n" },
+  { name: "ou", category: "operador", summary: "OU lógico: verdadeiro se pelo menos um dos lados for verdadeiro.", example: "se dia = 6 ou dia = 7 entao\n" },
+  { name: "nao", category: "operador", summary: "NÃO lógico: inverte o valor.", example: "se nao achou entao\n" },
+  { name: "xou", category: "operador", summary: "OU exclusivo: verdadeiro quando apenas um dos lados é verdadeiro.", example: "se a xou b entao\n" },
+
+  // ---- entrada e saída ----
+  { name: "escreva", category: "entrada-saida", summary: "Mostra valores no console, sem quebrar a linha ao final. Formate com :largura ou :largura:decimais.", syntax: "escreva(valor1, valor2, ...)\nescreva(x:8:2)", example: "escreva(\"Total: \", total:8:2)\n" },
+  { name: "escreval", category: "entrada-saida", summary: "Igual a 'escreva', mas quebra a linha ao final.", syntax: "escreval(valor1, valor2, ...)", example: "escreval(\"Olá, \", nome)\n" },
+  { name: "leia", category: "entrada-saida", summary: "Lê um valor digitado pelo usuário e guarda na variável (convertido para o tipo dela).", syntax: "leia(variavel1, variavel2, ...)", example: "escreva(\"Idade: \")\nleia(idade)\n" },
+  { name: "limpatela", category: "entrada-saida", summary: "Limpa o console.", example: "limpatela\n" },
+  { name: "pausa", category: "entrada-saida", summary: "Pausa a execução por alguns milissegundos (sem argumento, não espera).", syntax: "pausa(milissegundos)", example: "pausa(500)\n" },
+  { name: "aleatorio", category: "outro", summary: "Comandos de ambiente do VisuAlg original (aleatorio, timer, eco, cronometro, debug, arquivo). São aceitos e ignorados nesta IDE.", syntax: "aleatorio on | off\ntimer on | off", example: "", aliases: ["timer", "eco", "cronometro", "debug", "arquivo", "on", "off"] },
+
+  // ---- funções ----
+  { name: "abs", category: "funcao", summary: "Valor absoluto (sem sinal).", syntax: "abs(x)", example: "d <- abs(-7)   // 7\n" },
+  { name: "int", category: "funcao", summary: "Parte inteira de um número real (descarta as casas decimais).", syntax: "int(x): inteiro", example: "i <- int(3.9)   // 3\n" },
+  { name: "raizq", category: "funcao", summary: "Raiz quadrada.", syntax: "raizq(x): real", example: "r <- raizq(16)   // 4\n" },
+  { name: "quad", category: "funcao", summary: "Quadrado do número (x * x).", syntax: "quad(x)", example: "q <- quad(5)   // 25\n" },
+  { name: "exp", category: "funcao", summary: "Base elevada ao expoente.", syntax: "exp(base, expoente): real", example: "p <- exp(2, 10)   // 1024\n" },
+  { name: "log", category: "funcao", summary: "Logaritmo na base 10. 'logn' é o logaritmo natural (base e).", syntax: "log(x): real\nlogn(x): real", example: "l <- log(1000)   // 3\n", aliases: ["logn"] },
+  { name: "pi", category: "funcao", summary: "Valor de π (3,14159…).", syntax: "pi(): real", example: "area <- pi() * r ^ 2\n" },
+  { name: "sen", category: "funcao", summary: "Trigonometria (ângulo em radianos): sen, cos, tan, cotan, arcsen, arccos, arctan.", syntax: "sen(x): real", example: "s <- sen(pi() / 2)   // 1\n", aliases: ["cos", "tan", "cotan", "arcsen", "arccos", "arctan"] },
+  { name: "grauprad", category: "funcao", summary: "Converte graus em radianos. 'radpgrau' faz o inverso.", syntax: "grauprad(graus): real", example: "r <- grauprad(180)   // 3.14159...\n", aliases: ["radpgrau"] },
+  { name: "rand", category: "funcao", summary: "Número real aleatório entre 0 e 1. 'randi(n)' dá um inteiro aleatório de 0 a n-1.", syntax: "rand(): real\nrandi(n): inteiro", example: "dado <- randi(6) + 1\n", aliases: ["randi"] },
+  { name: "compr", category: "funcao", summary: "Quantidade de caracteres de um texto.", syntax: "compr(texto): inteiro", example: "n <- compr(\"VisuAlg\")   // 7\n" },
+  { name: "copia", category: "funcao", summary: "Parte do texto a partir da posição (a primeira é 1) com o tamanho indicado.", syntax: "copia(texto, posicao, tamanho): caractere", example: "s <- copia(\"VisuAlg\", 1, 4)   // \"Visu\"\n" },
+  { name: "pos", category: "funcao", summary: "Posição em que um trecho aparece no texto (0 se não aparecer).", syntax: "pos(trecho, texto): inteiro", example: "p <- pos(\"Alg\", \"VisuAlg\")   // 5\n" },
+  { name: "maiusc", category: "funcao", summary: "Converte para MAIÚSCULAS. 'minusc' converte para minúsculas.", syntax: "maiusc(texto): caractere", example: "s <- maiusc(\"olá\")\n", aliases: ["minusc"] },
+  { name: "asc", category: "funcao", summary: "Código numérico de um caractere. 'carac' faz o inverso (código → caractere).", syntax: "asc(c): inteiro\ncarac(codigo): caractere", example: "c <- carac(65)   // \"A\"\n", aliases: ["carac"] },
+  { name: "numpcarac", category: "funcao", summary: "Converte número em texto. 'caracpnum' converte texto em número.", syntax: "numpcarac(x): caractere\ncaracpnum(texto): real", example: "s <- numpcarac(42) + \"!\"\n", aliases: ["caracpnum"] },
+];
+
+export const REFERENCE: Record<Lang, RefEntry[]> = { studio: STUDIO, visualg: VISUALG };
+
+export const CATEGORIES: RefCategory[] = ["estrutura", "tipo", "controle", "operador", "entrada-saida", "funcao", "outro"];
+
+const indexCache = new Map<Lang, Map<string, RefEntry>>();
+
+/** Encontra a entrada para uma palavra do código (nome, apelido ou primeira palavra do nome). */
+export function findReference(lang: Lang, word: string): RefEntry | null {
+  let idx = indexCache.get(lang);
+  if (!idx) {
+    idx = new Map();
+    const put = (k: string, e: RefEntry) => { const key = lang === "visualg" ? k.toLowerCase() : k; if (!idx!.has(key)) idx!.set(key, e); };
+    for (const e of REFERENCE[lang]) {
+      put(e.name, e);
+      const first = e.name.split(/[\s(]/)[0];
+      if (first) put(first, e);
+      for (const a of e.aliases ?? []) put(a, e);
+    }
+    indexCache.set(lang, idx);
+  }
+  return idx.get(lang === "visualg" ? word.toLowerCase() : word) ?? null;
+}
