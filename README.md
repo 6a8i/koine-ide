@@ -1,6 +1,9 @@
-# Portugol IDE
+# Koiné IDE
 
-IDE de desktop, leve e rápida, para aprender programação em **Portugol**. Suporta as duas sintaxes mais usadas no Brasil:
+IDE de desktop, leve e rápida, para aprender programação com **pseudocódigo no seu idioma**. O nome vem do grego *koiné*,
+a "língua comum": as palavras reservadas, as funções nativas, a interface e a referência existem em dez idiomas
+(português, inglês, espanhol, grego, russo, ucraniano, polonês, japonês, coreano e chinês). Suporta as duas sintaxes de
+Portugol mais usadas no Brasil:
 
 | Linguagem | Extensão | Exemplo |
 | --- | --- | --- |
@@ -18,6 +21,10 @@ Feita com [Tauri 2](https://tauri.app) (janela nativa, instalador de poucos MB),
   (funções, variáveis, estruturas/registros e classes). Veja a sintaxe abaixo. O exemplo **Projeto com vários arquivos**
   (menu *Exemplos*, nas duas linguagens) abre três abas que se importam e executam juntas, mesmo sem salvar.
 - **Estruturas/registros, classes com herança e referências seguras** nas duas linguagens.
+- **Idiomas**: o seletor na barra troca o idioma da interface, do destaque/autocompletar, da referência e dos exemplos.
+  O código é escrito com as palavras do idioma (ex.: `συνάρτηση αρχή()` em grego, `function main()` em inglês); as
+  palavras em português continuam valendo em qualquer idioma. Ao trocar, a IDE oferece converter os arquivos abertos
+  (só palavras reservadas e funções nativas; textos, comentários e nomes do usuário ficam como estão). Veja abaixo.
 
 - Editor com destaque de sintaxe, autocompletar, dobra de blocos, busca (Ctrl+F) e múltiplos cursores.
 - Execução instantânea (F5) com console integrado: entrada de dados inline (`leia`), saída em tempo real, botão **Parar**.
@@ -239,6 +246,19 @@ Afirmações: `afirme(cond[, msg])`, `afirme_igual(esperado, obtido[, msg])` (es
 item a item), `afirme_diferente(a, b[, msg])`, `afirme_aproximado(esperado, obtido, tolerancia[, msg])`. A cobertura conta
 as linhas de comando de funções, métodos e do programa principal que algum teste executou; os próprios testes não contam.
 Arquivos que nenhum teste alcança aparecem com 0%.
+
+### Idiomas
+
+O vocabulário interno é o português: cada idioma tem uma tabela canônico → palavra localizada por linguagem
+(`src/lang/i18n/vocab/*.ts`). O lexer traduz as palavras do idioma ativo para o canônico antes da análise, então
+parsers e interpretadores não mudam; `verdadeiro`/`falso` são escritos e lidos no idioma. O conversor
+(`translateSource`) troca só os tokens de vocabulário, preservando textos e comentários, e é o que gera exemplos,
+modelos de autocompletar e trechos da referência em cada idioma. Os textos da interface usam o português como chave
+(`src/i18n/ui/*.ts`) e os resumos da referência ficam em `src/reference/i18n/*.ts`. `npm test` valida as tabelas:
+vocabulário completo, sem colisões, exemplos convertidos que compilam e voltam iguais ao português.
+
+Limitações desta etapa: as mensagens de erro do compilador/interpretador continuam em português, e os comentários dos
+exemplos também.
 
 ### Como os interpretadores funcionam
 

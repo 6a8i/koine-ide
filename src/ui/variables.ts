@@ -1,6 +1,7 @@
 /** Painel "Variáveis": mostra a pilha de chamadas e o valor de cada variável durante a depuração. */
 import { Snapshot } from "../lang/shared/debug";
 import { Lang } from "../lang/shared/types";
+import { t } from "../i18n";
 
 export class VariablesPanel {
   private body: HTMLElement;
@@ -14,7 +15,7 @@ export class VariablesPanel {
   clear() {
     this.prev.clear();
     this.body.innerHTML = "";
-    this.setEmpty("Execute ou depure o programa para ver as variáveis aqui.");
+    this.setEmpty(t("Execute ou depure o programa para ver as variáveis aqui."));
   }
 
   private setEmpty(msg: string) {
@@ -35,16 +36,16 @@ export class VariablesPanel {
       sec.className = "vars-section" + (current ? " current" : "");
       const h = document.createElement("div");
       h.className = "vars-title";
-      const t = document.createElement("span"); t.textContent = title;
-      h.appendChild(t);
+      const ts = document.createElement("span"); ts.textContent = title;
+      h.appendChild(ts);
       if (line) {
-        const l = document.createElement("a"); l.href = "#"; l.className = "vars-line"; l.textContent = `linha ${line}`;
+        const l = document.createElement("a"); l.href = "#"; l.className = "vars-line"; l.textContent = t("linha {line}", { line });
         l.addEventListener("click", (e) => { e.preventDefault(); this.onGoTo?.(line, file); });
         h.appendChild(l);
       }
       sec.appendChild(h);
       if (!vars.length) {
-        const e = document.createElement("div"); e.className = "vars-none"; e.textContent = "sem variáveis"; sec.appendChild(e);
+        const e = document.createElement("div"); e.className = "vars-none"; e.textContent = t("sem variáveis"); sec.appendChild(e);
       }
       const table = document.createElement("table");
       table.className = "vars-table";
@@ -68,11 +69,11 @@ export class VariablesPanel {
     // quadros do mais interno (atual) para o mais externo
     for (let i = snap.frames.length - 1; i >= 0; i--) {
       const f = snap.frames[i];
-      const title = lang === "visualg" && f.name === "algoritmo" ? "algoritmo (principal)" : `${f.name}()`;
+      const title = lang === "visualg" && f.name === "algoritmo" ? t("algoritmo (principal)") : `${f.name}()`;
       section(title, f.line || null, f.vars, `f${i}:${f.name}`, i === snap.frames.length - 1, f.file);
     }
-    section(lang === "visualg" ? "Variáveis" : "Globais", null, snap.globals, "globals", false);
-    if (!any) { this.body.innerHTML = ""; this.setEmpty("Este programa não tem variáveis."); }
+    section(lang === "visualg" ? t("Variáveis") : t("Globais"), null, snap.globals, "globals", false);
+    if (!any) { this.body.innerHTML = ""; this.setEmpty(t("Este programa não tem variáveis.")); }
     this.prev = next;
   }
 }

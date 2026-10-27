@@ -1,5 +1,6 @@
 import type { Debugger, Snapshot } from "./debug";
 import type { CoverageCollector, TestInfo } from "./testing";
+import type { Locale } from "../i18n";
 
 export type Lang = "studio" | "visualg";
 
@@ -47,6 +48,8 @@ export interface Host {
 export interface CompileOptions {
   /** modo de testes: a entrada pode ser um módulo (arquivo só de testes) e módulos de teste enxergam membros privados */
   tests?: boolean;
+  /** idioma das palavras reservadas do código (padrão: português) */
+  locale?: Locale;
 }
 
 export interface Program {

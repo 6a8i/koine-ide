@@ -560,6 +560,31 @@ for (const c of tcases) {
   if (problem) { console.log(`✗ ${c.name}: ${problem}`); fail++; } else pass++;
 }
 
+// ---------------- Idiomas (palavras reservadas traduzidas pelo lexer) ----------------
+import { translateSource } from "../src/lang/i18n";
+{
+  const runLocale = async (lang: Lang, src: string, locale: "en" | "es" | "el") => {
+    const p = compileProject(lang, [{ path: lang === "visualg" ? "a.alg" : "a.por", source: src }], lang === "visualg" ? "a.alg" : "a.por", { locale });
+    const h = new BufferHost();
+    await p.run(h);
+    return h.out;
+  };
+  check("i18n: studio em inglês", await runLocale("studio", `program { function main() { integer n = 2  if (n == 2 and true) { write("ok ", n) } } }`, "en"), "ok 2");
+  check("i18n: português continua valendo em inglês", await runLocale("studio", `programa { include library Math  function inicio() { escreva(Math.root(9.0, 2.0)) } }`, "en"), "3.0");
+  check("i18n: visualg em inglês", await runLocale("visualg", `algorithm "t"
+var
+  i: integer
+begin
+  for i of 1 to 3 do
+    write(i)
+  endfor
+endalgorithm`, "en"), " 1 2 3");
+  check("i18n: ida e volta studio", translateSource("studio", translateSource("studio", "programa { funcao inicio() { escreva(\"funcao\") } }", "pt-BR", "es"), "es", "pt-BR"), "programa { funcao inicio() { escreva(\"funcao\") } }");
+  check("i18n: comentários e textos não mudam", translateSource("studio", "// funcao\nprograma { funcao inicio() { escreva(\"se\") } }", "pt-BR", "en").split("\n")[0], "// funcao");
+  check("i18n: hasEntryPoint localizado", [hasEntryPoint("studio", "function main() {", "en"), hasEntryPoint("studio", "function main() {", "pt-BR"), hasEntryPoint("visualg", "αλγόριθμος \"x\"", "el")], [true, false, true]);
+  check("i18n: texto de erro usa a palavra do idioma", await (async () => { try { await runLocale("studio", `program { function main() { boolean b  read(b) } }`, "en"); return "sem erro"; } catch (e) { return /Teste pediu entrada/.test((e as Error).message) ? "pediu entrada" : (e as Error).message; } })(), "pediu entrada");
+}
+
 // ---------------- Exemplos (todos compilam e executam sem erro) ----------------
 import { EXAMPLES } from "../src/examples";
 for (const ex of EXAMPLES) {

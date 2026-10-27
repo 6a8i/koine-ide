@@ -6,9 +6,11 @@ import { EditorState, StateEffect, TransactionSpec } from "@codemirror/state";
 import { Lang } from "./lang/shared/types";
 import { LANG_INFO, langFromFilename, detectLang, hasEntryPoint } from "./lang";
 import { NEW_STUDIO, NEW_VISUALG } from "./examples";
+import { translateSource } from "./lang/i18n";
 import { SourceFile } from "./lang/protocol";
 import type { Editor } from "./ui/editor";
 import type { DirEntry } from "./ui/files";
+import { t, getLocale } from "./i18n";
 
 export interface Doc {
   /** chave única: caminho normalizado ou "untitled:N" */
@@ -194,7 +196,7 @@ export class Project {
     if (!doc) {
       const text = await this.fs.read(path);
       const name = baseName(path);
-      const lang = langFromFilename(name) ?? detectLang(text);
+      const lang = langFromFilename(name) ?? detectLang(text, getLocale());
       const bps = this.persistedBreakpoints(relPath(this.root ?? dirName(path), path));
       doc = { key, path, name, lang, state: this.editor.createState(text, lang, bps), scroll: null, savedText: text, dirty: false, missing: false };
       this.docs.set(key, doc);
@@ -210,9 +212,9 @@ export class Project {
   newUntitled(lang: Lang, text?: string, name?: string, activate = true, clean = text === undefined, group?: string): Doc {
     const n = this.untitledSeq++;
     const key = "untitled:" + n;
-    const content = text ?? (lang === "visualg" ? NEW_VISUALG : NEW_STUDIO);
+    const content = text ?? translateSource(lang, lang === "visualg" ? NEW_VISUALG : NEW_STUDIO, "pt-BR", getLocale());
     const doc: Doc = {
-      key, path: null, name: name ?? `sem título${n > 1 ? "-" + n : ""}.${LANG_INFO[lang].ext}`, lang,
+      key, path: null, name: name ?? `${t("sem título")}${n > 1 ? "-" + n : ""}.${LANG_INFO[lang].ext}`, lang,
       state: this.editor.createState(content, lang), scroll: null, savedText: clean ? content : "\0", dirty: !clean, missing: false,
       group,
     };
@@ -255,8 +257,12 @@ export class Project {
   /** Chamado pelo editor quando o texto ativo muda. */
   noteChange() {
     const doc = this.activeDoc;
-    if (!doc) return;
-    const dirty = this.editor.text !== doc.savedText;
+    if (doc) this.noteChangeOf(doc);
+  }
+
+  /** Recalcula sujo/rascunho de um documento (ativo ou não) depois de uma mudança programática. */
+  noteChangeOf(doc: Doc) {
+    const dirty = this.textOf(doc) !== doc.savedText;
     if (dirty !== doc.dirty) { doc.dirty = dirty; this.ev.meta(doc); }
     if (!doc.path) {
       clearTimeout(this.draftTimer);
@@ -341,7 +347,7 @@ export class Project {
     const legacy = localStorage.getItem("draft");
     if (legacy !== null) {
       const lang = (localStorage.getItem("lang") as Lang) ?? "studio";
-      drafts = [{ lang, name: "sem título." + LANG_INFO[lang].ext, text: legacy, dirty: legacy !== (lang === "visualg" ? NEW_VISUALG : NEW_STUDIO) }, ...drafts];
+      drafts = [{ lang, name: t("sem título") + "." + LANG_INFO[lang].ext, text: legacy, dirty: legacy !== (lang === "visualg" ? NEW_VISUALG : NEW_STUDIO) }, ...drafts];
       localStorage.removeItem("draft");
     }
     this.restoring = true;
@@ -410,10 +416,10 @@ export class Project {
       }
     }
     if (!needEntry) {
-      if (!files.length) return { error: `Nenhum arquivo ${LANG_INFO[lang].name} para testar.` };
+      if (!files.length) return { error: t("Nenhum arquivo {lang} para testar.", { lang: LANG_INFO[lang].name }) };
       return { files, entry: "", fileMap, unsaved };
     }
-    const candidates = files.map((f) => ({ path: f.path, hasEntry: hasEntryPoint(lang, f.source) }));
+    const candidates = files.map((f) => ({ path: f.path, hasEntry: hasEntryPoint(lang, f.source, getLocale()) }));
     const entry = resolveEntry({
       candidates,
       pinned: this.entryMode === "auto" ? null : [...fileMap.entries()].find(([, k]) => k === this.entryMode)?.[0] ?? null,
@@ -422,7 +428,7 @@ export class Project {
     });
     if (!entry) {
       if (this.entryMode !== "auto") { this.entryMode = "auto"; this.ev.entry(); }
-      return { error: files.length ? `Nenhum arquivo ${LANG_INFO[lang].name} tem um ponto de entrada (${lang === "visualg" ? "algoritmo" : "funcao inicio"}).` : `Nenhum arquivo ${LANG_INFO[lang].name} para executar.` };
+      return { error: files.length ? t("Nenhum arquivo {lang} tem um ponto de entrada ({entry}).", { lang: LANG_INFO[lang].name, entry: lang === "visualg" ? "algoritmo" : "funcao inicio" }) : t("Nenhum arquivo {lang} para executar.", { lang: LANG_INFO[lang].name }) };
     }
     this.lastEntry = fileMap.get(entry) ?? null;
     return { files, entry, fileMap, unsaved };

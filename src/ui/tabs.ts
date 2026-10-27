@@ -1,5 +1,6 @@
 /** Barra de abas dos documentos abertos. */
 import { Doc } from "../project";
+import { t } from "../i18n";
 
 export class TabsBar {
   onActivate: ((key: string) => void) | null = null;
@@ -21,7 +22,10 @@ export class TabsBar {
       tab.className = "tab";
       tab.dataset.key = d.key;
       tab.setAttribute("role", "tab");
-      tab.innerHTML = `<span class="tab-dot"></span><span class="tab-name"></span><button class="tab-close" title="Fechar (Ctrl+W)" aria-label="Fechar">×</button>`;
+      tab.innerHTML = `<span class="tab-dot"></span><span class="tab-name"></span><button class="tab-close">×</button>`;
+      const closeBtn = tab.querySelector<HTMLButtonElement>(".tab-close")!;
+      closeBtn.title = t("Fechar (Ctrl+W)");
+      closeBtn.setAttribute("aria-label", t("Fechar"));
       tab.addEventListener("mousedown", (e) => {
         if ((e.target as HTMLElement).closest(".tab-close")) return;
         if (e.button === 1) { e.preventDefault(); this.onClose?.(d.key); }
@@ -40,7 +44,7 @@ export class TabsBar {
     const tab = this.els.get(d.key);
     if (!tab) return;
     tab.querySelector(".tab-name")!.textContent = d.name;
-    tab.title = d.missing ? `${title} (apagado no disco)` : title;
+    tab.title = d.missing ? t("{title} (apagado no disco)", { title }) : title;
     tab.classList.toggle("dirty", d.dirty);
     tab.classList.toggle("missing", d.missing);
     tab.dataset.lang = d.lang;

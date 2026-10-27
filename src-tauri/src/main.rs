@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    portugol_ide_lib::run()
+    koine_ide_lib::run()
 }

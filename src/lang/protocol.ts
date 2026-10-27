@@ -1,6 +1,7 @@
 import { Lang } from "./shared/types";
 import { DebugCommand, Snapshot } from "./shared/debug";
 import { CoverageReport, TestResult } from "./shared/testing";
+import { Locale } from "./i18n";
 
 /** Um arquivo-fonte do projeto. `path` é relativo à raiz do projeto, com "/" como separador. */
 export interface SourceFile {
@@ -14,12 +15,12 @@ export interface FileBreakpoint {
 }
 
 export type ToWorker =
-  | { type: "run"; lang: Lang; files: SourceFile[]; entry: string; debug?: { breakpoints: FileBreakpoint[] } }
+  | { type: "run"; lang: Lang; files: SourceFile[]; entry: string; debug?: { breakpoints: FileBreakpoint[] }; locale?: Locale }
   | { type: "input"; value: string }
   | { type: "debug"; command: DebugCommand }
   | { type: "breakpoints"; breakpoints: FileBreakpoint[] }
   /** executa os testes dos arquivos (todos, ou só os de `only`) e mede a cobertura */
-  | { type: "runTests"; lang: Lang; files: SourceFile[]; only?: TestSelector[] };
+  | { type: "runTests"; lang: Lang; files: SourceFile[]; only?: TestSelector[]; locale?: Locale };
 
 /** Identifica um teste: arquivo + nome (ou só o arquivo, para todos os testes dele). */
 export interface TestSelector {
