@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Portugol IDE</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="toolbar">
+        <div class="brand" title="Portugol IDE">
+          <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 3 12l5 7M16 5l5 7-5 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Portugol<b>IDE</b></span>
+        </div>
+
+        <div class="group">
+          <button id="btn-new" class="btn" title="Novo programa (Ctrl+N)">
+            <svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M12 12v6M9 15h6"/></svg><span>Novo</span>
+          </button>
+          <button id="btn-open" class="btn" title="Abrir programa (Ctrl+O)">
+            <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Abrir</span>
+          </button>
+          <button id="btn-save" class="btn" title="Salvar (Ctrl+S) · Salvar como (Ctrl+Shift+S)">
+            <svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5zM8 3v6h7V3M8 21v-7h8v7"/></svg><span>Salvar</span>
+          </button>
+        </div>
+
+        <div class="group">
+          <button id="btn-run" class="btn primary" title="Executar (F5 ou Ctrl+Enter)">
+            <svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg><span>Executar</span><kbd>F5</kbd>
+          </button>
+          <button id="btn-debug" class="btn" title="Depurar: executa passo a passo, parando nos pontos de parada (F6)">
+            <svg viewBox="0 0 24 24"><path d="M9 7V5a3 3 0 0 1 6 0v2M5 9l3 2M19 9l-3 2M4 15h4M16 15h4M6 21l3-3M18 21l-3-3"/><rect x="8" y="7" width="8" height="12" rx="4"/></svg><span>Depurar</span><kbd>F6</kbd>
+          </button>
+          <button id="btn-stop" class="btn danger" title="Parar (Shift+F5)" disabled>
+            <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></svg><span>Parar</span>
+          </button>
+        </div>
+
+        <div class="group debug-controls" id="debug-controls" hidden>
+          <button id="btn-continue" class="btn" title="Continuar até o próximo ponto de parada (F8)">
+            <svg viewBox="0 0 24 24"><path d="M5 4.5v15l10-7.5z" fill="currentColor" stroke="none"/><path d="M19 5v14"/></svg><span>Continuar</span><kbd>F8</kbd>
+          </button>
+          <button id="btn-pause" class="btn" title="Pausar a execução na próxima linha">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14" stroke-width="2.6"/></svg><span>Pausar</span>
+          </button>
+          <button id="btn-step-over" class="btn" title="Passo: executa a linha atual sem entrar em funções (F10)">
+            <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M18 3v4h-4"/><circle cx="12" cy="18" r="2" fill="currentColor" stroke="none"/></svg><span>Passo</span><kbd>F10</kbd>
+          </button>
+          <button id="btn-step-into" class="btn" title="Entrar: executa a linha atual entrando na função chamada (F11)">
+            <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><circle cx="12" cy="20" r="2" fill="currentColor" stroke="none"/></svg><span>Entrar</span><kbd>F11</kbd>
+          </button>
+          <button id="btn-step-out" class="btn" title="Sair: executa até voltar para quem chamou a função (Shift+F11)">
+            <svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5"/><circle cx="12" cy="20" r="2" fill="currentColor" stroke="none"/></svg><span>Sair</span>
+          </button>
+        </div>
+
+        <div class="spacer"></div>
+
+        <div class="group">
+          <div class="seg" id="lang-switch" role="radiogroup" aria-label="Linguagem">
+            <button class="seg-btn" data-lang="studio" role="radio">Portugol Studio</button>
+            <button class="seg-btn" data-lang="visualg" role="radio">VisuAlg</button>
+          </div>
+          <button id="btn-examples" class="btn" title="Exemplos" aria-haspopup="true">
+            <svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h5v18H6a2 2 0 0 1-2-2zM13 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5z"/></svg><span>Exemplos</span>
+          </button>
+          <button id="btn-reference" class="btn" title="Referência: palavras reservadas, comandos e funções (F1)" aria-pressed="false">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5V14M12 17h.01"/></svg><span>Referência</span>
+          </button>
+          <button id="btn-theme" class="btn icon" title="Alternar tema (claro/escuro)">
+            <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            <svg class="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace" id="workspace">
+        <div class="main-col" id="main-col">
+          <section class="editor-pane">
+            <div id="editor"></div>
+          </section>
+          <div class="splitter" id="splitter" role="separator" aria-orientation="horizontal" title="Arraste para redimensionar"></div>
+          <section class="console-pane" id="console-pane">
+            <div class="console-col">
+              <div class="pane-header">
+                <span class="pane-title">Console</span>
+                <span class="run-state" id="run-state"></span>
+                <div class="spacer"></div>
+                <button id="btn-vars" class="btn ghost small" title="Mostrar/ocultar o painel de variáveis" aria-pressed="true">Variáveis</button>
+                <button id="btn-clear" class="btn ghost small" title="Limpar console (Ctrl+L)">Limpar</button>
+              </div>
+              <div class="console" id="console">
+                <pre class="console-out"></pre>
+                <div class="console-input" hidden>
+                  <span class="prompt" aria-hidden="true">›</span>
+                  <input type="text" spellcheck="false" autocomplete="off" aria-label="Entrada do programa" placeholder="Digite um valor e pressione Enter" />
+                </div>
+              </div>
+            </div>
+            <aside class="vars-pane" id="vars-pane">
+              <div class="pane-header">
+                <span class="pane-title">Variáveis</span>
+                <span class="vars-state" id="vars-state"></span>
+              </div>
+              <div class="vars-body"></div>
+            </aside>
+          </section>
+        </div>
+
+        <aside class="ref-panel" id="ref-panel" hidden aria-label="Referência da linguagem">
+          <div class="ref-head">
+            <span class="pane-title">Referência</span>
+            <span class="ref-lang" id="ref-lang"></span>
+            <div class="spacer"></div>
+            <button class="btn icon small ref-close" title="Fechar (F1)">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+          <div class="ref-search">
+            <input type="search" spellcheck="false" placeholder="Buscar palavra, comando ou função…" aria-label="Buscar na referência" />
+          </div>
+          <div class="ref-chips"></div>
+          <div class="ref-list"></div>
+        </aside>
+      </main>
+
+      <footer class="statusbar">
+        <span id="st-file" class="st-file">sem título.por</span>
+        <span id="st-dirty" class="st-dirty" title="Alterações não salvas" hidden>●</span>
+        <div class="spacer"></div>
+        <span id="st-time" class="st-time" title="Tempo de execução do último programa (sem contar o tempo esperando o usuário)"></span>
+        <span id="st-pos">Ln 1, Col 1</span>
+        <span id="st-lang">Portugol Studio</span>
+      </footer>
+
+      <div id="examples-panel" class="popover" hidden>
+        <div class="popover-head">
+          <span>Exemplos</span>
+          <span class="hint">Abre um programa pronto para você estudar e modificar</span>
+        </div>
+        <div class="popover-body" id="examples-list"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
