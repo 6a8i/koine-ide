@@ -162,7 +162,8 @@ Limitação atual: as mensagens de erro do compilador/interpretador e os coment�
 
 Contribuições são bem-vindas: bugs, ideias, código, exemplos e traduções. Leia o [guia de contribuição](CONTRIBUTING.md)
 (ambiente, testes, regras para mudanças na linguagem e nos idiomas, fluxo de PR) e o
-[Código de Conduta](CODE_OF_CONDUCT.md). Toda PR passa pela integração contínua (testes do interpretador, validador
+[Código de Conduta](CODE_OF_CONDUCT.md). Vulnerabilidades: veja a [política de segurança](SECURITY.md) e use o relato
+privado. A `main` só recebe mudanças por pull request com commits assinados; toda PR passa pela integração contínua (testes do interpretador, validador
 de idiomas, build do frontend, `cargo fmt`/`clippy`); as versões são publicadas automaticamente a partir de uma tag
 `vX.Y.Z`, com o instalador do Windows anexado à release, e o site é republicado a cada mudança na `main`.
 
