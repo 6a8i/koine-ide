@@ -1,10 +1,18 @@
 import { Lang } from "../lang/shared/types";
 
+export interface ExampleFile {
+  name: string;
+  code: string;
+}
+
 export interface Example {
   title: string;
   description: string;
   lang: Lang;
-  code: string;
+  /** exemplo de um arquivo só */
+  code?: string;
+  /** exemplo de vários arquivos: todos abrem em abas e são executados juntos; o primeiro é o principal */
+  files?: ExampleFile[];
 }
 
 export const NEW_STUDIO = `programa
@@ -25,6 +33,202 @@ fimalgoritmo
 `;
 
 export const EXAMPLES: Example[] = [
+  {
+    lang: "studio",
+    title: "Projeto com vários arquivos",
+    description: "Três arquivos que se importam: módulo de números, módulo de geometria e programa principal.",
+    files: [
+      {
+        name: "principal.por",
+        code: `// principal.por — o programa: importa os dois módulos abaixo (abas ao lado)
+programa
+{
+    importe Geometria
+    importe Numeros
+
+    funcao inicio()
+    {
+        Ponto a = Ponto(0.0, 0.0)          // estrutura pública do módulo Geometria
+        Ponto b = Ponto(3.0, 4.0)
+        escreva("distância: ", Geometria.distancia(a, b), "\\n")
+
+        Forma f = Circulo(2.0)             // classes públicas do módulo Geometria
+        escreva(f.descreve(), "\\n")
+
+        escreva("PI do módulo Numeros: ", Numeros.PI, "\\n")
+        // Numeros.quadrado(2.0) daria erro: a função é privada ao módulo
+    }
+}
+`,
+      },
+      {
+        name: "geometria.por",
+        code: `// geometria.por — módulo que usa o módulo Numeros
+programa
+{
+    modulo Geometria
+    importe Numeros
+
+    publico estrutura Ponto { real x  real y }
+
+    publico classe Forma
+    {
+        privado cadeia nome
+        publico Forma(cadeia nome) { este.nome = nome }
+        publico real area() { retorne 0.0 }
+        publico cadeia descreve() { retorne nome + " com área " + Numeros.arredonda(area()) }
+    }
+
+    publico classe Circulo herda Forma
+    {
+        privado real raio
+        publico Circulo(real raio) { super("círculo")  este.raio = raio }
+        publico real area() { retorne Numeros.PI * raio * raio }
+    }
+
+    publico real distancia(Ponto a, Ponto b)
+    {
+        retorne Numeros.hipotenusa(b.x - a.x, b.y - a.y)
+    }
+}
+`,
+      },
+      {
+        name: "numeros.por",
+        code: `// numeros.por — módulo sem funcao inicio: uma biblioteca
+programa
+{
+    modulo Numeros
+    inclua biblioteca Matematica
+
+    publico const real PI = 3.14159
+
+    // publico: quem importar Numeros pode usar
+    publico real arredonda(real v)
+    {
+        retorne Matematica.arredondar(v, 2)
+    }
+
+    publico real hipotenusa(real a, real b)
+    {
+        retorne Matematica.raiz(quadrado(a) + quadrado(b), 2.0)
+    }
+
+    // sem publico: privada, só este arquivo enxerga
+    real quadrado(real v) { retorne v * v }
+}
+`,
+      },
+    ],
+  },
+  {
+    lang: "visualg",
+    title: "Projeto com vários arquivos",
+    description: "Três arquivos que se importam: módulo de números, módulo de geometria e algoritmo principal.",
+    files: [
+      {
+        name: "principal.alg",
+        code: `// principal.alg — o algoritmo: importa os dois módulos abaixo (abas ao lado)
+algoritmo "principal"
+importe geometria
+importe numeros
+var
+    a, b: Ponto                 // registro público do módulo geometria
+    f: Forma
+inicio
+    a.x <- 0
+    a.y <- 0
+    b.x <- 3
+    b.y <- 4
+    escreval("distância: ", distancia(a, b))
+
+    f <- novo Circulo(2.0)      // classes públicas do módulo geometria
+    escreval(f.descreve())
+
+    escreval("PI do módulo numeros: ", NUMERO_PI)
+    // quadrado(2) daria erro: a função é privada ao módulo numeros
+fimalgoritmo
+`,
+      },
+      {
+        name: "geometria.alg",
+        code: `// geometria.alg — módulo que usa o módulo numeros
+modulo "geometria"
+importe numeros
+tipo
+    publico Ponto = registro
+        x, y: real
+    fimregistro
+
+    publico Forma = classe
+        privado nome: caractere
+        publico procedimento iniciar(n: caractere)
+        publico funcao area(): real
+        publico funcao descreve(): caractere
+    fimclasse
+
+    publico Circulo = classe herda Forma
+        privado raio: real
+        publico procedimento iniciar(r: real)
+        publico funcao area(): real
+    fimclasse
+
+procedimento Forma.iniciar(n: caractere)
+inicio
+    este.nome <- n
+fimprocedimento
+
+funcao Forma.area(): real
+inicio
+    retorne 0
+fimfuncao
+
+funcao Forma.descreve(): caractere
+inicio
+    retorne nome + " com área " + numpcarac(area())
+fimfuncao
+
+procedimento Circulo.iniciar(r: real)
+inicio
+    super.iniciar("círculo")
+    raio <- r
+fimprocedimento
+
+funcao Circulo.area(): real
+inicio
+    retorne NUMERO_PI * raio * raio
+fimfuncao
+
+publico funcao distancia(a, b: Ponto): real
+inicio
+    retorne hipotenusa(b.x - a.x, b.y - a.y)
+fimfuncao
+fimmodulo
+`,
+      },
+      {
+        name: "numeros.alg",
+        code: `// numeros.alg — módulo sem inicio: uma biblioteca
+modulo "numeros"
+const
+    publico NUMERO_PI = 3.14159
+
+// sem publico: privada, só este arquivo enxerga
+funcao quadrado(v: real): real
+inicio
+    retorne v * v
+fimfuncao
+
+// publico: quem importar numeros pode usar
+publico funcao hipotenusa(a, b: real): real
+inicio
+    retorne raizq(quadrado(a) + quadrado(b))
+fimfuncao
+fimmodulo
+`,
+      },
+    ],
+  },
   {
     lang: "studio",
     title: "Estruturas e referências",

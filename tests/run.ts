@@ -399,5 +399,20 @@ check("entry último usado", resolveEntry({ candidates: [cands[0], cands[2], { p
 check("entry único com entrada", resolveEntry({ candidates: [cands[0], cands[2]], pinned: null, active: null, last: null }), "teste.por");
 check("entry nenhum", resolveEntry({ candidates: [cands[0]], pinned: null, active: null, last: null }), null);
 
+// ---------------- Exemplos (todos compilam e executam sem erro) ----------------
+import { EXAMPLES } from "../src/examples";
+for (const ex of EXAMPLES) {
+  const name = `exemplo ${ex.lang}: ${ex.title}`;
+  try {
+    const files = ex.files ? ex.files.map((f) => ({ path: f.name, source: f.code })) : [{ path: "principal." + (ex.lang === "visualg" ? "alg" : "por"), source: ex.code ?? "" }];
+    const program = compileProject(ex.lang, files, files[0].path);
+    const host = new BufferHost(["1", "2", "3", "4", "5", "6", "7", "8"]);
+    try { await program.run(host); } catch (e) { if (!/não há mais linhas/.test(String(e))) throw e; }
+    pass++;
+  } catch (e) {
+    console.log(`✗ ${name}: ${e instanceof Error ? e.message : e}`); fail++;
+  }
+}
+
 console.log(`\n${pass} passaram, ${fail} falharam`);
 if (fail) process.exit(1);

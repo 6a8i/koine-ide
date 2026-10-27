@@ -685,11 +685,18 @@ function buildExamples() {
       b.className = "ex-item";
       b.innerHTML = `<span class="ex-title"></span><span class="ex-desc"></span>`;
       b.querySelector(".ex-title")!.textContent = ex.title;
-      b.querySelector(".ex-desc")!.textContent = ex.description;
+      b.querySelector(".ex-desc")!.textContent = ex.files ? `${ex.description} (${ex.files.length} arquivos)` : ex.description;
       b.addEventListener("click", () => {
         hideExamples();
         const slug = ex.title.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-        project.newUntitled(ex.lang, ex.code, `${slug}.${LANG_INFO[ex.lang].ext}`, true, true);
+        if (ex.files) {
+          // cada arquivo vira uma aba; o grupo faz todas serem executadas juntas; o primeiro (principal) fica ativo
+          const group = `ex:${slug}:${Date.now()}`;
+          const docs = ex.files.map((f) => project.newUntitled(ex.lang, f.code, f.name, false, true, group));
+          project.activate(docs[0].key);
+        } else {
+          project.newUntitled(ex.lang, ex.code, `${slug}.${LANG_INFO[ex.lang].ext}`, true, true);
+        }
         editor.focus();
       });
       grid.appendChild(b);
