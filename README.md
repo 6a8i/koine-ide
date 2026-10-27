@@ -25,9 +25,9 @@ Feita com [Tauri 2](https://tauri.app) (janela nativa, instalador de poucos MB),
 
 Baixe o instalador mais recente na página de [**Releases**](https://github.com/6a8i/koine-ide/releases/latest):
 
-- `Koiné IDE_x.y.z_x64-setup.exe`: instalador recomendado para Windows 10/11 (instala só para o seu usuário, sem
+- `Koine.IDE_x.y.z_x64-setup.exe`: instalador recomendado para Windows 10/11 (instala só para o seu usuário, sem
   precisar de administrador).
-- `Koiné IDE_x.y.z_x64_en-US.msi`: instalador MSI, para quem prefere ou para distribuição em rede.
+- `Koine.IDE_x.y.z_x64_pt-BR.msi`: instalador MSI, para quem prefere ou para distribuição em rede.
 
 Execute o instalador e pronto: arquivos `.koi` passam a abrir com duplo clique. Como o instalador ainda não é assinado,
 o Windows pode mostrar o aviso "editor desconhecido"; clique em *Mais informações* → *Executar assim mesmo*.
