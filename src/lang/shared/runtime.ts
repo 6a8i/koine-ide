@@ -2,6 +2,21 @@ import { Host, PortugolError } from "./types";
 
 export const MAX_CALL_DEPTH = 1200;
 
+/** Palavras usadas para escrever/ler valores lógicos no idioma ativo (o worker define por execução). */
+export const BOOL_WORDS = { yes: "verdadeiro", no: "falso" };
+export function setBooleanWords(yes: string, no: string) {
+  BOOL_WORDS.yes = yes;
+  BOOL_WORDS.no = no;
+}
+export const formatBool = (v: boolean) => (v ? BOOL_WORDS.yes : BOOL_WORDS.no);
+/** Interpreta um texto como lógico: aceita o idioma ativo, português e inglês. */
+export function parseBool(s: string): boolean | null {
+  const k = s.trim().toLowerCase();
+  if (k === BOOL_WORDS.yes.toLowerCase() || ["verdadeiro", "v", "true", "1", "sim", "s"].includes(k)) return true;
+  if (k === BOOL_WORDS.no.toLowerCase() || ["falso", "f", "false", "0", "nao", "não", "n"].includes(k)) return false;
+  return null;
+}
+
 // ======================= valores de execução compartilhados =======================
 
 /** Referência a uma posição de memória (parâmetros por & / var e variáveis `ref`). */

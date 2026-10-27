@@ -1,7 +1,7 @@
 import { BREAK, CompileOptions, Host, PortugolError, Program, ReturnSignal } from "../shared/types";
 import { CoverageCollector, CoverageUnit, TestInfo, statementLines } from "../shared/testing";
 import { SourceFile } from "../protocol";
-import { MAX_CALL_DEPTH, Ref, StructVal, ObjVal, copyStruct, structEquals, finalizeError, parseIntStrict, parseRealStrict, stackOverflow, wrapJsError } from "../shared/runtime";
+import { MAX_CALL_DEPTH, Ref, StructVal, ObjVal, copyStruct, structEquals, finalizeError, parseIntStrict, parseRealStrict, stackOverflow, wrapJsError, parseBool, BOOL_WORDS } from "../shared/runtime";
 import * as A from "./ast";
 import { TypeRef, typeName } from "./ast";
 import { formatVisualg, formatWithWidth } from "./builtins";
@@ -698,10 +698,9 @@ class VisualgProgram implements Program {
         return v;
       }
       case "logico": {
-        const s = line.trim().toLowerCase();
-        if (["verdadeiro", "v", "true", "1", "sim", "s"].includes(s)) return true;
-        if (["falso", "f", "false", "0", "nao", "não", "n"].includes(s)) return false;
-        throw rt(`Valor inválido: "${line}" não é um valor lógico (digite verdadeiro ou falso)`, n);
+        const b = parseBool(line);
+        if (b !== null) return b;
+        throw rt(`Valor inválido: "${line}" não é um valor lógico (digite ${BOOL_WORDS.yes} ou ${BOOL_WORDS.no})`, n);
       }
       default: return line;
     }

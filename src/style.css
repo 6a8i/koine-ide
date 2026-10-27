@@ -601,3 +601,12 @@ body:not(.tauri) .tauri-only { display: none !important; }
 /* marcas de cobertura no editor */
 .cm-cov-hit { background: rgba(61, 220, 151, 0.10); box-shadow: inset 3px 0 0 var(--success); }
 .cm-cov-miss { background: rgba(255, 107, 107, 0.10); box-shadow: inset 3px 0 0 var(--danger); }
+
+/* seletor de idioma */
+.locale-select {
+  height: 28px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-hover); color: var(--fg);
+  font: inherit; font-size: 12.5px; max-width: 120px;
+}
+.locale-select:hover { border-color: var(--accent); }
+
+.seg-btn { white-space: nowrap; }

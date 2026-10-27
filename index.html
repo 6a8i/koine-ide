@@ -4,82 +4,82 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark light" />
-    <title>Portugol IDE</title>
+    <title>Koiné IDE</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <div id="app">
       <header class="toolbar">
-        <div class="brand" title="Portugol IDE">
+        <div class="brand" title="Koiné IDE">
           <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 3 12l5 7M16 5l5 7-5 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span>Portugol<b>IDE</b></span>
+          <span>Koiné<b>IDE</b></span>
         </div>
 
         <div class="group">
-          <button id="btn-new" class="btn" title="Novo programa (Ctrl+N)">
-            <svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M12 12v6M9 15h6"/></svg><span>Novo</span>
+          <button id="btn-new" class="btn" data-i18n-title="" title="Novo programa (Ctrl+N)">
+            <svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M12 12v6M9 15h6"/></svg><span data-i18n="">Novo</span>
           </button>
-          <button id="btn-open" class="btn" title="Abrir programa (Ctrl+O)">
-            <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Abrir</span>
+          <button id="btn-open" class="btn" data-i18n-title="" title="Abrir programa (Ctrl+O)">
+            <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span data-i18n="">Abrir</span>
           </button>
-          <button id="btn-open-folder" class="btn tauri-only" title="Abrir pasta como projeto (Ctrl+Shift+O)">
-            <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2H3zM3 11h18l-2 8H5z"/></svg><span>Pasta</span>
+          <button id="btn-open-folder" class="btn tauri-only" data-i18n-title="" title="Abrir pasta como projeto (Ctrl+Shift+O)">
+            <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2H3zM3 11h18l-2 8H5z"/></svg><span data-i18n="">Pasta</span>
           </button>
-          <button id="btn-save" class="btn" title="Salvar (Ctrl+S) · Salvar como (Ctrl+Shift+S)">
-            <svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5zM8 3v6h7V3M8 21v-7h8v7"/></svg><span>Salvar</span>
+          <button id="btn-save" class="btn" data-i18n-title="" title="Salvar (Ctrl+S) · Salvar como (Ctrl+Shift+S)">
+            <svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5zM8 3v6h7V3M8 21v-7h8v7"/></svg><span data-i18n="">Salvar</span>
           </button>
-          <button id="btn-save-all" class="btn tauri-only" title="Salvar todos os arquivos (Ctrl+Alt+S)">
-            <svg viewBox="0 0 24 24"><path d="M7 7h9l3 3v11H7zM10 7v4h5V7M4 4h11"/></svg><span>Salvar tudo</span>
+          <button id="btn-save-all" class="btn tauri-only" data-i18n-title="" title="Salvar todos os arquivos (Ctrl+Alt+S)">
+            <svg viewBox="0 0 24 24"><path d="M7 7h9l3 3v11H7zM10 7v4h5V7M4 4h11"/></svg><span data-i18n="">Salvar tudo</span>
           </button>
         </div>
 
         <div class="group">
-          <button id="btn-run" class="btn primary" title="Executar (F5 ou Ctrl+Enter)">
-            <svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg><span>Executar</span><kbd>F5</kbd>
+          <button id="btn-run" class="btn primary" data-i18n-title="" title="Executar (F5 ou Ctrl+Enter)">
+            <svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg><span data-i18n="">Executar</span><kbd>F5</kbd>
           </button>
-          <button id="btn-debug" class="btn" title="Depurar: executa passo a passo, parando nos pontos de parada (F6)">
-            <svg viewBox="0 0 24 24"><path d="M9 7V5a3 3 0 0 1 6 0v2M5 9l3 2M19 9l-3 2M4 15h4M16 15h4M6 21l3-3M18 21l-3-3"/><rect x="8" y="7" width="8" height="12" rx="4"/></svg><span>Depurar</span><kbd>F6</kbd>
+          <button id="btn-debug" class="btn" data-i18n-title="" title="Depurar: executa passo a passo, parando nos pontos de parada (F6)">
+            <svg viewBox="0 0 24 24"><path d="M9 7V5a3 3 0 0 1 6 0v2M5 9l3 2M19 9l-3 2M4 15h4M16 15h4M6 21l3-3M18 21l-3-3"/><rect x="8" y="7" width="8" height="12" rx="4"/></svg><span data-i18n="">Depurar</span><kbd>F6</kbd>
           </button>
-          <button id="btn-run-tests" class="btn" title="Executar todos os testes do projeto (F7)">
-            <svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg><span>Testar</span><kbd>F7</kbd>
+          <button id="btn-run-tests" class="btn" data-i18n-title="" title="Executar todos os testes do projeto (F7)">
+            <svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg><span data-i18n="">Testar</span><kbd>F7</kbd>
           </button>
-          <button id="btn-stop" class="btn danger" title="Parar (Shift+F5)" disabled>
-            <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></svg><span>Parar</span>
+          <button id="btn-stop" class="btn danger" data-i18n-title="" title="Parar (Shift+F5)" disabled>
+            <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></svg><span data-i18n="">Parar</span>
           </button>
         </div>
 
         <div class="group debug-controls" id="debug-controls" hidden>
-          <button id="btn-continue" class="btn" title="Continuar até o próximo ponto de parada (F8)">
-            <svg viewBox="0 0 24 24"><path d="M5 4.5v15l10-7.5z" fill="currentColor" stroke="none"/><path d="M19 5v14"/></svg><span>Continuar</span><kbd>F8</kbd>
+          <button id="btn-continue" class="btn" data-i18n-title="" title="Continuar até o próximo ponto de parada (F8)">
+            <svg viewBox="0 0 24 24"><path d="M5 4.5v15l10-7.5z" fill="currentColor" stroke="none"/><path d="M19 5v14"/></svg><span data-i18n="">Continuar</span><kbd>F8</kbd>
           </button>
-          <button id="btn-pause" class="btn" title="Pausar a execução na próxima linha">
-            <svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14" stroke-width="2.6"/></svg><span>Pausar</span>
+          <button id="btn-pause" class="btn" data-i18n-title="" title="Pausar a execução na próxima linha">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14" stroke-width="2.6"/></svg><span data-i18n="">Pausar</span>
           </button>
-          <button id="btn-step-over" class="btn" title="Passo: executa a linha atual sem entrar em funções (F10)">
-            <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M18 3v4h-4"/><circle cx="12" cy="18" r="2" fill="currentColor" stroke="none"/></svg><span>Passo</span><kbd>F10</kbd>
+          <button id="btn-step-over" class="btn" data-i18n-title="" title="Passo: executa a linha atual sem entrar em funções (F10)">
+            <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M18 3v4h-4"/><circle cx="12" cy="18" r="2" fill="currentColor" stroke="none"/></svg><span data-i18n="">Passo</span><kbd>F10</kbd>
           </button>
-          <button id="btn-step-into" class="btn" title="Entrar: executa a linha atual entrando na função chamada (F11)">
-            <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><circle cx="12" cy="20" r="2" fill="currentColor" stroke="none"/></svg><span>Entrar</span><kbd>F11</kbd>
+          <button id="btn-step-into" class="btn" data-i18n-title="" title="Entrar: executa a linha atual entrando na função chamada (F11)">
+            <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><circle cx="12" cy="20" r="2" fill="currentColor" stroke="none"/></svg><span data-i18n="">Entrar</span><kbd>F11</kbd>
           </button>
-          <button id="btn-step-out" class="btn" title="Sair: executa até voltar para quem chamou a função (Shift+F11)">
-            <svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5"/><circle cx="12" cy="20" r="2" fill="currentColor" stroke="none"/></svg><span>Sair</span>
+          <button id="btn-step-out" class="btn" data-i18n-title="" title="Sair: executa até voltar para quem chamou a função (Shift+F11)">
+            <svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5"/><circle cx="12" cy="20" r="2" fill="currentColor" stroke="none"/></svg><span data-i18n="">Sair</span>
           </button>
         </div>
 
         <div class="spacer"></div>
 
         <div class="group">
-          <div class="seg" id="lang-switch" role="radiogroup" aria-label="Linguagem">
+          <div class="seg" id="lang-switch" role="radiogroup" data-i18n-aria="" aria-label="Linguagem">
             <button class="seg-btn" data-lang="studio" role="radio">Portugol Studio</button>
             <button class="seg-btn" data-lang="visualg" role="radio">VisuAlg</button>
           </div>
-          <button id="btn-examples" class="btn" title="Exemplos" aria-haspopup="true">
-            <svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h5v18H6a2 2 0 0 1-2-2zM13 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5z"/></svg><span>Exemplos</span>
+          <button id="btn-examples" class="btn" data-i18n-title="" title="Exemplos" aria-haspopup="true">
+            <svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h5v18H6a2 2 0 0 1-2-2zM13 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5z"/></svg><span data-i18n="">Exemplos</span>
           </button>
-          <button id="btn-reference" class="btn" title="Referência: palavras reservadas, comandos e funções (F1)" aria-pressed="false">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5V14M12 17h.01"/></svg><span>Referência</span>
+          <button id="btn-reference" class="btn" data-i18n-title="" title="Referência: palavras reservadas, comandos e funções (F1)" aria-pressed="false">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5V14M12 17h.01"/></svg><span data-i18n="">Referência</span>
           </button>
-          <button id="btn-theme" class="btn icon" title="Alternar tema (claro/escuro)">
+          <button id="btn-theme" class="btn icon" data-i18n-title="" title="Alternar tema (claro/escuro)">
             <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
             <svg class="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
           </button>
@@ -87,78 +87,78 @@
       </header>
 
       <main class="workspace" id="workspace">
-        <aside class="sidebar tauri-only" id="sidebar" aria-label="Projeto">
+        <aside class="sidebar tauri-only" id="sidebar" data-i18n-aria="" aria-label="Projeto">
           <div class="pane-header">
-            <span class="pane-title">Projeto</span>
+            <span class="pane-title" data-i18n="">Projeto</span>
             <span class="sidebar-root" id="sidebar-root" title=""></span>
             <div class="spacer"></div>
-            <button id="btn-tree-new-file" class="btn icon small" title="Novo arquivo">
+            <button id="btn-tree-new-file" class="btn icon small" data-i18n-title="" title="Novo arquivo">
               <svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M12 12v6M9 15h6"/></svg>
             </button>
-            <button id="btn-tree-new-folder" class="btn icon small" title="Nova pasta">
+            <button id="btn-tree-new-folder" class="btn icon small" data-i18n-title="" title="Nova pasta">
               <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM12 10v6M9 13h6"/></svg>
             </button>
-            <button id="btn-tree-refresh" class="btn icon small" title="Atualizar a lista de arquivos">
+            <button id="btn-tree-refresh" class="btn icon small" data-i18n-title="" title="Atualizar a lista de arquivos">
               <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M18 3v4h-4M20 12a8 8 0 0 1-14 5.3M6 21v-4h4"/></svg>
             </button>
           </div>
           <div class="tree-body" role="tree"></div>
         </aside>
-        <div class="vsplitter tauri-only" id="sidebar-splitter" role="separator" aria-orientation="vertical" title="Arraste para redimensionar"></div>
+        <div class="vsplitter tauri-only" id="sidebar-splitter" role="separator" aria-orientation="vertical" data-i18n-title="" title="Arraste para redimensionar"></div>
         <div class="main-col" id="main-col">
           <div class="tabs" id="tabs" role="tablist"></div>
           <section class="editor-pane">
             <div id="editor"></div>
           </section>
-          <div class="splitter" id="splitter" role="separator" aria-orientation="horizontal" title="Arraste para redimensionar"></div>
+          <div class="splitter" id="splitter" role="separator" aria-orientation="horizontal" data-i18n-title="" title="Arraste para redimensionar"></div>
           <section class="console-pane" id="console-pane">
             <div class="console-col">
               <div class="pane-header">
-                <span class="pane-title">Console</span>
+                <span class="pane-title" data-i18n="">Console</span>
                 <span class="run-state" id="run-state"></span>
                 <div class="spacer"></div>
-                <button id="btn-vars" class="btn ghost small" title="Mostrar/ocultar o painel de variáveis" aria-pressed="true">Variáveis</button>
-                <button id="btn-tests" class="btn ghost small" title="Mostrar/ocultar o painel de testes" aria-pressed="false">Testes</button>
-                <button id="btn-clear" class="btn ghost small" title="Limpar console (Ctrl+L)">Limpar</button>
+                <button id="btn-vars" data-i18n="" class="btn ghost small" data-i18n-title="" title="Mostrar/ocultar o painel de variáveis" aria-pressed="true">Variáveis</button>
+                <button id="btn-tests" data-i18n="" class="btn ghost small" data-i18n-title="" title="Mostrar/ocultar o painel de testes" aria-pressed="false">Testes</button>
+                <button id="btn-clear" data-i18n="" class="btn ghost small" data-i18n-title="" title="Limpar console (Ctrl+L)">Limpar</button>
               </div>
               <div class="console" id="console">
                 <pre class="console-out"></pre>
                 <div class="console-input" hidden>
                   <span class="prompt" aria-hidden="true">›</span>
-                  <input type="text" spellcheck="false" autocomplete="off" aria-label="Entrada do programa" placeholder="Digite um valor e pressione Enter" />
+                  <input type="text" spellcheck="false" autocomplete="off" data-i18n-aria="" aria-label="Entrada do programa" data-i18n-placeholder="" placeholder="Digite um valor e pressione Enter" />
                 </div>
               </div>
             </div>
             <aside class="vars-pane" id="vars-pane">
               <div class="pane-header">
-                <span class="pane-title">Variáveis</span>
+                <span class="pane-title" data-i18n="">Variáveis</span>
                 <span class="vars-state" id="vars-state"></span>
               </div>
               <div class="vars-body"></div>
             </aside>
             <aside class="vars-pane tests-pane" id="tests-pane" hidden>
               <div class="pane-header">
-                <span class="pane-title">Testes</span>
+                <span class="pane-title" data-i18n="">Testes</span>
                 <span class="tests-state" id="tests-state"></span>
                 <div class="spacer"></div>
-                <button id="btn-tests-run-all" class="btn ghost small" title="Executar todos os testes (F7)">▶ Todos</button>
+                <button id="btn-tests-run-all" class="btn ghost small" data-i18n-title="" title="Executar todos os testes (F7)">▶ <span data-i18n="">Todos</span></button>
               </div>
               <div class="vars-body tests-body"></div>
             </aside>
           </section>
         </div>
 
-        <aside class="ref-panel" id="ref-panel" hidden aria-label="Referência da linguagem">
+        <aside class="ref-panel" id="ref-panel" hidden data-i18n-aria="" aria-label="Referência da linguagem">
           <div class="ref-head">
-            <span class="pane-title">Referência</span>
+            <span class="pane-title" data-i18n="">Referência</span>
             <span class="ref-lang" id="ref-lang"></span>
             <div class="spacer"></div>
-            <button class="btn icon small ref-close" title="Fechar (F1)">
+            <button class="btn icon small ref-close" data-i18n-title="" title="Fechar (F1)">
               <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
             </button>
           </div>
           <div class="ref-search">
-            <input type="search" spellcheck="false" placeholder="Buscar palavra, comando ou função…" aria-label="Buscar na referência" />
+            <input type="search" spellcheck="false" data-i18n-placeholder="" placeholder="Buscar palavra, comando ou função…" data-i18n-aria="" aria-label="Buscar na referência" />
           </div>
           <div class="ref-chips"></div>
           <div class="ref-list"></div>
@@ -166,21 +166,21 @@
       </main>
 
       <footer class="statusbar">
-        <button id="btn-sidebar" class="st-btn tauri-only" title="Mostrar/ocultar o painel do projeto (Ctrl+B)" aria-pressed="true">☰</button>
+        <button id="btn-sidebar" class="st-btn tauri-only" data-i18n-title="" title="Mostrar/ocultar o painel do projeto (Ctrl+B)" aria-pressed="true">☰</button>
         <span id="st-root" class="st-root tauri-only" title=""></span>
         <span id="st-file" class="st-file">sem título.por</span>
-        <span id="st-dirty" class="st-dirty" title="Alterações não salvas" hidden>●</span>
-        <button id="st-entry" class="st-btn tauri-only" title="Arquivo principal: o que é executado com F5"></button>
+        <span id="st-dirty" class="st-dirty" data-i18n-title="" title="Alterações não salvas" hidden>●</span>
+        <button id="st-entry" class="st-btn tauri-only" data-i18n-title="" title="Arquivo principal: o que é executado com F5"></button>
         <div class="spacer"></div>
-        <span id="st-time" class="st-time" title="Tempo de execução do último programa (sem contar o tempo esperando o usuário)"></span>
+        <span id="st-time" class="st-time" data-i18n-title="" title="Tempo de execução do último programa (sem contar o tempo esperando o usuário)"></span>
         <span id="st-pos">Ln 1, Col 1</span>
         <span id="st-lang">Portugol Studio</span>
       </footer>
 
       <div id="examples-panel" class="popover" hidden>
         <div class="popover-head">
-          <span>Exemplos</span>
-          <span class="hint">Abre um programa pronto para você estudar e modificar</span>
+          <span data-i18n="">Exemplos</span>
+          <span class="hint" data-i18n="">Abre um programa pronto para você estudar e modificar</span>
         </div>
         <div class="popover-body" id="examples-list"></div>
       </div>

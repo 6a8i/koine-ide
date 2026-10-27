@@ -17,6 +17,8 @@ import { TestsPanel, TestsState, applyResult } from "./ui/tests";
 import { coverageSpec } from "./ui/coverage";
 import { discoverTests, hasTests } from "./lang/shared/testing";
 import type { TestSelector } from "./lang/protocol";
+import { t, tn, getLocale, setLocale, initialLocale, applyStaticTranslations, LOCALES } from "./i18n";
+import { translateSource, type Locale } from "./lang/i18n";
 import type { TestsSummary as RunnerTestsSummary } from "./runner";
 import {
   openFile, saveFile, confirmDialog, setWindowTitle, isTauri, readTextFile, writeTextFile, listDir, pickFolder, statPath,
@@ -50,12 +52,15 @@ const prefs = {
 };
 
 // ---------- tema ----------
-function applyTheme(t: string) {
-  document.documentElement.dataset.theme = t;
-  prefs.theme = t;
+function applyTheme(theme: string) {
+  document.documentElement.dataset.theme = theme;
+  prefs.theme = theme;
 }
 applyTheme(prefs.theme);
 document.body.classList.toggle("tauri", isTauri);
+// idioma da interface e das palavras reservadas (antes de montar qualquer texto)
+setLocale(initialLocale());
+applyStaticTranslations();
 
 // ---------- elementos ----------
 const btnRun = $<HTMLButtonElement>("#btn-run");
@@ -155,8 +160,8 @@ async function revealLocation(file: string | undefined, line: number, col: numbe
 
 const runner = new Runner({
   testStart: (file, name) => {
-    const t = testsState.files.find((x) => x.file === file)?.tests.find((x) => x.name === name);
-    if (t) t.status = "rodando";
+    const tst = testsState.files.find((x) => x.file === file)?.tests.find((x) => x.name === name);
+    if (tst) tst.status = "rodando";
     testsPanel.render(testsState);
   },
   test: (r) => {
@@ -169,64 +174,65 @@ const runner = new Runner({
     const f = testsState.files.find((x) => x.file === file);
     if (f) f.error = { message, line, col, errFile };
     testsPanel.render(testsState);
-    consolePanel.error(`Erro em ${baseName(file)}: ${message}`, line, col, fileLabel(errFile));
+    consolePanel.error(t("Erro em {arquivo}: {mensagem}", { arquivo: baseName(file), mensagem: message }), line, col, fileLabel(errFile));
     void revealLocation(errFile, line, col, "error", message);
   },
   testsDone: (s) => {
     const failed = s.total - s.passed;
-    setRunState(failed ? "error" : "", failed ? `${failed} teste${failed > 1 ? "s" : ""} falhou` : "");
+    setRunState(failed ? "error" : "", failed ? tn(failed, "{n} teste falhou", "{n} testes falharam") : "");
     stTime.textContent = fmtMs(s.ms);
     setRunning(false);
     finishTestsRun(s);
   },
   out: (t) => consolePanel.write(t),
   clear: () => consolePanel.clear(),
-  inputRequest: () => { consolePanel.showInput(); setRunState("waiting", "aguardando entrada"); },
+  inputRequest: () => { consolePanel.showInput(); setRunState("waiting", t("aguardando entrada")); },
   done: (ms, snap) => {
     consolePanel.hideInput();
-    consolePanel.system(`\nPrograma finalizado em ${fmtMs(ms)}.`);
+    consolePanel.system("\n" + t("Programa finalizado em {ms}.", { ms: fmtMs(ms) }));
     setRunState("", "");
     stTime.textContent = fmtMs(ms);
-    applySnapshot(snap, false, "valores finais");
+    applySnapshot(snap, false, t("valores finais"));
     setRunning(false);
   },
   error: (e, ms, snap) => {
     consolePanel.hideInput();
-    const prefix = e.kind === "sintaxe" ? "Erro de sintaxe" : e.kind === "interno" ? "Erro interno" : "Erro de execução";
+    const prefix = e.kind === "sintaxe" ? t("Erro de sintaxe") : e.kind === "interno" ? t("Erro interno") : t("Erro de execução");
     consolePanel.error(`${prefix}: ${e.message}`, e.line, e.col, fileLabel(e.file));
     void revealLocation(e.file, e.line, e.col, "error", e.message);
-    setRunState("error", e.kind === "sintaxe" ? "erro de sintaxe" : "erro");
+    setRunState("error", e.kind === "sintaxe" ? t("erro de sintaxe") : t("erro"));
     stTime.textContent = fmtMs(ms);
-    applySnapshot(snap, false, snap ? "valores no momento do erro" : "");
+    applySnapshot(snap, false, snap ? t("valores no momento do erro") : "");
     setRunning(false);
   },
   stopped: (ms) => {
     if (testsState.running) finishTestsRun(null);
     consolePanel.hideInput();
-    consolePanel.system(`\nPrograma interrompido após ${fmtMs(ms)}.`);
+    consolePanel.system("\n" + t("Programa interrompido após {ms}.", { ms: fmtMs(ms) }));
     setRunState("", "");
     stTime.textContent = fmtMs(ms);
-    setVarsState("", editor.snapshot ? "valores ao interromper" : "");
+    setVarsState("", editor.snapshot ? t("valores ao interromper") : "");
     setRunning(false);
   },
   paused: (file, line, col, snap) => {
     consolePanel.hideInput();
     void revealLocation(file, line, col, "pause");
-    const where = fileLabel(file) ? `${fileLabel(file)}:${line}` : `linha ${line}`;
-    applySnapshot(snap, true, `pausado em ${where}`);
-    setVarsState("paused", `pausado em ${where}`);
-    setRunState("paused", `pausado em ${where}`);
+    const where = fileLabel(file) ? `${fileLabel(file)}:${line}` : t("linha {n}", { n: line });
+    const label = t("pausado em {where}", { where });
+    applySnapshot(snap, true, label);
+    setVarsState("paused", label);
+    setRunState("paused", label);
     setDebugButtons(true);
   },
   resumed: () => {
     clearDebugLine();
-    setRunState("running", "executando");
-    setVarsState("live", "ao vivo");
+    setRunState("running", t("executando"));
+    setVarsState("live", t("ao vivo"));
     setDebugButtons(false);
   },
-  snapshot: (snap) => applySnapshot(snap, true, "ao vivo"),
+  snapshot: (snap) => applySnapshot(snap, true, t("ao vivo")),
 });
-consolePanel.onSubmit = (v) => { runner.sendInput(v); setRunState("running", "executando"); };
+consolePanel.onSubmit = (v) => { runner.sendInput(v); setRunState("running", t("executando")); };
 consolePanel.onGoTo = (l, c, file) => revealLocation(file, l, c, "goto");
 
 // ---------- painéis laterais ----------
@@ -268,17 +274,18 @@ async function refreshTests() {
   const set = await project.collectRunFiles(doc.lang, false);
   const files = "error" in set ? [] : set.files;
   const prev = new Map(testsState.files.map((f) => [f.file, f]));
-  testsState.files = files.filter((f) => hasTests(doc.lang, f.source)).map((f) => {
+  const locale = getLocale();
+  testsState.files = files.filter((f) => hasTests(doc.lang, f.source, locale)).map((f) => {
     const old = prev.get(f.path);
     return {
       file: f.path, label: baseName(f.path), error: old?.error,
-      tests: discoverTests(doc.lang, f.source).map((t) => {
-        const o = old?.tests.find((x) => x.name === t.name);
-        return o ? { ...o, line: t.line } : { name: t.name, line: t.line, status: "pendente" as const };
+      tests: discoverTests(doc.lang, f.source, locale).map((found) => {
+        const o = old?.tests.find((x) => x.name === found.name);
+        return o ? { ...o, line: found.line } : { name: found.name, line: found.line, status: "pendente" as const };
       }),
     };
   });
-  testsState.otherFiles = files.filter((f) => !hasTests(doc.lang, f.source)).map((f) => f.path);
+  testsState.otherFiles = files.filter((f) => !hasTests(doc.lang, f.source, locale)).map((f) => f.path);
   testsPanel.render(testsState);
 }
 let refreshTestsTimer = 0;
@@ -298,7 +305,7 @@ async function runTests(only?: TestSelector[]) {
   if (!testsPane.hidden) { /* já visível */ } else setTestsVisible(true);
   await refreshTests();
   if (!testsState.files.length) {
-    toast('Nenhum teste encontrado. Escreva blocos teste "nome" no programa ou em um arquivo de testes que o importe.', true);
+    toast(t('Nenhum teste encontrado. Escreva blocos teste "nome" no programa ou em um arquivo de testes que o importe.'), true);
     return;
   }
   consolePanel.clear();
@@ -309,9 +316,9 @@ async function runTests(only?: TestSelector[]) {
   for (const f of testsState.files) {
     if (!selected(f.file)) continue;
     f.error = undefined;
-    for (const t of f.tests) {
-      if (!selected(f.file, t.name)) continue;
-      t.status = "pendente"; t.message = undefined; t.errLine = undefined; t.ms = undefined; t.output = undefined;
+    for (const tst of f.tests) {
+      if (!selected(f.file, tst.name)) continue;
+      tst.status = "pendente"; tst.message = undefined; tst.errLine = undefined; tst.ms = undefined; tst.output = undefined;
     }
   }
   lastTestsPartial = !!only;
@@ -319,25 +326,28 @@ async function runTests(only?: TestSelector[]) {
   testsState.summary = null;
   if (!only) testsState.coverage = null;
   testsPanel.render(testsState);
-  setRunState("running", "testando");
+  setRunState("running", t("testando"));
   setRunning(true);
   const what = !only
-    ? `todos os testes (${testsState.files.length} arquivo${testsState.files.length === 1 ? "" : "s"})`
-    : only.length === 1 && only[0].name ? `o teste "${only[0].name}"` : `os testes de ${only.map((s) => baseName(s.file)).join(", ")}`;
-  consolePanel.system(`Executando ${what}…`);
-  runner.runTests(doc.lang, set.files, only);
+    ? tn(testsState.files.length, "todos os testes ({n} arquivo)", "todos os testes ({n} arquivos)")
+    : only.length === 1 && only[0].name ? t('o teste "{nome}"', { nome: only[0].name }) : t("os testes de {arquivos}", { arquivos: only.map((s) => baseName(s.file)).join(", ") });
+  consolePanel.system(t("Executando {oque}…", { oque: what }));
+  runner.runTests(doc.lang, set.files, only, getLocale());
 }
 
 function finishTestsRun(s: RunnerTestsSummary | null) {
   testsState.running = false;
-  for (const f of testsState.files) for (const t of f.tests) if (t.status === "rodando") t.status = "pendente";
+  for (const f of testsState.files) for (const tst of f.tests) if (tst.status === "rodando") tst.status = "pendente";
   if (s) {
     testsState.summary = { total: s.total, passed: s.passed, ms: s.ms };
     if (!lastTestsPartial) { testsState.coverage = s.coverage; coverageStale.clear(); }
     const failed = s.total - s.passed;
-    consolePanel.system(`\n${s.total === 0 ? "Nenhum teste executado" : failed ? `${s.passed} de ${s.total} teste${s.total > 1 ? "s" : ""} passaram` : s.total === 1 ? "O teste passou" : `Todos os ${s.total} testes passaram`} em ${fmtMs(s.ms)}.${!lastTestsPartial && testsState.coverage ? " " + coverageLine(testsState.coverage) : ""}`);
+    const summary = s.total === 0 ? t("Nenhum teste executado")
+      : failed ? tn(s.total, "{passaram} de {n} teste passaram", "{passaram} de {n} testes passaram", { passaram: s.passed })
+      : s.total === 1 ? t("O teste passou") : t("Todos os {n} testes passaram", { n: s.total });
+    consolePanel.system("\n" + t("{resumo} em {ms}.", { resumo: summary, ms: fmtMs(s.ms) }) + (!lastTestsPartial && testsState.coverage ? " " + coverageLine(testsState.coverage) : ""));
   } else {
-    consolePanel.system("\nTestes interrompidos.");
+    consolePanel.system("\n" + t("Testes interrompidos."));
   }
   testsPanel.render(testsState);
   applyCoverageToActive();
@@ -347,7 +357,9 @@ function coverageLine(cov: NonNullable<TestsState["coverage"]>) {
   let exec = 0, hit = 0;
   for (const f of Object.values(cov.files)) { exec += f.executable.length; hit += f.hit.length; }
   const untested = cov.functions.filter((f) => f.hit === 0).length;
-  return exec ? `Cobertura: ${Math.round((hit / exec) * 100)}% das linhas${untested ? `; ${untested} função${untested > 1 ? "ões" : ""} sem nenhum teste` : ""}.` : "";
+  if (!exec) return "";
+  const extra = untested ? "; " + tn(untested, "{n} função sem nenhum teste", "{n} funções sem nenhum teste") : "";
+  return t("Cobertura: {pct}% das linhas{extra}.", { pct: Math.round((hit / exec) * 100), extra });
 }
 
 /** Pinta no editor as linhas cobertas/não cobertas do documento ativo (quando há medição válida para ele). */
@@ -411,6 +423,7 @@ const shortcuts = Prec.highest(keymap.of([
 ]));
 
 const editor = new Editor($("#editor"), prefs.lang, "", shortcuts);
+editor.locale = getLocale();
 
 // ---------- projeto ----------
 const tabs = new TabsBar($("#tabs"));
@@ -438,18 +451,18 @@ tabs.onClose = (k) => closeDoc(k);
 tabs.onContext = (k, x, y) => {
   const doc = project.docs.get(k)!;
   const items: MenuItem[] = [
-    { label: "Fechar", action: () => closeDoc(k) },
-    { label: "Fechar outras", action: async () => { for (const o of [...project.order]) if (o !== k) await closeDoc(o); } },
-    { label: "Fechar todas", action: async () => { for (const o of [...project.order]) await closeDoc(o); } },
+    { label: t("Fechar"), action: () => closeDoc(k) },
+    { label: t("Fechar outras"), action: async () => { for (const o of [...project.order]) if (o !== k) await closeDoc(o); } },
+    { label: t("Fechar todas"), action: async () => { for (const o of [...project.order]) await closeDoc(o); } },
   ];
   if (doc.path && isTauri) {
-    items.push({ separator: true }, { label: "Mostrar no Explorador", action: () => revealPath(doc.path!) }, { label: "Copiar caminho", action: () => navigator.clipboard.writeText(doc.path!) });
+    items.push({ separator: true }, { label: t("Mostrar no Explorador"), action: () => revealPath(doc.path!) }, { label: t("Copiar caminho"), action: () => navigator.clipboard.writeText(doc.path!) });
   }
   showMenu(items, x, y);
 };
 
 const fileTree = new FileTree(sidebar, {
-  open: (n) => project.openDoc(n.path).then(() => editor.focus()).catch((e) => toast("Não foi possível abrir: " + (e as Error).message, true)),
+  open: (n) => project.openDoc(n.path).then(() => editor.focus()).catch((e) => toast(t("Não foi possível abrir: {erro}", { erro: (e as Error).message }), true)),
   toggle: (n) => project.toggleExpanded(n.key),
   context: (n, x, y) => treeMenu(n, x, y),
   openFolder: () => openFolder(),
@@ -476,19 +489,19 @@ function renderEntry() {
   if (!project.root) { stEntry.textContent = ""; return; }
   if (project.entryMode === "auto") {
     const last = project.lastEntry ? project.docs.get(project.lastEntry)?.name ?? project.files.get(project.lastEntry)?.name : null;
-    stEntry.textContent = last ? `${last} (automático)` : "automático";
+    stEntry.textContent = last ? t("{arquivo} (automático)", { arquivo: last }) : t("automático");
   } else {
-    stEntry.textContent = project.files.get(project.entryMode)?.name ?? "automático";
+    stEntry.textContent = project.files.get(project.entryMode)?.name ?? t("automático");
   }
   renderTree();
 }
 
 stEntry.addEventListener("click", (e) => {
   const lang = project.activeDoc?.lang ?? prefs.lang;
-  const items: MenuItem[] = [{ label: "Automático (aba ativa, depois principal.*)", checked: project.entryMode === "auto", action: () => project.setEntry("auto") }, { separator: true }];
+  const items: MenuItem[] = [{ label: t("Automático (aba ativa, depois principal.*)"), checked: project.entryMode === "auto", action: () => project.setEntry("auto") }, { separator: true }];
   const files = [...project.files.values()].filter((f) => f.lang === lang).sort((a, b) => a.path.localeCompare(b.path));
   for (const f of files) items.push({ label: project.rel(f), checked: project.entryMode === f.key, action: () => project.setEntry(f.key) });
-  if (!files.length) items.push({ label: `Nenhum arquivo ${LANG_INFO[lang].name} no projeto`, disabled: true });
+  if (!files.length) items.push({ label: t("Nenhum arquivo {linguagem} no projeto", { linguagem: LANG_INFO[lang].name }), disabled: true });
   const r = stEntry.getBoundingClientRect();
   showMenu(items, r.left, r.top - 8 - Math.min(400, 32 * (items.length + 1)));
   e.preventDefault();
@@ -503,11 +516,11 @@ function updateTitle() {
   stDirty.hidden = !doc?.dirty;
   const parts = [`${doc?.dirty ? "● " : ""}${name}`];
   if (project.root) parts.push(project.rootName);
-  parts.push("Portugol IDE");
+  parts.push("Koiné IDE");
   setWindowTitle(parts.join(" — "));
 }
 
-editor.onCursor = (l, c) => { stPos.textContent = `Ln ${l}, Col ${c}`; };
+editor.onCursor = (l, c) => { stPos.textContent = t("Ln {l}, Col {c}", { l, c }); };
 editor.onBreakpoints = (lines) => {
   project.persistBreakpoints(lines);
   const doc = project.activeDoc;
@@ -553,8 +566,10 @@ function switchLang(lang: Lang) {
   prefs.lang = lang;
   if (!doc) return;
   if (doc.lang === lang) return;
-  if (doc.path) {
-    toast(`Este arquivo é ${LANG_INFO[doc.lang].name} pela extensão .${LANG_INFO[doc.lang].ext}. Crie um novo arquivo .${LANG_INFO[lang].ext} para usar ${LANG_INFO[lang].name}.`);
+  // arquivo salvo, ou aba sem título cujo nome já tem a extensão de uma linguagem (ex.: exemplos): a linguagem vem do nome
+  const byName = langFromFilename(doc.name);
+  if (doc.path || (byName && byName !== lang && !/^sem título/.test(doc.name))) {
+    toast(t("Este arquivo é {atual} pela extensão .{extAtual}. Crie um novo arquivo .{extNova} para usar {nova}.", { atual: LANG_INFO[doc.lang].name, extAtual: LANG_INFO[doc.lang].ext, extNova: LANG_INFO[lang].ext, nova: LANG_INFO[lang].name }));
     setLangUi(doc.lang);
     return;
   }
@@ -583,21 +598,23 @@ async function runProgram(debug = false) {
   consolePanel.clear();
   editor.clearError();
   stTime.textContent = "";
-  applySnapshot(null, debug, debug ? "iniciando…" : "");
-  setRunState("running", debug ? "depurando" : "executando");
+  applySnapshot(null, debug, debug ? t("iniciando…") : "");
+  setRunState("running", debug ? t("depurando") : t("executando"));
   lastRun = { lang: doc.lang, entry: set.entry, fileMap: set.fileMap };
   renderEntry();
   const bps = allBreakpoints(lastRun);
-  runner.run(doc.lang, set.files, set.entry, debug ? { breakpoints: bps } : undefined);
+  runner.run(doc.lang, set.files, set.entry, debug ? { breakpoints: bps } : undefined, getLocale());
   setRunning(true);
   if (set.files.length > 1) {
     const extra = set.files.length - 1;
-    consolePanel.system(`Executando ${set.entry} (+${extra} arquivo${extra > 1 ? "s" : ""}${set.unsaved.length ? `; não salvo: ${set.unsaved.join(", ")}` : ""}).`);
+    const extras = tn(extra, "+{n} arquivo", "+{n} arquivos");
+    const naoSalvo = set.unsaved.length ? t("; não salvo: {arquivos}", { arquivos: set.unsaved.join(", ") }) : "";
+    consolePanel.system(t("Executando {arquivo} ({extras}{naoSalvo}).", { arquivo: set.entry, extras, naoSalvo }));
   }
   if (debug) {
     setDebugButtons(false);
-    if (!bps.length) consolePanel.system("Depuração iniciada: nenhum ponto de parada, o programa vai pausar na primeira linha. Use Passo (F10) para avançar.");
-    else consolePanel.system(`Depuração iniciada: executando até o primeiro ponto de parada (${bps.map((b) => (b.file === set.entry ? `linha ${b.line}` : `${baseName(b.file)}:${b.line}`)).join(", ")}).`);
+    if (!bps.length) consolePanel.system(t("Depuração iniciada: nenhum ponto de parada, o programa vai pausar na primeira linha. Use Passo (F10) para avançar."));
+    else consolePanel.system(t("Depuração iniciada: executando até o primeiro ponto de parada ({pontos}).", { pontos: bps.map((b) => (b.file === set.entry ? t("linha {n}", { n: b.line }) : `${baseName(b.file)}:${b.line}`)).join(", ") }));
   }
 }
 
@@ -609,9 +626,9 @@ async function confirmDiscardDocs(docs: Doc[]): Promise<boolean> {
   if (!docs.length) return true;
   const names = docs.map((d) => d.name);
   const msg = docs.length === 1
-    ? `"${names[0]}" tem alterações não salvas. Deseja descartá-las?`
-    : `Há ${docs.length} arquivos com alterações não salvas (${names.join(", ")}). Deseja descartá-las?`;
-  return confirmDialog(msg, "Alterações não salvas");
+    ? t('"{nome}" tem alterações não salvas. Deseja descartá-las?', { nome: names[0] })
+    : t("Há {n} arquivos com alterações não salvas ({nomes}). Deseja descartá-las?", { n: docs.length, nomes: names.join(", ") });
+  return confirmDialog(msg, t("Alterações não salvas"));
 }
 
 function newProgram() {
@@ -641,10 +658,10 @@ async function openProgram() {
     const f = await openFile();
     if (!f) return;
     if (f.path) await openPathAsDoc(f.path);
-    else project.newUntitled(langFromFilename(f.name) ?? detectLang(f.content), f.content, f.name);
+    else project.newUntitled(langFromFilename(f.name) ?? detectLang(f.content, getLocale()), f.content, f.name);
     editor.focus();
   } catch (e) {
-    toast("Não foi possível abrir o arquivo: " + (e as Error).message, true);
+    toast(t("Não foi possível abrir o arquivo: {erro}", { erro: (e as Error).message }), true);
   }
 }
 
@@ -669,7 +686,7 @@ async function openRootSafe(root: string): Promise<boolean> {
     if (!project.order.length) project.newUntitled(prefs.lang);
     return true;
   } catch (e) {
-    toast("Não foi possível abrir a pasta: " + (e as Error).message, true);
+    toast(t("Não foi possível abrir a pasta: {erro}", { erro: (e as Error).message }), true);
     project.forgetRecent(root);
     renderTree();
     return false;
@@ -695,10 +712,10 @@ async function save(as: boolean, doc: Doc | null = project.activeDoc): Promise<b
     project.saveDrafts();
     if (r.path && project.root) await project.refreshTree();
     updateTitle();
-    toast(isTauri ? `Salvo em ${r.path}` : "Download iniciado");
+    toast(isTauri ? t("Salvo em {caminho}", { caminho: r.path ?? "" }) : t("Download iniciado"));
     return true;
   } catch (e) {
-    toast("Não foi possível salvar: " + (e as Error).message, true);
+    toast(t("Não foi possível salvar: {erro}", { erro: (e as Error).message }), true);
     return false;
   }
 }
@@ -713,12 +730,12 @@ async function saveAll() {
 let toastTimer = 0;
 function toast(msg: string, error = false) {
   document.querySelector(".toast")?.remove();
-  const t = document.createElement("div");
-  t.className = "toast" + (error ? " error" : "");
-  t.textContent = msg;
-  document.body.appendChild(t);
+  const el = document.createElement("div");
+  el.className = "toast" + (error ? " error" : "");
+  el.textContent = msg;
+  document.body.appendChild(el);
   clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => t.remove(), error ? 5000 : 2200);
+  toastTimer = window.setTimeout(() => el.remove(), error ? 5000 : 2200);
 }
 
 // ---------- ações da árvore ----------
@@ -736,7 +753,7 @@ async function treeNewFile(n: TreeNode | null) {
   if (!project.root) return;
   const dir = dirOf(n);
   const ext = defaultExt();
-  const name = await promptDialog({ title: "Novo arquivo", label: `Em ${baseName(dir)}/`, value: `novo.${ext}`, okLabel: "Criar", validate: validateFileName, selectStem: true });
+  const name = await promptDialog({ title: t("Novo arquivo"), label: t("Em {pasta}/", { pasta: baseName(dir) }), value: `novo.${ext}`, okLabel: t("Criar"), validate: validateFileName, selectStem: true });
   if (!name) return;
   const full = /\.[a-z0-9]+$/i.test(name) ? name : `${name}.${ext}`;
   const path = joinPath(dir, full);
@@ -748,26 +765,26 @@ async function treeNewFile(n: TreeNode | null) {
     await project.openDoc(path);
     editor.focus();
   } catch (e) {
-    toast("Não foi possível criar o arquivo: " + (e as Error).message, true);
+    toast(t("Não foi possível criar o arquivo: {erro}", { erro: (e as Error).message }), true);
   }
 }
 
 async function treeNewFolder(n: TreeNode | null) {
   if (!project.root) return;
   const dir = dirOf(n);
-  const name = await promptDialog({ title: "Nova pasta", label: `Em ${baseName(dir)}/`, value: "nova-pasta", okLabel: "Criar", validate: validateFileName });
+  const name = await promptDialog({ title: t("Nova pasta"), label: t("Em {pasta}/", { pasta: baseName(dir) }), value: "nova-pasta", okLabel: t("Criar"), validate: validateFileName });
   if (!name) return;
   try {
     await createDir(joinPath(dir, name));
     if (n) project.expanded.add(n.kind === "dir" ? n.key : dirName(n.key));
     await project.refreshTree();
   } catch (e) {
-    toast("Não foi possível criar a pasta: " + (e as Error).message, true);
+    toast(t("Não foi possível criar a pasta: {erro}", { erro: (e as Error).message }), true);
   }
 }
 
 async function treeRename(n: TreeNode) {
-  const name = await promptDialog({ title: n.kind === "dir" ? "Renomear pasta" : "Renomear arquivo", value: n.name, okLabel: "Renomear", validate: validateFileName, selectStem: n.kind === "file" });
+  const name = await promptDialog({ title: n.kind === "dir" ? t("Renomear pasta") : t("Renomear arquivo"), value: n.name, okLabel: t("Renomear"), validate: validateFileName, selectStem: n.kind === "file" });
   if (!name || name === n.name) return;
   const to = joinPath(dirName(n.path), name);
   try {
@@ -777,48 +794,48 @@ async function treeRename(n: TreeNode) {
     await project.refreshTree();
     updateTitle();
   } catch (e) {
-    toast("Não foi possível renomear: " + (e as Error).message, true);
+    toast(t("Não foi possível renomear: {erro}", { erro: (e as Error).message }), true);
   }
 }
 
 async function treeDelete(n: TreeNode) {
   const openInside = [...project.docs.values()].filter((d) => d.path && (d.key === n.key || d.key.startsWith(n.key + "/")));
-  const what = n.kind === "dir" ? `a pasta "${n.name}" e todo o seu conteúdo` : `o arquivo "${n.name}"`;
-  const extra = openInside.length ? ` (${openInside.length} aba${openInside.length > 1 ? "s" : ""} aberta${openInside.length > 1 ? "s" : ""} será${openInside.length > 1 ? "ão" : ""} fechada${openInside.length > 1 ? "s" : ""})` : "";
-  if (!(await confirmDialog(`Enviar ${what} para a lixeira?${extra}`, "Excluir"))) return;
+  const what = n.kind === "dir" ? t('a pasta "{nome}" e todo o seu conteúdo', { nome: n.name }) : t('o arquivo "{nome}"', { nome: n.name });
+  const extra = openInside.length ? " " + tn(openInside.length, "({n} aba aberta será fechada)", "({n} abas abertas serão fechadas)") : "";
+  if (!(await confirmDialog(t("Enviar {oque} para a lixeira?{extra}", { oque: what, extra }), t("Excluir")))) return;
   try {
     await deletePath(n.path);
     for (const d of openInside) project.closeDoc(d.key, true);
     if (!project.order.length) project.newUntitled(prefs.lang);
     await project.refreshTree();
   } catch (e) {
-    toast("Não foi possível excluir: " + (e as Error).message, true);
+    toast(t("Não foi possível excluir: {erro}", { erro: (e as Error).message }), true);
   }
 }
 
 function treeMenu(n: TreeNode, x: number, y: number) {
   const isRoot = n.key === project.tree?.key;
   const items: MenuItem[] = [
-    { label: "Novo arquivo…", action: () => treeNewFile(n) },
-    { label: "Nova pasta…", action: () => treeNewFolder(n) },
+    { label: t("Novo arquivo…"), action: () => treeNewFile(n) },
+    { label: t("Nova pasta…"), action: () => treeNewFolder(n) },
   ];
   if (n.kind === "file") {
     items.push({ separator: true });
-    items.push({ label: "Abrir", action: () => project.openDoc(n.path) });
-    if (n.lang) items.push({ label: "Definir como arquivo principal", checked: project.entryMode === n.key, action: () => project.setEntry(project.entryMode === n.key ? "auto" : n.key) });
+    items.push({ label: t("Abrir"), action: () => project.openDoc(n.path) });
+    if (n.lang) items.push({ label: t("Definir como arquivo principal"), checked: project.entryMode === n.key, action: () => project.setEntry(project.entryMode === n.key ? "auto" : n.key) });
   }
   if (!isRoot) {
     items.push({ separator: true });
-    items.push({ label: "Renomear…", action: () => treeRename(n) });
-    items.push({ label: "Excluir…", danger: true, action: () => treeDelete(n) });
+    items.push({ label: t("Renomear…"), action: () => treeRename(n) });
+    items.push({ label: t("Excluir…"), danger: true, action: () => treeDelete(n) });
   }
   items.push({ separator: true });
-  items.push({ label: "Mostrar no Explorador", action: () => revealPath(n.path) });
-  items.push({ label: "Copiar caminho", action: () => navigator.clipboard.writeText(n.path) });
+  items.push({ label: t("Mostrar no Explorador"), action: () => revealPath(n.path) });
+  items.push({ label: t("Copiar caminho"), action: () => navigator.clipboard.writeText(n.path) });
   if (isRoot) {
     items.push({ separator: true });
-    items.push({ label: "Atualizar", action: () => project.refreshTree() });
-    items.push({ label: "Fechar pasta", action: () => closeFolder() });
+    items.push({ label: t("Atualizar"), action: () => project.refreshTree() });
+    items.push({ label: t("Fechar pasta"), action: () => closeFolder() });
   }
   showMenu(items, x, y);
 }
@@ -848,18 +865,18 @@ function buildExamples() {
       const b = document.createElement("button");
       b.className = "ex-item";
       b.innerHTML = `<span class="ex-title"></span><span class="ex-desc"></span>`;
-      b.querySelector(".ex-title")!.textContent = ex.title;
-      b.querySelector(".ex-desc")!.textContent = ex.files ? `${ex.description} (${ex.files.length} arquivos)` : ex.description;
+      b.querySelector(".ex-title")!.textContent = t(ex.title);
+      b.querySelector(".ex-desc")!.textContent = ex.files ? t("{desc} ({n} arquivos)", { desc: t(ex.description), n: ex.files.length }) : t(ex.description);
       b.addEventListener("click", () => {
         hideExamples();
         const slug = ex.title.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
         if (ex.files) {
           // cada arquivo vira uma aba; o grupo faz todas serem executadas juntas; o primeiro (principal) fica ativo
           const group = `ex:${slug}:${Date.now()}`;
-          const docs = ex.files.map((f) => project.newUntitled(ex.lang, f.code, f.name, false, true, group));
+          const docs = ex.files.map((f) => project.newUntitled(ex.lang, translateSource(ex.lang, f.code, "pt-BR", getLocale()), f.name, false, true, group));
           project.activate(docs[0].key);
         } else {
-          project.newUntitled(ex.lang, ex.code, `${slug}.${LANG_INFO[ex.lang].ext}`, true, true);
+          project.newUntitled(ex.lang, translateSource(ex.lang, ex.code ?? "", "pt-BR", getLocale()), `${slug}.${LANG_INFO[ex.lang].ext}`, true, true);
         }
         editor.focus();
       });
@@ -926,6 +943,59 @@ $("#btn-tree-new-folder").addEventListener("click", () => (project.root ? treeNe
 $("#btn-tree-refresh").addEventListener("click", () => project.refreshTree());
 $("#btn-clear").addEventListener("click", () => consolePanel.clear());
 $("#btn-theme").addEventListener("click", () => applyTheme(prefs.theme === "dark" ? "light" : "dark"));
+
+// ---------- idioma ----------
+const localeSelect = document.createElement("select");
+localeSelect.id = "locale-select";
+localeSelect.className = "locale-select";
+for (const l of LOCALES) {
+  const o = document.createElement("option");
+  o.value = l.id;
+  o.textContent = l.native;
+  localeSelect.appendChild(o);
+}
+localeSelect.value = getLocale();
+localeSelect.title = t("Idioma da interface e das palavras reservadas");
+$("#btn-theme").before(localeSelect);
+localeSelect.addEventListener("change", () => void changeLocale(localeSelect.value as Locale));
+
+const localeName = (l: Locale) => LOCALES.find((x) => x.id === l)?.native ?? l;
+
+/** Troca o idioma: textos da interface, destaque/autocompletar, referência, exemplos; oferece converter o código aberto. */
+async function changeLocale(next: Locale) {
+  const prev = getLocale();
+  if (next === prev) return;
+  setLocale(next);
+  localeSelect.value = next;
+  localeSelect.title = t("Idioma da interface e das palavras reservadas");
+  applyStaticTranslations();
+  editor.setLocale(next);
+  for (const k of project.order) {
+    if (k === project.active) continue;
+    const d = project.docs.get(k)!;
+    project.applyToDoc(k, editor.relocalize(d.lang));
+  }
+  buildExamples();
+  refPanelUi.refresh();
+  tabs.render(project.order.map((k) => project.docs.get(k)!), project.active, (d) => project.rel(d));
+  renderTree();
+  renderEntry();
+  updateTitle();
+  if (project.activeDoc) setLangUi(project.activeDoc.lang);
+  testsPanel.render(testsState);
+  if (!editor.snapshot) varsPanel.clear();
+  const docs = project.order.map((k) => project.docs.get(k)!);
+  const changed = docs.filter((d) => translateSource(d.lang, project.textOf(d), prev, next) !== project.textOf(d));
+  if (changed.length && await confirmDialog(t("Converter as palavras reservadas dos arquivos abertos de {de} para {para}?", { de: localeName(prev), para: localeName(next) }), t("Idioma"))) {
+    for (const d of changed) {
+      const src = project.textOf(d);
+      const out = translateSource(d.lang, src, prev, next);
+      project.applyToDoc(d.key, { changes: { from: 0, to: src.length, insert: out } });
+      project.noteChangeOf(d);
+    }
+  }
+  editor.focus();
+}
 $("#btn-examples").addEventListener("click", () => (examplesPanel.hidden ? showExamples() : hideExamples()));
 document.querySelectorAll<HTMLButtonElement>(".seg-btn").forEach((b) => b.addEventListener("click", () => switchLang(b.dataset.lang as Lang)));
 
@@ -973,7 +1043,7 @@ async function openDropped(p: string) {
     if (info.isDir) await openRootSafe(p);
     else await openPathAsDoc(p);
   } catch (e) {
-    toast("Não foi possível abrir: " + (e as Error).message, true);
+    toast(t("Não foi possível abrir: {erro}", { erro: (e as Error).message }), true);
   }
 }
 
@@ -1022,7 +1092,7 @@ async function onWindowFocus() {
         else d.state = st;
         project.markSaved(d, text);
       } else {
-        toast(`"${d.name}" foi modificado fora da IDE. Suas alterações aqui não foram substituídas.`);
+        toast(t('"{nome}" foi modificado fora da IDE. Suas alterações aqui não foram substituídas.', { nome: d.name }));
         d.savedText = text; // evita avisar de novo; a aba continua suja
       }
     } catch { /* ignora */ }

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Portugol IDE",
+  "productName": "Koiné IDE",
   "version": "0.1.0",
-  "identifier": "digital.b-zn.portugol-ide",
+  "identifier": "digital.b-zn.koine-ide",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Portugol IDE",
+        "title": "Koiné IDE",
         "width": 1180,
         "height": 760,
         "minWidth": 720,
@@ -29,8 +29,8 @@
     "active": true,
     "targets": ["nsis", "msi"],
     "category": "Education",
-    "shortDescription": "IDE para aprender programação com Portugol",
-    "longDescription": "Escreva e execute programas em Portugol Studio (.por) e VisuAlg (.alg) com um editor rápido e leve.",
+    "shortDescription": "IDE para aprender programação com pseudocódigo em vários idiomas",
+    "longDescription": "Escreva, depure e teste programas em Portugol Studio (.por) e VisuAlg (.alg), com palavras reservadas e interface no seu idioma.",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico", "icons/icon.png"],
     "fileAssociations": [
       { "ext": ["por"], "name": "Programa Portugol Studio", "description": "Programa Portugol Studio", "role": "Editor" },

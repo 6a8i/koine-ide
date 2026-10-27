@@ -5,6 +5,7 @@
  * Funciona no worker. Os interpretadores chamam `before()` antes de cada
  * comando e `enter()/leave()` ao entrar/sair de funções.
  */
+import { formatBool } from "./runtime";
 
 export interface VarInfo {
   name: string;
@@ -50,7 +51,7 @@ const MAX_STR = 200;
 export function describeValue(v: any, depth = 0, refType = false): string {
   if (v === undefined) return "(sem valor)";
   if (v === null) return "nulo";
-  if (typeof v === "boolean") return v ? "verdadeiro" : "falso";
+  if (typeof v === "boolean") return formatBool(v);
   if (typeof v === "number") {
     if (Number.isInteger(v)) return String(v);
     if (!isFinite(v)) return v > 0 ? "Infinito" : v < 0 ? "-Infinito" : "NaN";

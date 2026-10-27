@@ -1,6 +1,6 @@
 import { Builtin, T, TypeRef } from "./ast";
 import { PortugolError } from "../shared/types";
-import { formatRealJava, parseIntStrict, parseRealStrict, StructVal, ObjVal } from "../shared/runtime";
+import { formatRealJava, parseIntStrict, parseRealStrict, StructVal, ObjVal, formatBool, parseBool } from "../shared/runtime";
 import { ASSERTS } from "../shared/testing";
 
 const INT = T("inteiro"), REAL = T("real"), CAD = T("cadeia"), CAR = T("caracter"), LOG = T("logico"), VAZ = T("vazio");
@@ -8,7 +8,7 @@ const INT = T("inteiro"), REAL = T("real"), CAD = T("cadeia"), CAR = T("caracter
 const rt = (msg: string, c: { line: number; col: number; file?: number }) => new PortugolError(msg, c.line, c.col, "execucao", c.file ?? 0);
 
 export function formatValue(v: unknown, t: TypeRef | null, depth = 0): string {
-  if (typeof v === "boolean") return v ? "verdadeiro" : "falso";
+  if (typeof v === "boolean") return formatBool(v);
   if (typeof v === "number") {
     if (t && t.base === "inteiro") return String(v);
     if (t && t.base === "real") return formatRealJava(v);
@@ -119,14 +119,13 @@ export const LIBS: Record<string, Record<string, Builtin | { constValue: number;
     }),
     cadeia_para_caracter: b("cadeia_para_caracter", [CAD], CAR, ([s]) => String(s)[0] ?? ""),
     cadeia_para_logico: b("cadeia_para_logico", [CAD], LOG, ([s], c) => {
-      const v = String(s).trim().toLowerCase();
-      if (v === "verdadeiro") return true;
-      if (v === "falso") return false;
+      const v = parseBool(String(s));
+      if (v !== null) return v;
       throw rt(`Não foi possível converter "${s}" para lógico`, c);
     }),
     caracter_para_cadeia: b("caracter_para_cadeia", [CAR], CAD, ([x]) => String(x)),
     caracter_para_inteiro: b("caracter_para_inteiro", [CAR], INT, ([x]) => String(x).charCodeAt(0)),
-    logico_para_cadeia: b("logico_para_cadeia", [LOG], CAD, ([x]) => (x ? "verdadeiro" : "falso")),
+    logico_para_cadeia: b("logico_para_cadeia", [LOG], CAD, ([x]) => formatBool(x)),
     logico_para_inteiro: b("logico_para_inteiro", [LOG], INT, ([x]) => (x ? 1 : 0)),
     e_inteiro: b("e_inteiro", [CAD], LOG, ([s]) => parseIntStrict(String(s)) !== null),
     e_real: b("e_real", [CAD], LOG, ([s]) => parseRealStrict(String(s)) !== null),

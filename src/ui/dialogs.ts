@@ -1,4 +1,5 @@
 /** Diálogos dentro da janela (o plugin de diálogos do Tauri não tem "prompt"). */
+import { t } from "../i18n";
 
 export interface PromptOptions {
   title: string;
@@ -21,7 +22,7 @@ export function promptDialog(o: PromptOptions): Promise<string | null> {
         <label class="modal-label"><span></span><input type="text" spellcheck="false" autocomplete="off" /></label>
         <div class="modal-error" hidden></div>
         <div class="modal-actions">
-          <button type="button" class="btn" data-cancel>Cancelar</button>
+          <button type="button" class="btn" data-cancel></button>
           <button type="submit" class="btn primary"></button>
         </div>
       </form>`;
@@ -30,7 +31,8 @@ export function promptDialog(o: PromptOptions): Promise<string | null> {
     const err = back.querySelector<HTMLElement>(".modal-error")!;
     back.querySelector(".modal-title")!.textContent = o.title;
     back.querySelector(".modal-label span")!.textContent = o.label ?? "";
-    back.querySelector<HTMLButtonElement>("button[type=submit]")!.textContent = o.okLabel ?? "OK";
+    back.querySelector<HTMLButtonElement>("[data-cancel]")!.textContent = t("Cancelar");
+    back.querySelector<HTMLButtonElement>("button[type=submit]")!.textContent = o.okLabel ?? t("OK");
     input.value = o.value ?? "";
     const done = (v: string | null) => { back.remove(); document.removeEventListener("keydown", onKey, true); resolve(v); };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); done(null); } };
@@ -41,7 +43,7 @@ export function promptDialog(o: PromptOptions): Promise<string | null> {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       const v = input.value.trim();
-      const problem = o.validate?.(v) ?? (v ? null : "Digite um nome.");
+      const problem = o.validate?.(v) ?? (v ? null : t("Digite um nome."));
       if (problem) { err.textContent = problem; err.hidden = false; input.focus(); return; }
       done(v);
     });
@@ -56,8 +58,8 @@ export function promptDialog(o: PromptOptions): Promise<string | null> {
 
 const BAD_NAME = /[\\/:*?"<>|]/;
 export function validateFileName(v: string): string | null {
-  if (!v) return "Digite um nome.";
-  if (BAD_NAME.test(v)) return 'O nome não pode conter \\ / : * ? " < > |';
-  if (v === "." || v === "..") return "Nome inválido.";
+  if (!v) return t("Digite um nome.");
+  if (BAD_NAME.test(v)) return t('O nome não pode conter \\ / : * ? " < > |');
+  if (v === "." || v === "..") return t("Nome inválido.");
   return null;
 }
