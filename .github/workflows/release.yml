@@ -67,8 +67,8 @@ jobs:
           releaseBody: |
             Instalador do Koiné IDE para Windows 10/11 (64 bits).
 
-            - **Koiné IDE_x.y.z_x64-setup.exe**: instalador recomendado (NSIS, instala só para o usuário atual, sem precisar de administrador)
-            - **Koiné IDE_x.y.z_x64_en-US.msi**: instalador MSI, para quem prefere ou para distribuição em rede
+            - **Koine.IDE_x.y.z_x64-setup.exe**: instalador recomendado (NSIS, instala só para o usuário atual, sem precisar de administrador)
+            - **Koine.IDE_x.y.z_x64_pt-BR.msi**: instalador MSI, para quem prefere ou para distribuição em rede
 
             Baixe, execute e abra um arquivo `.koi`. O Windows pode avisar que o editor é desconhecido porque o instalador não é assinado; clique em "Mais informações" → "Executar assim mesmo".
           releaseDraft: false
