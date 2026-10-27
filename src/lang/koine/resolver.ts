@@ -1,4 +1,4 @@
-import { PortugolError } from "../shared/types";
+import { KoineError } from "../shared/types";
 import { LinkResult } from "../shared/modules";
 import * as A from "./ast";
 import { T, T_UNK, TypeRef, typeName, isAggregate, withDims } from "./ast";
@@ -17,7 +17,7 @@ interface Sym {
 }
 
 type Loc = { line: number; col: number; file?: number };
-const err = (msg: string, n: Loc) => new PortugolError(msg, n.line, n.col, "sintaxe", n.file ?? 0);
+const err = (msg: string, n: Loc) => new KoineError(msg, n.line, n.col, "sintaxe", n.file ?? 0);
 
 export function same(a: TypeRef, b: TypeRef): boolean {
   if (a.base !== b.base || a.dims !== b.dims) return false;
@@ -57,7 +57,7 @@ interface LinkedInput {
   tests?: boolean;
 }
 
-export function resolveStudio(input: LinkedInput): A.ProgramAst {
+export function resolveKoine(input: LinkedInput): A.ProgramAst {
   return new Resolver(input).run();
 }
 
@@ -164,7 +164,7 @@ class Resolver {
     const taken = (name: string, n: Loc) => {
       if (sc.fns.has(name)) throw err(`"${name}" já é o nome de uma função neste arquivo`, n);
       if (sc.types.has(name)) throw err(`"${name}" já é o nome de uma estrutura ou classe neste arquivo`, n);
-      if (GLOBAL_BUILTINS[name]) throw err(`"${name}" já é uma função do Portugol e não pode ser redeclarada`, n);
+      if (GLOBAL_BUILTINS[name]) throw err(`"${name}" já é uma função do Koiné e não pode ser redeclarada`, n);
       if (sc.modAlias.has(name) || sc.libAlias.has(name)) throw err(`"${name}" já é o nome de um módulo ou biblioteca importada`, n);
     };
     for (const s of raw.structs) {

@@ -1,11 +1,12 @@
 /**
  * Valida as tabelas de idioma: node --import tsx tests/check-i18n.ts [locale]
- * - vocabulário completo (todas as palavras canônicas), valores únicos por linguagem (VisuAlg: sem distinguir maiúsculas),
- *   valores válidos como identificador e que não colidem com OUTRA palavra canônica;
+ * - vocabulário completo (todas as palavras canônicas), valores únicos, válidos como identificador
+ *   e que não colidem com OUTRA palavra canônica;
  * - código de exemplo convertido para o idioma compila e volta igual ao português;
- * - referência: toda entrada tem resumo traduzido.
+ * - referência: toda entrada tem resumo traduzido;
+ * - interface: todo texto tem tradução, com os mesmos parâmetros {x}.
  */
-import { CANON, LOCALES, VOCAB, canonWords, translateSource, type Locale } from "../src/lang/i18n";
+import { LOCALES, VOCAB, canonWords, translateSource, type Locale } from "../src/lang/i18n";
 import { REF_I18N } from "../src/reference/i18n";
 import { REFERENCE } from "../src/reference";
 import { compileProject } from "../src/lang";
@@ -32,40 +33,32 @@ const bad = (msg: string) => { console.log("✗ " + msg); problems++; };
 
 async function checkLocale(locale: Locale) {
   if (locale === "pt-BR") return;
-  const vocab = VOCAB[locale];
-  for (const lang of ["studio", "visualg"] as const) {
-    const table = vocab[lang] ?? {};
-    const canon = canonWords(lang);
-    const canonSet = new Set(canon);
-    const missing = canon.filter((w) => !(w in table));
-    if (missing.length) bad(`${locale}/${lang}: faltam ${missing.length} palavras: ${missing.join(", ")}`);
-    const seen = new Map<string, string>();
-    for (const [k, v] of Object.entries(table)) {
-      if (!canonSet.has(k)) bad(`${locale}/${lang}: "${k}" não é uma palavra canônica`);
-      if (!IDENT.test(v)) bad(`${locale}/${lang}: "${k}" → "${v}" não é um identificador válido (só letras, dígitos e _, sem espaços)`);
-      const key = lang === "visualg" ? v.toLowerCase() : v;
-      const other = seen.get(key);
-      if (other) bad(`${locale}/${lang}: "${v}" usado para "${other}" e "${k}"`);
-      seen.set(key, k);
-      if (v !== k && canonSet.has(v)) bad(`${locale}/${lang}: "${k}" → "${v}" colide com a palavra canônica "${v}"`);
-      if (lang === "visualg" && v !== k && canon.some((c) => c.toLowerCase() === v.toLowerCase() && c !== k)) bad(`${locale}/${lang}: "${k}" → "${v}" colide (sem maiúsculas) com outra palavra canônica`);
-    }
-    const E = table["E"], e = table["e"];
-    if (lang === "studio" && E && e && E === e) bad(`${locale}/studio: "E" (constante) e "e" (operador) não podem ser iguais`);
+  const table = VOCAB[locale] ?? {};
+  const canon = canonWords();
+  const canonSet = new Set(canon);
+  const missing = canon.filter((w) => !(w in table));
+  if (missing.length) bad(`${locale}: faltam ${missing.length} palavras: ${missing.join(", ")}`);
+  const seen = new Map<string, string>();
+  for (const [k, v] of Object.entries(table)) {
+    if (!canonSet.has(k)) bad(`${locale}: "${k}" não é uma palavra canônica`);
+    if (!IDENT.test(v)) bad(`${locale}: "${k}" → "${v}" não é um identificador válido (só letras, dígitos e _, sem espaços)`);
+    const other = seen.get(v);
+    if (other) bad(`${locale}: "${v}" usado para "${other}" e "${k}"`);
+    seen.set(v, k);
+    if (v !== k && canonSet.has(v)) bad(`${locale}: "${k}" → "${v}" colide com a palavra canônica "${v}"`);
   }
+  if (table["E"] && table["e"] && table["E"] === table["e"]) bad(`${locale}: "E" (constante) e "e" (operador) não podem ser iguais`);
   // exemplos: converter, compilar e voltar
-  setBooleanWords(vocab.studio?.verdadeiro ?? "verdadeiro", vocab.studio?.falso ?? "falso");
+  setBooleanWords(table.verdadeiro ?? "verdadeiro", table.falso ?? "falso");
   for (const ex of EXAMPLES) {
-    const files = ex.files ? ex.files.map((f) => ({ path: f.name, source: f.code })) : [{ path: "principal." + (ex.lang === "visualg" ? "alg" : "por"), source: ex.code ?? "" }];
-    const translated = files.map((f) => ({ path: f.path, source: translateSource(ex.lang, f.source, "pt-BR", locale) }));
+    const files = ex.files ? ex.files.map((f) => ({ path: f.name, source: f.code })) : [{ path: "principal.koi", source: ex.code ?? "" }];
+    const translated = files.map((f) => ({ path: f.path, source: translateSource(f.source, "pt-BR", locale) }));
     for (let i = 0; i < files.length; i++) {
-      const back = translateSource(ex.lang, translated[i].source, locale, "pt-BR");
+      const back = translateSource(translated[i].source, locale, "pt-BR");
       if (back !== files[i].source) bad(`${locale}: exemplo "${ex.title}" (${files[i].path}) não volta igual ao português depois de converter`);
     }
-    const w = vocab[ex.lang] ?? {};
-    setBooleanWords(w.verdadeiro ?? "verdadeiro", w.falso ?? "falso");
     try {
-      const p = compileProject(ex.lang, translated, translated[0].path, { locale, tests: true });
+      const p = compileProject(translated, translated[0].path, { locale, tests: true });
       if (!p.tests.length) {
         const h = new BufferHost(["1", "2", "3", "4", "5", "6", "7", "8"]);
         try { await p.run(h); } catch (err) { if (!/não há mais linhas/.test(String(err))) throw err; }
@@ -77,9 +70,10 @@ async function checkLocale(locale: Locale) {
   setBooleanWords("verdadeiro", "falso");
   // referência
   const ref = REF_I18N[locale] ?? {};
-  for (const lang of ["studio", "visualg"] as const) {
-    const missing = REFERENCE[lang].filter((e) => !ref[`${lang}:${e.name}`]?.summary).map((e) => e.name);
-    if (missing.length) bad(`${locale}/${lang}: referência sem resumo traduzido para ${missing.length} entradas: ${missing.slice(0, 12).join(", ")}${missing.length > 12 ? "…" : ""}`);
+  const missingRef = REFERENCE.filter((e) => !ref[e.name]?.summary).map((e) => e.name);
+  if (missingRef.length) bad(`${locale}: referência sem resumo traduzido para ${missingRef.length} entradas: ${missingRef.slice(0, 12).join(", ")}${missingRef.length > 12 ? "…" : ""}`);
+  for (const k of Object.keys(ref)) {
+    if (!REFERENCE.some((e) => e.name === k)) bad(`${locale}: chave de referência desconhecida "${k}"`);
   }
   // dicionário da interface
   const dict = UI[locale] ?? {};
@@ -90,11 +84,6 @@ async function checkLocale(locale: Locale) {
     const params = (k.match(/{[a-zA-Z]+}/g) ?? []).sort().join(",");
     const got = ((dict[k] ?? "").match(/{[a-zA-Z]+}/g) ?? []).sort().join(",");
     if (params !== got) bad(`${locale}: parâmetros diferentes em ${JSON.stringify(k)} → ${JSON.stringify(dict[k])}`);
-  }
-  for (const k of Object.keys(ref)) {
-    const [lang, ...rest] = k.split(":");
-    const name = rest.join(":");
-    if ((lang !== "studio" && lang !== "visualg") || !REFERENCE[lang].some((e) => e.name === name)) bad(`${locale}: chave de referência desconhecida "${k}"`);
   }
 }
 

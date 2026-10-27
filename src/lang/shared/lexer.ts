@@ -1,4 +1,4 @@
-import { PortugolError } from "./types";
+import { KoineError } from "./types";
 
 export type TokType =
   | "ident"
@@ -25,16 +25,9 @@ export interface Token {
 
 export interface LexerOptions {
   keywords: Set<string>;
-  caseInsensitive: boolean;
   /** Operadores, do mais longo para o mais curto. */
   operators: string[];
-  blockComments: boolean; // /* */
-  braceComments: boolean; // { }  (VisuAlg)
-  /** Se true, 'x' é caractere (Studio). Se false, '...' é string. */
-  singleQuoteChar: boolean;
-  /** Permite escapes \n \t \" dentro de strings. */
-  escapes: boolean;
-  /** Idioma: palavra localizada → palavra canônica (português). Chaves em minúsculas quando caseInsensitive. */
+  /** Idioma: palavra localizada → palavra canônica (português). */
   translate?: Map<string, string>;
 }
 
@@ -50,7 +43,7 @@ export function tokenize(src: string, opt: LexerOptions, fileIndex = 0): Token[]
     col = 1;
   const n = src.length;
 
-  const err = (msg: string, l = line, c = col) => new PortugolError(msg, l, c, "sintaxe", fileIndex);
+  const err = (msg: string, l = line, c = col) => new KoineError(msg, l, c, "sintaxe", fileIndex);
   const adv = (k = 1) => {
     for (let j = 0; j < k; j++) {
       if (src[i] === "\n") {
@@ -75,21 +68,13 @@ export function tokenize(src: string, opt: LexerOptions, fileIndex = 0): Token[]
       while (i < n && src[i] !== "\n") adv();
       continue;
     }
-    if (opt.blockComments && ch === "/" && src[i + 1] === "*") {
+    if (ch === "/" && src[i + 1] === "*") {
       const l = line,
         c = col;
       adv(2);
       while (i < n && !(src[i] === "*" && src[i + 1] === "/")) adv();
       if (i >= n) throw err("Comentário de bloco não foi fechado (faltou */)", l, c);
       adv(2);
-      continue;
-    }
-    if (opt.braceComments && ch === "{") {
-      const l = line,
-        c = col;
-      while (i < n && src[i] !== "}") adv();
-      if (i >= n) throw err("Comentário não foi fechado (faltou })", l, c);
-      adv();
       continue;
     }
     const l = line,
@@ -139,20 +124,20 @@ export function tokenize(src: string, opt: LexerOptions, fileIndex = 0): Token[]
     if (isIdentStart(ch)) {
       while (i < n && isIdentPart(src[i])) adv();
       const raw = src.slice(start, i);
-      const key = opt.caseInsensitive ? raw.toLowerCase() : raw;
+      const key = raw;
       const canon = opt.translate?.get(key) ?? key;
       if (opt.keywords.has(canon)) push("keyword", canon, raw, l, c, start);
-      else push("ident", opt.caseInsensitive || canon !== key ? canon : raw, raw, l, c, start);
+      else push("ident", canon, raw, l, c, start);
       continue;
     }
     // strings
-    if (ch === '"' || (ch === "'" && !opt.singleQuoteChar)) {
+    if (ch === "\"") {
       const quote = ch;
       adv();
       let s = "";
       while (i < n && src[i] !== quote) {
         if (src[i] === "\n") throw err("Texto não foi fechado (faltou aspas)", l, c);
-        if (opt.escapes && src[i] === "\\") {
+        if (src[i] === "\\") {
           adv();
           const e = src[i];
           switch (e) {
@@ -176,10 +161,10 @@ export function tokenize(src: string, opt: LexerOptions, fileIndex = 0): Token[]
       push("string", s, src.slice(start, i), l, c, start);
       continue;
     }
-    if (ch === "'" && opt.singleQuoteChar) {
+    if (ch === "'") {
       adv();
       let s = "";
-      if (src[i] === "\\" && opt.escapes) {
+      if (src[i] === "\\") {
         adv();
         const e = src[i];
         s = e === "n" ? "\n" : e === "t" ? "\t" : e === "0" ? "\0" : e;
@@ -247,8 +232,8 @@ export class TokenStream {
   acceptKw(v: string) {
     return this.accept("keyword", v);
   }
-  error(msg: string, t: Token = this.cur): PortugolError {
-    return new PortugolError(msg, t.line, t.col, "sintaxe", this.fileIndex);
+  error(msg: string, t: Token = this.cur): KoineError {
+    return new KoineError(msg, t.line, t.col, "sintaxe", this.fileIndex);
   }
   describe(t: Token = this.cur): string {
     if (t.type === "eof") return "o fim do programa";

@@ -3,9 +3,8 @@
  * Não toca no DOM; a interface se liga pelos eventos. As funções puras do fim do arquivo são testáveis em Node.
  */
 import { EditorState, StateEffect, TransactionSpec } from "@codemirror/state";
-import { Lang } from "./lang/shared/types";
-import { LANG_INFO, langFromFilename, detectLang, hasEntryPoint } from "./lang";
-import { NEW_STUDIO, NEW_VISUALG } from "./examples";
+import { LANG, isKoineFile, hasEntryPoint } from "./lang";
+import { NEW_PROGRAM } from "./examples";
 import { translateSource } from "./lang/i18n";
 import { SourceFile } from "./lang/protocol";
 import type { Editor } from "./ui/editor";
@@ -18,7 +17,6 @@ export interface Doc {
   /** caminho absoluto; null = sem título */
   path: string | null;
   name: string;
-  lang: Lang;
   state: EditorState;
   scroll: StateEffect<unknown> | null;
   savedText: string;
@@ -34,7 +32,6 @@ export interface TreeNode {
   path: string;
   key: string;
   kind: "dir" | "file";
-  lang?: Lang;
   children?: TreeNode[];
 }
 
@@ -196,9 +193,8 @@ export class Project {
     if (!doc) {
       const text = await this.fs.read(path);
       const name = baseName(path);
-      const lang = langFromFilename(name) ?? detectLang(text, getLocale());
       const bps = this.persistedBreakpoints(relPath(this.root ?? dirName(path), path));
-      doc = { key, path, name, lang, state: this.editor.createState(text, lang, bps), scroll: null, savedText: text, dirty: false, missing: false };
+      doc = { key, path, name, state: this.editor.createState(text, bps), scroll: null, savedText: text, dirty: false, missing: false };
       this.docs.set(key, doc);
       this.order.push(key);
       this.ev.docs();
@@ -209,13 +205,13 @@ export class Project {
   }
 
   /** Abre um texto sem caminho (arquivo do navegador, exemplo, novo). */
-  newUntitled(lang: Lang, text?: string, name?: string, activate = true, clean = text === undefined, group?: string): Doc {
+  newUntitled(text?: string, name?: string, activate = true, clean = text === undefined, group?: string): Doc {
     const n = this.untitledSeq++;
     const key = "untitled:" + n;
-    const content = text ?? translateSource(lang, lang === "visualg" ? NEW_VISUALG : NEW_STUDIO, "pt-BR", getLocale());
+    const content = text ?? translateSource(NEW_PROGRAM, "pt-BR", getLocale());
     const doc: Doc = {
-      key, path: null, name: name ?? `${t("sem título")}${n > 1 ? "-" + n : ""}.${LANG_INFO[lang].ext}`, lang,
-      state: this.editor.createState(content, lang), scroll: null, savedText: clean ? content : "\0", dirty: !clean, missing: false,
+      key, path: null, name: name ?? `${t("sem título")}${n > 1 ? "-" + n : ""}.${LANG.ext}`,
+      state: this.editor.createState(content), scroll: null, savedText: clean ? content : "\0", dirty: !clean, missing: false,
       group,
     };
     this.docs.set(key, doc);
@@ -289,8 +285,6 @@ export class Project {
     doc.key = newKey;
     doc.path = newPath;
     doc.name = baseName(newPath);
-    const lang = langFromFilename(doc.name);
-    if (lang && lang !== doc.lang) { doc.lang = lang; if (oldKey === this.active) this.editor.setLang(lang); }
     this.docs.set(newKey, doc);
     this.order = this.order.map((k) => (k === oldKey ? newKey : k));
     if (this.active === oldKey) this.active = newKey;
@@ -337,21 +331,22 @@ export class Project {
     const drafts = this.order
       .map((k) => this.docs.get(k)!)
       .filter((d) => !d.path)
-      .map((d) => ({ lang: d.lang, name: d.name, text: this.textOf(d), dirty: d.dirty, group: d.group }));
+      .map((d) => ({ name: d.name, text: this.textOf(d), dirty: d.dirty, group: d.group }));
     if (drafts.length) store.set("drafts", drafts); else store.del("drafts");
   }
 
   restoreDrafts(): boolean {
-    let drafts = store.get<{ lang: Lang; name: string; text: string; dirty: boolean; group?: string }[]>("drafts", []);
+    let drafts = store.get<{ name: string; text: string; dirty: boolean; group?: string }[]>("drafts", []);
     // migra o rascunho único da versão anterior
     const legacy = localStorage.getItem("draft");
     if (legacy !== null) {
-      const lang = (localStorage.getItem("lang") as Lang) ?? "studio";
-      drafts = [{ lang, name: t("sem título") + "." + LANG_INFO[lang].ext, text: legacy, dirty: legacy !== (lang === "visualg" ? NEW_VISUALG : NEW_STUDIO) }, ...drafts];
+      drafts = [{ name: t("sem título") + "." + LANG.ext, text: legacy, dirty: legacy !== NEW_PROGRAM }, ...drafts];
       localStorage.removeItem("draft");
     }
     this.restoring = true;
-    for (const d of drafts) this.newUntitled(d.lang, d.text, d.name, false, !d.dirty, d.group);
+    // rascunhos do VisuAlg (versões antigas) não são restaurados
+    drafts = drafts.filter((d) => !/\.alg$/i.test(d.name));
+    for (const d of drafts) this.newUntitled(d.text, d.name, false, !d.dirty, d.group);
     this.restoring = false;
     this.saveDrafts();
     return drafts.length > 0;
@@ -381,15 +376,15 @@ export class Project {
     this.ev.entry();
   }
 
-  /** Monta o conjunto de arquivos da execução para a linguagem dada. Com `needEntry = false` (testes) não exige ponto de entrada. */
-  async collectRunFiles(lang: Lang, needEntry = true): Promise<RunSet | { error: string }> {
+  /** Monta o conjunto de arquivos da execução (todos os .koi do projeto). Com `needEntry = false` (testes) não exige ponto de entrada. */
+  async collectRunFiles(needEntry = true): Promise<RunSet | { error: string }> {
     const files: SourceFile[] = [];
     const fileMap = new Map<string, string>();
     const unsaved: string[] = [];
     const active = this.activeDoc;
     if (this.root) {
       for (const node of this.files.values()) {
-        if (node.lang !== lang) continue;
+        if (!isKoineFile(node.name)) continue;
         const doc = this.docs.get(node.key);
         let source: string;
         if (doc) { source = this.textOf(doc); if (doc.dirty) unsaved.push(doc.name); }
@@ -401,7 +396,7 @@ export class Project {
         fileMap.set(rel, node.key);
       }
     }
-    if (active && active.lang === lang && !fileMap.has(this.rel(active)) && !(active.path && this.files.has(active.key))) {
+    if (active && !fileMap.has(this.rel(active)) && !(active.path && this.files.has(active.key))) {
       files.push({ path: active.name, source: this.textOf(active) });
       fileMap.set(active.name, active.key);
       if (active.dirty && active.path) unsaved.push(active.name);
@@ -410,25 +405,25 @@ export class Project {
     if (active?.group) {
       for (const k of this.order) {
         const d = this.docs.get(k)!;
-        if (d === active || d.path || d.group !== active.group || d.lang !== lang || fileMap.has(d.name)) continue;
+        if (d === active || d.path || d.group !== active.group || fileMap.has(d.name)) continue;
         files.push({ path: d.name, source: this.textOf(d) });
         fileMap.set(d.name, d.key);
       }
     }
     if (!needEntry) {
-      if (!files.length) return { error: t("Nenhum arquivo {lang} para testar.", { lang: LANG_INFO[lang].name }) };
+      if (!files.length) return { error: t("Nenhum arquivo .koi para testar.") };
       return { files, entry: "", fileMap, unsaved };
     }
-    const candidates = files.map((f) => ({ path: f.path, hasEntry: hasEntryPoint(lang, f.source, getLocale()) }));
+    const candidates = files.map((f) => ({ path: f.path, hasEntry: hasEntryPoint(f.source, getLocale()) }));
     const entry = resolveEntry({
       candidates,
       pinned: this.entryMode === "auto" ? null : [...fileMap.entries()].find(([, k]) => k === this.entryMode)?.[0] ?? null,
-      active: active && active.lang === lang ? [...fileMap.entries()].find(([, k]) => k === active.key)?.[0] ?? null : null,
+      active: active ? [...fileMap.entries()].find(([, k]) => k === active.key)?.[0] ?? null : null,
       last: this.lastEntry ? [...fileMap.entries()].find(([, k]) => k === this.lastEntry)?.[0] ?? null : null,
     });
     if (!entry) {
       if (this.entryMode !== "auto") { this.entryMode = "auto"; this.ev.entry(); }
-      return { error: files.length ? t("Nenhum arquivo {lang} tem um ponto de entrada ({entry}).", { lang: LANG_INFO[lang].name, entry: lang === "visualg" ? "algoritmo" : "funcao inicio" }) : t("Nenhum arquivo {lang} para executar.", { lang: LANG_INFO[lang].name }) };
+      return { error: files.length ? t("Nenhum arquivo tem um ponto de entrada (funcao inicio).") : t("Nenhum arquivo .koi para executar.") };
     }
     this.lastEntry = fileMap.get(entry) ?? null;
     return { files, entry, fileMap, unsaved };
@@ -492,8 +487,7 @@ export function resolveEntry(i: EntryInput): string | null {
 function toTree(e: DirEntry, rootKey: string): TreeNode {
   const key = normKey(e.path);
   const node: TreeNode = { name: e.name, path: e.path, key, kind: e.kind };
-  if (e.kind === "file") node.lang = langFromFilename(e.name) ?? undefined;
-  else node.children = (e.children ?? []).map((c) => toTree(c, rootKey));
+  if (e.kind === "dir") node.children = (e.children ?? []).map((c) => toTree(c, rootKey));
   return node;
 }
 

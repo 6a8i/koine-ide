@@ -1,4 +1,4 @@
-import { BREAK, CompileOptions, Host, PortugolError, Program, ReturnSignal } from "../shared/types";
+import { BREAK, CompileOptions, Host, KoineError, Program, ReturnSignal } from "../shared/types";
 import { CoverageCollector, CoverageUnit, TestInfo, statementLines } from "../shared/testing";
 import { SourceFile } from "../protocol";
 import { MAX_CALL_DEPTH, Ref, StructVal, ObjVal, copyStruct, structEquals, finalizeError, parseIntStrict, parseRealStrict, stackOverflow, wrapJsError, parseBool, BOOL_WORDS } from "../shared/runtime";
@@ -6,8 +6,8 @@ import { linkModules } from "../shared/modules";
 import * as A from "./ast";
 import { TypeRef, typeName } from "./ast";
 import { formatValue } from "./builtins";
-import { parseStudio, RawModule } from "./parser";
-import { resolveStudio } from "./resolver";
+import { parseKoine, RawModule } from "./parser";
+import { resolveKoine } from "./resolver";
 import { Debugger, FrameNames, Snapshot, describeFrame, markAllBlocking } from "../shared/debug";
 
 type Frame = any[];
@@ -46,26 +46,26 @@ function globalNames(ast: A.ProgramAst): FrameNames {
   };
 }
 
-const rt = (msg: string, n: Loc) => new PortugolError(msg, n.line, n.col, "execucao", n.file ?? 0);
+const rt = (msg: string, n: Loc) => new KoineError(msg, n.line, n.col, "execucao", n.file ?? 0);
 
-export function compileStudio(src: string): Program {
-  return compileStudioProject([{ path: "principal.por", source: src }], "principal.por");
+export function compileKoine(src: string): Program {
+  return compileKoineProject([{ path: "principal.koi", source: src }], "principal.koi");
 }
 
 /** Compila um projeto: analisa todos os arquivos, liga os módulos a partir da entrada e resolve o programa inteiro. */
-export function compileStudioProject(files: SourceFile[], entry: string, opts: CompileOptions = {}): Program {
+export function compileKoineProject(files: SourceFile[], entry: string, opts: CompileOptions = {}): Program {
   const names = files.map((f) => f.path);
   let entryIndex = names.indexOf(entry);
   if (entryIndex < 0) entryIndex = 0;
-  const raws: RawModule[] = files.map((f, i) => parseStudio(f.source, i, f.path, opts.locale ?? "pt-BR"));
+  const raws: RawModule[] = files.map((f, i) => parseKoine(f.source, i, f.path, opts.locale ?? "pt-BR"));
   const entryRaw = raws[entryIndex];
   if (entryRaw.importable && !opts.tests) {
-    throw new PortugolError(`O arquivo ${entryRaw.file} não tem a função "inicio" e não pode ser executado diretamente. Execute o arquivo principal do projeto`, 1, 1, "sintaxe", entryIndex);
+    throw new KoineError(`O arquivo ${entryRaw.file} não tem a função "inicio" e não pode ser executado diretamente. Execute o arquivo principal do projeto`, 1, 1, "sintaxe", entryIndex);
   }
   // um arquivo só de testes pode importar o programa que testa
   const link = linkModules(raws, entryRaw, false, { canImportProgram: (from) => !!opts.tests && from.importable && from.tests.length > 0 });
-  const ast = resolveStudio({ modules: link.order, entry: entryRaw, link, files: names, tests: opts.tests });
-  return new StudioProgram(ast, names);
+  const ast = resolveKoine({ modules: link.order, entry: entryRaw, link, files: names, tests: opts.tests });
+  return new KoineProgram(ast, names);
 }
 
 function defaultValue(t: TypeRef): any {
@@ -119,7 +119,7 @@ function describeExpr(e: A.Expr): string {
   }
 }
 
-class StudioProgram implements Program {
+class KoineProgram implements Program {
   private G: Frame = [];
   private host!: Host;
   private depth = 0;
@@ -128,7 +128,7 @@ class StudioProgram implements Program {
   private mainF: Frame = [];
   tests: TestInfo[];
 
-  constructor(private ast: A.ProgramAst, public files: string[] = ["principal.por"]) {
+  constructor(private ast: A.ProgramAst, public files: string[] = ["principal.koi"]) {
     this.tests = ast.tests.map((t, id) => ({ id, name: t.name, file: files[t.file] ?? files[0], line: t.line }));
   }
 
@@ -158,7 +158,7 @@ class StudioProgram implements Program {
   /** Executa um teste: globais reiniciadas, corpo como uma função sem parâmetros. */
   async runTest(host: Host, id: number) {
     const t = this.ast.tests[id];
-    if (!t) throw new PortugolError(`Teste ${id} não existe`, 0, 0, "interno");
+    if (!t) throw new KoineError(`Teste ${id} não existe`, 0, 0, "interno");
     await this.initGlobals(host);
     await this.runMain(t);
   }

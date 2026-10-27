@@ -47,7 +47,6 @@ export class TabsBar {
     tab.title = d.missing ? t("{title} (apagado no disco)", { title }) : title;
     tab.classList.toggle("dirty", d.dirty);
     tab.classList.toggle("missing", d.missing);
-    tab.dataset.lang = d.lang;
   }
 
   setActive(key: string | null) {

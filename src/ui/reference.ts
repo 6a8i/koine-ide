@@ -1,5 +1,4 @@
 /** Painel lateral "Referência": palavras reservadas, comandos e funções com explicação e exemplo. */
-import { Lang } from "../lang/shared/types";
 import { CATEGORIES, CATEGORY_LABEL, REFERENCE, RefCategory, RefEntry, findReference, localizeEntry } from "../reference";
 import { Locale } from "../lang/i18n";
 import { t, getLocale } from "../i18n";
@@ -8,7 +7,6 @@ export class ReferencePanel {
   private list: HTMLElement;
   private search: HTMLInputElement;
   private chips: HTMLElement;
-  private lang: Lang = "studio";
   private category: RefCategory | "todas" = "todas";
   private open = new Set<string>();
   onInsert: ((code: string) => void) | null = null;
@@ -51,12 +49,6 @@ export class ReferencePanel {
     this.chips.querySelectorAll<HTMLButtonElement>(".chip").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.cat === this.category)));
   }
 
-  setLang(lang: Lang) {
-    if (this.lang === lang) return;
-    this.lang = lang;
-    this.open.clear();
-    this.render();
-  }
 
   focusSearch() {
     this.search.focus();
@@ -66,7 +58,7 @@ export class ReferencePanel {
   /** Abre o painel já mostrando uma palavra (vindo de um atalho no editor). */
   show(word: string | null) {
     if (word) {
-      const e = findReference(this.lang, word, this.locale);
+      const e = findReference(word, this.locale);
       this.search.value = e ? e.name : word;
       this.category = "todas";
       this.updateChips();
@@ -81,7 +73,7 @@ export class ReferencePanel {
     const q = this.search.value.trim().toLowerCase();
     const norm = (s: string) => s.toLowerCase();
     const locale = this.locale;
-    const entries = REFERENCE[this.lang].map((e) => localizeEntry(this.lang, locale, e)).filter((e) => {
+    const entries = REFERENCE.map((e) => localizeEntry(locale, e)).filter((e) => {
       if (this.category !== "todas" && e.category !== this.category) return false;
       if (!q) return true;
       return norm(e.name).includes(q) || norm(e.summary).includes(q) || (e.aliases ?? []).some((a) => norm(a).includes(q));
@@ -158,8 +150,8 @@ export class ReferencePanel {
 }
 
 /** Conteúdo da dica (tooltip) de uma palavra reservada no editor. */
-export function referenceTip(lang: Lang, word: string, locale: Locale = "pt-BR"): HTMLElement | null {
-  const e = findReference(lang, word, locale);
+export function referenceTip(word: string, locale: Locale = "pt-BR"): HTMLElement | null {
+  const e = findReference(word, locale);
   if (!e) return null;
   const dom = document.createElement("div");
   dom.className = "ref-tip";

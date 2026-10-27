@@ -1,4 +1,4 @@
-import { Host, PortugolError } from "./types";
+import { Host, KoineError } from "./types";
 
 export const MAX_CALL_DEPTH = 1200;
 
@@ -58,12 +58,6 @@ export function copyStruct(v: StructVal): StructVal {
     const x = f[i];
     if (x instanceof StructVal) f[i] = copyStruct(x);
     else if (Array.isArray(x)) f[i] = copyArrayDeep(x);
-    else if (x && typeof x === "object" && Array.isArray(x.data) && typeof x.lo === "number") {
-      // VArray do VisuAlg: copia preservando a classe
-      const c = Object.create(Object.getPrototypeOf(x));
-      c.lo = x.lo; c.hi = x.hi; c.data = copyArrayDeep(x.data);
-      f[i] = c;
-    }
   }
   return new StructVal(v.decl, f);
 }
@@ -84,7 +78,7 @@ export function structEquals(a: any, b: any): boolean {
 }
 
 export function stackOverflow(line: number, col: number) {
-  return new PortugolError(
+  return new KoineError(
     "Estouro de pilha: a função chamou a si mesma vezes demais (recursão sem fim?)",
     line,
     col,
@@ -118,7 +112,7 @@ export function parseRealStrict(s: string): number | null {
 }
 
 export function formatRealJava(v: number): string {
-  // Imita a saída do Java/Portugol Studio: sempre com casa decimal.
+  // Imita a saída do Java: sempre com casa decimal.
   if (!isFinite(v)) return v > 0 ? "Infinito" : v < 0 ? "-Infinito" : "NaN";
   if (Number.isInteger(v) && Math.abs(v) < 1e15) return v.toFixed(1);
   let s = String(v);
@@ -137,7 +131,7 @@ export class BufferHost implements Host {
     this.out += t;
   }
   async readLine() {
-    if (this.inputs.length === 0) throw new PortugolError("Teste pediu entrada, mas não há mais linhas", 0, 0);
+    if (this.inputs.length === 0) throw new KoineError("Teste pediu entrada, mas não há mais linhas", 0, 0);
     return this.inputs.shift()!;
   }
   clear() {

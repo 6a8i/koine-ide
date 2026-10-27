@@ -1,5 +1,5 @@
 import { tokenize, Token, TokenStream } from "../shared/lexer";
-import { PortugolError } from "../shared/types";
+import { KoineError } from "../shared/types";
 import { RawImport } from "../shared/modules";
 import * as A from "./ast";
 import { T, T_UNK, TypeRef, Visibility } from "./ast";
@@ -54,18 +54,13 @@ function stem(file: string) {
   return dot > 0 ? base.slice(0, dot) : base;
 }
 
-registerLexerConfig("studio", KEYWORDS, OPERATORS);
+registerLexerConfig(KEYWORDS, OPERATORS);
 
-export function parseStudio(src: string, fileIndex = 0, file = "principal.por", locale: Locale = "pt-BR"): RawModule {
+export function parseKoine(src: string, fileIndex = 0, file = "principal.koi", locale: Locale = "pt-BR"): RawModule {
   const toks = tokenize(src, {
     keywords: KEYWORDS,
-    caseInsensitive: false,
     operators: OPERATORS,
-    blockComments: true,
-    braceComments: false,
-    singleQuoteChar: true,
-    escapes: true,
-    translate: toCanonicalMap("studio", locale),
+    translate: toCanonicalMap(locale),
   }, fileIndex);
   return new Parser(new TokenStream(toks, fileIndex), file).program();
 }
@@ -367,7 +362,7 @@ class Parser {
     const open = s.expectOp("{", what ? `para abrir o bloco ${what}` : "");
     const body: A.Stmt[] = [];
     while (!s.isOp("}")) {
-      if (s.is("eof")) throw new PortugolError(`Faltou fechar com "}" o bloco ${what} aberto aqui`, open.line, open.col, "sintaxe", s.fileIndex);
+      if (s.is("eof")) throw new KoineError(`Faltou fechar com "}" o bloco ${what} aberto aqui`, open.line, open.col, "sintaxe", s.fileIndex);
       body.push(this.statement());
     }
     s.next();

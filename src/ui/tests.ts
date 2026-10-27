@@ -68,7 +68,7 @@ export class TestsPanel {
       this.empty(
         st.running
           ? t("Procurando testes…")
-          : t('Nenhum teste encontrado. Escreva blocos teste "nome" { ... } (Portugol Studio) ou teste "nome" ... fimteste (VisuAlg) no próprio programa ou em um arquivo separado que o importe, e use afirme, afirme_igual, saida() e entrada().'),
+          : t('Nenhum teste encontrado. Escreva blocos teste "nome" { ... } no próprio programa ou em um arquivo separado que o importe, e use afirme, afirme_igual, saida() e entrada().'),
       );
     }
     for (const f of st.files) this.body.appendChild(this.fileSection(f, st.running));

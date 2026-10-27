@@ -1,13 +1,13 @@
 /**
  * Ligador de módulos: resolve `importe` por nome ou caminho, detecta ciclos e produz a ordem
- * topológica (módulos importados antes de quem os importa). Independente da linguagem.
+ * topológica (módulos importados antes de quem os importa). 
  */
-import { PortugolError } from "./types";
+import { KoineError } from "./types";
 
 export interface RawImport {
   /** nome do módulo (importe Nome) */
   name?: string;
-  /** caminho relativo ao arquivo que importa (importe "lib/x.por") */
+  /** caminho relativo ao arquivo que importa (importe "lib/x.koi") */
   path?: string;
   alias: string;
   line: number;
@@ -73,7 +73,7 @@ export function linkModules<M extends RawModuleHeader>(mods: M[], entry: M, case
     if (!m.importable) { if (!programsByName.has(key)) programsByName.set(key, m); continue; }
     const other = byName.get(key);
     if (other) {
-      throw new PortugolError(`Há dois módulos chamados "${m.moduleName}": ${other.file} e ${m.file}. Dê nomes diferentes com "modulo"`, 1, 1, "sintaxe", m.fileIndex);
+      throw new KoineError(`Há dois módulos chamados "${m.moduleName}": ${other.file} e ${m.file}. Dê nomes diferentes com "modulo"`, 1, 1, "sintaxe", m.fileIndex);
     }
     byName.set(key, m);
   }
@@ -86,22 +86,22 @@ export function linkModules<M extends RawModuleHeader>(mods: M[], entry: M, case
       const full = normalizePath((dirOf(from.file) ? dirOf(from.file) + "/" : "") + imp.path);
       target = byPath.get(fold(full)) ?? byPath.get(fold(normalizePath(imp.path)));
       if (!target) {
-        throw new PortugolError(`O arquivo "${imp.path}" não foi encontrado no projeto. Arquivos disponíveis: ${mods.map((m) => m.file).join(", ")}`, imp.line, imp.col, "sintaxe", from.fileIndex);
+        throw new KoineError(`O arquivo "${imp.path}" não foi encontrado no projeto. Arquivos disponíveis: ${mods.map((m) => m.file).join(", ")}`, imp.line, imp.col, "sintaxe", from.fileIndex);
       }
       if (!target.importable && !mayImportProgram) {
-        throw new PortugolError(`"${target.file}" é um programa principal e não pode ser importado. Só arquivos de módulo (sem "inicio"/"algoritmo") podem ser importados (exceto por um arquivo de testes)`, imp.line, imp.col, "sintaxe", from.fileIndex);
+        throw new KoineError(`"${target.file}" é um programa principal e não pode ser importado. Só arquivos de módulo (sem "funcao inicio") podem ser importados (exceto por um arquivo de testes)`, imp.line, imp.col, "sintaxe", from.fileIndex);
       }
     } else {
       target = byName.get(fold(imp.name!)) ?? (mayImportProgram ? programsByName.get(fold(imp.name!)) : undefined);
       if (!target) {
         const available = [...byName.values()].map((m) => m.moduleName);
-        throw new PortugolError(
+        throw new KoineError(
           `O módulo "${imp.name}" não foi encontrado no projeto.` + (available.length ? ` Módulos disponíveis: ${available.join(", ")}` : " Nenhum arquivo do projeto declara um módulo."),
           imp.line, imp.col, "sintaxe", from.fileIndex,
         );
       }
     }
-    if (target === from) throw new PortugolError("Um módulo não pode importar a si mesmo", imp.line, imp.col, "sintaxe", from.fileIndex);
+    if (target === from) throw new KoineError("Um módulo não pode importar a si mesmo", imp.line, imp.col, "sintaxe", from.fileIndex);
     return target;
   };
 
@@ -115,7 +115,7 @@ export function linkModules<M extends RawModuleHeader>(mods: M[], entry: M, case
       const cycle = [...stack.slice(stack.indexOf(m)), m].map((x) => x.moduleName).join(" → ");
       const importer = stack[stack.length - 1];
       const imp = importer.imports.find((i) => resolveImportSafe(importer, i) === m);
-      throw new PortugolError(`Importação circular: ${cycle}`, imp?.line ?? 1, imp?.col ?? 1, "sintaxe", importer.fileIndex);
+      throw new KoineError(`Importação circular: ${cycle}`, imp?.line ?? 1, imp?.col ?? 1, "sintaxe", importer.fileIndex);
     }
     state.set(m, "visiting");
     stack.push(m);
