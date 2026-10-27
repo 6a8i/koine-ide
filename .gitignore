@@ -3,3 +3,8 @@ dist
 src-tauri/target
 src-tauri/gen
 .DS_Store
+
+# páginas da documentação geradas em CI por scripts/build-docs.ts
+docs/referencia.html
+docs/exemplos.html
+docs/idiomas.html
