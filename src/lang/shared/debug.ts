@@ -119,10 +119,18 @@ export class Debugger {
     this.files = files;
     this.setBreakpoints(breakpoints);
     this.mode = startPaused ? "into" : "continue";
-    // no Node (testes) as portas manteriam o processo vivo
+    // No Node (testes) as portas segurariam o processo para sempre: o handler é único e a porta só fica
+    // "segura" (ref) enquanto há uma mensagem em trânsito.
+    this.channel.port1.onmessage = () => {
+      (this.channel.port1 as any).unref?.();
+      const r = this.yielded;
+      this.yielded = null;
+      r?.();
+    };
     (this.channel.port1 as any).unref?.();
     (this.channel.port2 as any).unref?.();
   }
+  private yielded: (() => void) | null = null;
 
   /** Nomes dos arquivos do programa (índice = `NodeBase.file`). */
   setFiles(files: string[]) {
@@ -224,7 +232,8 @@ export class Debugger {
 
   private yield(): Promise<void> {
     return new Promise<void>((r) => {
-      this.channel.port1.onmessage = () => r();
+      this.yielded = r;
+      (this.channel.port1 as any).ref?.();
       this.channel.port2.postMessage(0);
     });
   }

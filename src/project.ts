@@ -23,6 +23,8 @@ export interface Doc {
   dirty: boolean;
   /** apagado no disco enquanto estava aberto */
   missing: boolean;
+  /** abas sem título do mesmo grupo (ex.: um exemplo de vários arquivos) são executadas juntas */
+  group?: string;
 }
 
 export interface TreeNode {
@@ -205,13 +207,14 @@ export class Project {
   }
 
   /** Abre um texto sem caminho (arquivo do navegador, exemplo, novo). */
-  newUntitled(lang: Lang, text?: string, name?: string, activate = true, clean = text === undefined): Doc {
+  newUntitled(lang: Lang, text?: string, name?: string, activate = true, clean = text === undefined, group?: string): Doc {
     const n = this.untitledSeq++;
     const key = "untitled:" + n;
     const content = text ?? (lang === "visualg" ? NEW_VISUALG : NEW_STUDIO);
     const doc: Doc = {
       key, path: null, name: name ?? `sem título${n > 1 ? "-" + n : ""}.${LANG_INFO[lang].ext}`, lang,
       state: this.editor.createState(content, lang), scroll: null, savedText: clean ? content : "\0", dirty: !clean, missing: false,
+      group,
     };
     this.docs.set(key, doc);
     this.order.push(key);
@@ -328,12 +331,12 @@ export class Project {
     const drafts = this.order
       .map((k) => this.docs.get(k)!)
       .filter((d) => !d.path)
-      .map((d) => ({ lang: d.lang, name: d.name, text: this.textOf(d), dirty: d.dirty }));
+      .map((d) => ({ lang: d.lang, name: d.name, text: this.textOf(d), dirty: d.dirty, group: d.group }));
     if (drafts.length) store.set("drafts", drafts); else store.del("drafts");
   }
 
   restoreDrafts(): boolean {
-    let drafts = store.get<{ lang: Lang; name: string; text: string; dirty: boolean }[]>("drafts", []);
+    let drafts = store.get<{ lang: Lang; name: string; text: string; dirty: boolean; group?: string }[]>("drafts", []);
     // migra o rascunho único da versão anterior
     const legacy = localStorage.getItem("draft");
     if (legacy !== null) {
@@ -342,7 +345,7 @@ export class Project {
       localStorage.removeItem("draft");
     }
     this.restoring = true;
-    for (const d of drafts) this.newUntitled(d.lang, d.text, d.name, false, !d.dirty);
+    for (const d of drafts) this.newUntitled(d.lang, d.text, d.name, false, !d.dirty, d.group);
     this.restoring = false;
     this.saveDrafts();
     return drafts.length > 0;
@@ -396,6 +399,15 @@ export class Project {
       files.push({ path: active.name, source: this.textOf(active) });
       fileMap.set(active.name, active.key);
       if (active.dirty && active.path) unsaved.push(active.name);
+    }
+    // as outras abas sem título do mesmo grupo (exemplo de vários arquivos) entram junto
+    if (active?.group) {
+      for (const k of this.order) {
+        const d = this.docs.get(k)!;
+        if (d === active || d.path || d.group !== active.group || d.lang !== lang || fileMap.has(d.name)) continue;
+        files.push({ path: d.name, source: this.textOf(d) });
+        fileMap.set(d.name, d.key);
+      }
     }
     const candidates = files.map((f) => ({ path: f.path, hasEntry: hasEntryPoint(lang, f.source) }));
     const entry = resolveEntry({
