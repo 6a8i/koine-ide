@@ -1,0 +1,34 @@
+name: Sugerir uma funcionalidade
+description: Uma ideia para a linguagem, o editor, a depuração, os testes ou os idiomas
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Que problema isso resolve
+      description: Conte a situação de uso (aula, exercício, projeto) em que a falta disso atrapalha.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposta
+      description: Como você imagina que funcione. Se for sintaxe nova, mostre um exemplo de código.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Área
+      options:
+        - label: Linguagem (sintaxe, funções nativas, mensagens de erro)
+        - label: Editor / interface
+        - label: Depurador
+        - label: Testes e cobertura
+        - label: Idiomas / traduções
+        - label: Instalação / distribuição

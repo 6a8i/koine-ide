@@ -1,0 +1,55 @@
+name: Relatar um bug
+description: Algo não funciona como deveria (erro ao compilar/executar, interface, instalação)
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Obrigado por relatar! Quanto mais fácil for reproduzir, mais rápido conseguimos corrigir.
+  - type: textarea
+    id: what
+    attributes:
+      label: O que aconteceu
+      description: Descreva o problema e o que você esperava que acontecesse.
+    validations:
+      required: true
+  - type: textarea
+    id: program
+    attributes:
+      label: Programa que reproduz
+      description: Cole o menor programa Koiné que mostra o problema (e a entrada digitada, se houver).
+      render: text
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos
+      placeholder: |
+        1. Abrir o exemplo "..."
+        2. Pressionar F5
+        3. Digitar "..."
+  - type: input
+    id: version
+    attributes:
+      label: Versão do Koiné IDE
+      description: Mostrada no instalador/nome do arquivo (ex. 0.1.0). Se rodou do código-fonte, informe o commit.
+    validations:
+      required: true
+  - type: dropdown
+    id: env
+    attributes:
+      label: Onde
+      options:
+        - Instalador do Windows (.exe/.msi)
+        - Rodando do código-fonte (npm run tauri dev)
+        - Navegador (npm run dev)
+    validations:
+      required: true
+  - type: input
+    id: locale
+    attributes:
+      label: Idioma selecionado na IDE
+      placeholder: Português (Brasil)
+  - type: textarea
+    id: extra
+    attributes:
+      label: Mais informações
+      description: Capturas de tela, mensagem de erro completa, sistema operacional.

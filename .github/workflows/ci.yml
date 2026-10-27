@@ -1,0 +1,50 @@
+# Integração contínua: roda em todo pull request e em cada push na main.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend (testes, idiomas e build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Testes do interpretador e validador de idiomas
+        run: npm test
+      - name: Typecheck e build do frontend
+        run: npm run build
+
+  rust:
+    name: Rust (fmt, clippy e check)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: src-tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Formatação
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --no-default-features -- -D warnings

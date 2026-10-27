@@ -1,5 +1,9 @@
 # Koiné IDE
 
+[![CI](https://github.com/6a8i/koine-ide/actions/workflows/ci.yml/badge.svg)](https://github.com/6a8i/koine-ide/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/6a8i/koine-ide?label=download&color=2ea44f)](https://github.com/6a8i/koine-ide/releases/latest)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg)](LICENSE)
+
 IDE de desktop, leve e rápida, para aprender programação com **Koiné**, uma linguagem de pseudocódigo escrita **no seu
 idioma**. O nome vem do grego *koiné*, a "língua comum": as palavras reservadas, as funções nativas, a interface e a
 referência existem em dez idiomas (português, inglês, espanhol, grego, russo, ucraniano, polonês, japonês, coreano e
@@ -16,6 +20,17 @@ programa
 ```
 
 Feita com [Tauri 2](https://tauri.app) (janela nativa, instalador de poucos MB), [CodeMirror 6](https://codemirror.net) (editor) e um interpretador próprio escrito em TypeScript que roda numa *Web Worker* — a interface nunca trava, mesmo em laços infinitos.
+
+## Download e instalação
+
+Baixe o instalador mais recente na página de [**Releases**](https://github.com/6a8i/koine-ide/releases/latest):
+
+- `Koiné IDE_x.y.z_x64-setup.exe`: instalador recomendado para Windows 10/11 (instala só para o seu usuário, sem
+  precisar de administrador).
+- `Koiné IDE_x.y.z_x64_en-US.msi`: instalador MSI, para quem prefere ou para distribuição em rede.
+
+Execute o instalador e pronto: arquivos `.koi` passam a abrir com duplo clique. Como o instalador ainda não é assinado,
+o Windows pode mostrar o aviso "editor desconhecido"; clique em *Mais informações* → *Executar assim mesmo*.
 
 ## Funcionalidades
 
@@ -207,6 +222,14 @@ No modo de depuração a árvore inteira é marcada como assíncrona e, antes de
 depurador (`src/lang/shared/debug.ts`), que decide se pausa (ponto de parada, passo) e envia uma "foto" das variáveis
 para a interface. Por isso a depuração é mais lenta que a execução normal, que continua sem nenhum custo extra.
 
+## Contribuindo
+
+Contribuições são bem-vindas: bugs, ideias, código, exemplos e traduções. Leia o [guia de contribuição](CONTRIBUTING.md)
+(ambiente, testes, regras para mudanças na linguagem e nos idiomas, fluxo de PR) e o
+[Código de Conduta](CODE_OF_CONDUCT.md). Toda PR passa pela integração contínua (testes do interpretador, validador
+de idiomas, build do frontend, `cargo fmt`/`clippy`); as versões são publicadas automaticamente a partir de uma tag
+`vX.Y.Z`, com o instalador do Windows anexado à release.
+
 ## Licença
 
-MIT
+[MIT](LICENSE)
