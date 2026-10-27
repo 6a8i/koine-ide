@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Koiné IDE · aprenda a programar no seu idioma</title>
+<meta name="description" content="IDE gratuita e leve para aprender programação com Koiné, uma linguagem de pseudocódigo com palavras reservadas em dez idiomas. Editor, depurador, testes e cobertura.">
+<meta property="og:title" content="Koiné IDE">
+<meta property="og:description" content="Aprenda a programar no seu idioma: pseudocódigo em português, inglês, espanhol, grego, russo, ucraniano, polonês, japonês, coreano e chinês.">
+<meta property="og:image" content="https://6a8i.github.io/koine-ide/img/editor.png">
+<link rel="icon" href="img/icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="./"><img src="img/icon.png" alt="" width="28" height="28"> Koiné<span>IDE</span></a>
+  <nav>
+    <a href="./" aria-current="page">Início</a>
+    <a href="guia.html">Guia da IDE</a>
+    <a href="linguagem.html">A linguagem</a>
+    <a href="referencia.html">Referência</a>
+    <a href="exemplos.html">Exemplos</a>
+    <a href="idiomas.html">Idiomas</a>
+    <a class="gh" href="https://github.com/6a8i/koine-ide">GitHub</a>
+    <a class="download" href="https://github.com/6a8i/koine-ide/releases/latest" data-latest-link>Baixar</a>
+  </nav>
+</header>
+
+<main class="page">
+  <section class="hero">
+    <h1>Aprenda a programar <em>no seu idioma</em>.</h1>
+    <p class="lead">Koiné IDE é um ambiente gratuito e leve para os primeiros passos em programação. A linguagem Koiné é um
+      pseudocódigo com tipos, funções, estruturas e classes, cujas palavras reservadas existem em dez idiomas.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/6a8i/koine-ide/releases/latest" data-latest-link>⬇ Baixar para Windows <span class="ver">v<span data-latest-version>…</span></span></a>
+      <a class="btn" href="guia.html">Começar pelo guia</a>
+    </div>
+    <p class="cta-note">Instalador de poucos MB, sem precisar de administrador. Também há um <a href="https://github.com/6a8i/koine-ide/releases/latest" data-latest-msi hidden>pacote MSI</a><span data-latest-msi-sep hidden> e </span><a href="https://github.com/6a8i/koine-ide/releases">todas as versões</a>. Windows 10/11, 64 bits.</p>
+    <img class="shot" src="img/editor.png" alt="Koiné IDE com um projeto de três arquivos aberto, o console com a saída do programa e o painel de variáveis" width="1600" height="920">
+  </section>
+
+  <section class="features">
+    <div class="feature"><h3>🌍 Dez idiomas</h3><p>Português, inglês, espanhol, grego, russo, ucraniano, polonês, japonês, coreano e chinês. Interface, palavras reservadas, referência e exemplos. Troque quando quiser: a IDE converte o código.</p></div>
+    <div class="feature"><h3>▶ Executa na hora</h3><p>F5 e pronto. Console integrado com entrada de dados, saída em tempo real e botão Parar. Laços infinitos nunca travam a janela.</p></div>
+    <div class="feature"><h3>🧠 Erros que ensinam</h3><p>Mensagens em português, com linha e coluna, que explicam o problema e sugerem a correção. Tipos verificados antes de executar.</p></div>
+    <div class="feature"><h3>🐞 Depurador visual</h3><p>Pontos de parada, passo a passo, pilha de chamadas e valor de cada variável ao vivo. Passe o mouse sobre uma variável para ver o valor.</p></div>
+    <div class="feature"><h3>✅ Testes e cobertura</h3><p>Escreva testes na própria linguagem (<code>teste "nome" { afirme_igual(...) }</code>), rode com F7 e veja o que passou e quais linhas nenhum teste alcançou.</p></div>
+    <div class="feature"><h3>📁 Projetos de verdade</h3><p>Abra uma pasta, divida o programa em módulos com <code>importe</code>, use estruturas, classes com herança e referências seguras.</p></div>
+  </section>
+
+  <section>
+    <h2>O mesmo programa, três idiomas</h2>
+    <p>O vocabulário é traduzido, a semântica é uma só. Quem aprende em grego ou japonês escreve com as palavras da própria língua e pode converter o programa para mostrar a um colega que fala outra.</p>
+    <div class="langs">
+      <figure><figcaption>Português</figcaption><pre><code class="koine">programa
+{
+    funcao inicio()
+    {
+        inteiro n = 5
+        se (n > 3 e verdadeiro)
+        {
+            escreva("olá", "\n")
+        }
+    }
+}</code></pre></figure>
+      <figure><figcaption lang="el">Ελληνικά</figcaption><pre><code class="koine">πρόγραμμα
+{
+    συνάρτηση αρχή()
+    {
+        ακέραιος n = 5
+        αν (n > 3 και αληθής)
+        {
+            γράψε("olá", "\n")
+        }
+    }
+}</code></pre></figure>
+      <figure><figcaption>English</figcaption><pre><code class="koine">program
+{
+    function main()
+    {
+        integer n = 5
+        if (n > 3 and true)
+        {
+            write("olá", "\n")
+        }
+    }
+}</code></pre></figure>
+    </div>
+    <p><a href="idiomas.html">Veja a tabela completa do vocabulário nos dez idiomas →</a></p>
+  </section>
+
+  <section>
+    <h2>Por dentro</h2>
+    <div class="gallery">
+      <figure><img src="img/depurador.png" alt="Depurador pausado numa linha, com a pilha de chamadas recursivas e as variáveis de cada quadro"><figcaption>Depurador: pausa, passo a passo e pilha de chamadas com as variáveis de cada função.</figcaption></figure>
+      <figure><img src="img/testes.png" alt="Painel de testes com quatro testes aprovados, um reprovado de propósito e a cobertura por arquivo"><figcaption>Testes escritos em Koiné, resultado por teste e cobertura de linhas.</figcaption></figure>
+      <figure><img src="img/referencia.png" alt="Painel de referência mostrando a entrada do comando escolha, com forma de uso e exemplo"><figcaption>Referência (F1): toda palavra e função explicada, com exemplo para inserir no editor.</figcaption></figure>
+      <figure><img src="img/grego.png" alt="Interface e código em grego, com classes e herança"><figcaption>Interface e código em grego, com classes, herança e o painel de variáveis.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Para quem é</h2>
+    <div class="grid2">
+      <div><h3>Professores</h3><p>Uma ferramenta só para a turma inteira, com exemplos prontos, mensagens de erro didáticas e testes automatizados para corrigir exercícios. O instalador não precisa de administrador, então funciona em laboratórios com restrições.</p></div>
+      <div><h3>Estudantes</h3><p>Comece pelo olá-mundo, avance para funções, vetores e matrizes, e chegue a módulos, estruturas e classes sem trocar de ferramenta. O depurador mostra o que o computador está fazendo a cada linha.</p></div>
+      <div><h3>Quem não programa em português</h3><p>As palavras reservadas são as do seu idioma, não um inglês decorado. Ao final, converter o programa para inglês é um clique, e o aprendizado se transfere para qualquer linguagem.</p></div>
+      <div><h3>Quem quer contribuir</h3><p>Código aberto (MIT), TypeScript e Rust, testes em cada PR. Traduções, exemplos, funções novas e correções são bem-vindos: veja o <a href="https://github.com/6a8i/koine-ide/blob/main/CONTRIBUTING.md">guia de contribuição</a>.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Comece agora</h2>
+    <ol class="steps">
+      <li><a href="https://github.com/6a8i/koine-ide/releases/latest" data-latest-link>Baixe o instalador</a> e execute. O Windows pode avisar que o editor é desconhecido (o instalador ainda não é assinado): clique em <em>Mais informações</em> → <em>Executar assim mesmo</em>.</li>
+      <li>Abra a IDE, clique em <strong>Exemplos</strong> e escolha <em>Olá, mundo</em>. Pressione <kbd>F5</kbd>.</li>
+      <li>Siga o <a href="guia.html">guia da IDE</a> e o <a href="linguagem.html">tour pela linguagem</a>. Quando travar numa palavra, pressione <kbd>F1</kbd>.</li>
+    </ol>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>Koiné IDE é software livre (MIT). Feito por <a href="https://github.com/6a8i">6a8i</a> e <a href="https://github.com/6a8i/koine-ide/graphs/contributors">colaboradores</a>. <a href="https://github.com/6a8i/koine-ide/issues">Relate um problema</a> · <a href="https://github.com/6a8i/koine-ide/blob/main/CONTRIBUTING.md">Contribua</a>.</p>
+</footer>
+<script src="site.js"></script>
+</body>
+</html>

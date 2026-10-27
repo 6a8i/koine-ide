@@ -607,3 +607,10 @@ body:not(.tauri) .tauri-only { display: none !important; }
 .locale-select:hover { border-color: var(--accent); }
 
 .seg-btn { white-space: nowrap; }
+
+/* com os controles de depuração visíveis a barra fica mais larga: em janelas médias os rótulos somem */
+@media (max-width: 1800px) {
+  .toolbar:has(#debug-controls:not([hidden])) .btn span { display: none; }
+  .toolbar:has(#debug-controls:not([hidden])) .btn.primary span { display: inline; }
+  .toolbar:has(#debug-controls:not([hidden])) .btn kbd { display: none; }
+}
