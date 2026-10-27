@@ -75,7 +75,7 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
           uploadReleaseAssets: ${{ startsWith(github.ref, 'refs/tags/v') }}
       - name: Guarda os instaladores como artefato do workflow
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: koine-ide-windows
           path: |
