@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A linguagem · Koiné IDE</title>
+<meta name="description" content="Tour pela linguagem Koiné: estrutura do programa, tipos, operadores, entrada e saída, controle de fluxo, funções, vetores, bibliotecas, estruturas, classes, referências, módulos e testes.">
+<link rel="icon" href="img/icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="./"><img src="img/icon.png" alt="" width="28" height="28"> Koiné<span>IDE</span></a>
+  <nav>
+    <a href="./">Início</a>
+    <a href="guia.html">Guia da IDE</a>
+    <a href="linguagem.html" aria-current="page">A linguagem</a>
+    <a href="referencia.html">Referência</a>
+    <a href="exemplos.html">Exemplos</a>
+    <a href="idiomas.html">Idiomas</a>
+    <a class="gh" href="https://github.com/6a8i/koine-ide">GitHub</a>
+    <a class="download" href="https://github.com/6a8i/koine-ide/releases/latest" data-latest-link>Baixar</a>
+  </nav>
+</header>
+
+<main class="page">
+  <header class="page-head">
+    <h1>A linguagem Koiné</h1>
+    <p>Um tour do básico ao avançado. Koiné é um pseudocódigo com sintaxe de chaves, tipos declarados e mensagens de erro pensadas para quem está aprendendo. Tudo aqui está em português; na IDE, o mesmo código existe em <a href="idiomas.html">dez idiomas</a>. Cada palavra tem uma entrada detalhada na <a href="referencia.html">referência</a>.</p>
+  </header>
+  <nav class="toc"><ul>
+    <li><a href="#estrutura">Estrutura</a></li><li><a href="#tipos">Tipos e variáveis</a></li><li><a href="#operadores">Operadores</a></li>
+    <li><a href="#es">Entrada e saída</a></li><li><a href="#controle">Controle de fluxo</a></li><li><a href="#funcoes">Funções</a></li>
+    <li><a href="#vetores">Vetores e matrizes</a></li><li><a href="#bibliotecas">Bibliotecas</a></li><li><a href="#estruturas">Estruturas</a></li>
+    <li><a href="#classes">Classes</a></li><li><a href="#referencias">Referências</a></li><li><a href="#modulos">Módulos</a></li><li><a href="#testes">Testes</a></li>
+  </ul></nav>
+
+  <h2 id="estrutura">Estrutura de um programa</h2>
+  <p>Todo o código fica dentro de <code>programa { }</code>. A função <code>inicio()</code> é por onde a execução começa; as outras funções, variáveis globais e inclusões de biblioteca ficam no mesmo bloco, em qualquer ordem. Comentários usam <code>//</code> até o fim da linha ou <code>/* ... */</code>.</p>
+  <pre><code class="koine">programa
+{
+    // variável global: visível em todas as funções
+    inteiro contador = 0
+
+    funcao inicio()
+    {
+        escreva("Olá!\n")
+        contador++
+        cumprimenta("Ana")
+    }
+
+    funcao cumprimenta(cadeia nome)
+    {
+        escreva("Bem-vinda, ", nome, "\n")
+    }
+}</code></pre>
+  <p>Comandos são separados por quebra de linha; o ponto e vírgula é opcional e serve para pôr dois comandos na mesma linha.</p>
+
+  <h2 id="tipos">Tipos e variáveis</h2>
+  <table>
+    <tr><th>Tipo</th><th>Valores</th><th>Exemplo</th></tr>
+    <tr><td><code>inteiro</code></td><td>números sem parte decimal</td><td><code>inteiro n = 42</code></td></tr>
+    <tr><td><code>real</code></td><td>números com parte decimal</td><td><code>real pi = 3.14</code></td></tr>
+    <tr><td><code>cadeia</code></td><td>textos, entre aspas duplas; escapes <code>\n</code>, <code>\t</code>, <code>\"</code></td><td><code>cadeia nome = "Ana"</code></td></tr>
+    <tr><td><code>caracter</code></td><td>um único caractere, entre aspas simples</td><td><code>caracter letra = 'a'</code></td></tr>
+    <tr><td><code>logico</code></td><td><code>verdadeiro</code> ou <code>falso</code></td><td><code>logico pronto = falso</code></td></tr>
+  </table>
+  <pre><code class="koine">inteiro a = 1, b = 2          // várias na mesma linha
+real media                    // sem valor inicial: precisa receber um antes de ser usada
+const real GRAVIDADE = 9.8    // constante: não pode mudar
+media = (a + b) / 2.0</code></pre>
+  <p>A verificação de tipos acontece antes de executar. Um <code>inteiro</code> não recebe um <code>real</code> sem conversão explícita (<code>Tipos.real_para_inteiro</code>), mas um <code>real</code> aceita um inteiro. Usar uma variável antes de ela receber valor é erro de execução com mensagem clara.</p>
+
+  <h2 id="operadores">Operadores</h2>
+  <table>
+    <tr><th>Grupo</th><th>Operadores</th><th>Observações</th></tr>
+    <tr><td>Aritméticos</td><td><code>+ - * / %</code></td><td><code>7 / 2</code> é <code>3</code> (inteiros); <code>7 / 2.0</code> é <code>3.5</code>; <code>%</code> é o resto</td></tr>
+    <tr><td>Atribuição</td><td><code>= += -= *= /= %=</code> e <code>++ --</code></td><td><code>x += 2</code> é <code>x = x + 2</code></td></tr>
+    <tr><td>Comparação</td><td><code>== != &lt; &lt;= &gt; &gt;=</code></td><td>igualdade é <code>==</code>; <code>=</code> dentro de um <code>se</code> dá um erro didático</td></tr>
+    <tr><td>Lógicos</td><td><code>e ou nao</code></td><td>com curto-circuito: <code>x != 0 e 10 / x &gt; 1</code> é seguro</td></tr>
+    <tr><td>Textos</td><td><code>+</code></td><td><code>"idade: " + 20</code> vira <code>"idade: 20"</code></td></tr>
+    <tr><td>Bits</td><td><code>&amp; | ^ ~ &lt;&lt; &gt;&gt;</code></td><td>só em inteiros</td></tr>
+  </table>
+  <p>A precedência é a usual (<code>*</code> antes de <code>+</code>, comparações antes de <code>e</code>, <code>e</code> antes de <code>ou</code>); parênteses resolvem qualquer dúvida.</p>
+
+  <h2 id="es">Entrada e saída</h2>
+  <pre><code class="koine">escreva("Nome e idade: ")      // escreve sem pular linha; vários valores separados por vírgula
+cadeia nome
+inteiro idade
+leia(nome, idade)              // lê um valor por vez, do console
+escreva("Olá, ", nome, "! Ano que vem: ", idade + 1, "\n")
+limpa()                        // limpa o console</code></pre>
+  <p><code>leia</code> converte o que foi digitado para o tipo da variável e avisa se não for um número válido. Valores reais aceitam vírgula ou ponto.</p>
+
+  <h2 id="controle">Controle de fluxo</h2>
+  <h3>Decisão: <code>se</code> / <code>senao</code></h3>
+  <pre><code class="koine">se (nota &gt;= 7.0)
+{
+    escreva("Aprovado\n")
+}
+senao se (nota &gt;= 5.0)
+{
+    escreva("Recuperação\n")
+}
+senao
+{
+    escreva("Reprovado\n")
+}</code></pre>
+  <h3>Repetição: <code>enquanto</code>, <code>faca ... enquanto</code>, <code>para</code></h3>
+  <pre><code class="koine">inteiro i = 0
+enquanto (i &lt; 3)           // testa antes
+{
+    escreva(i, " ")
+    i++
+}
+
+faca                       // executa ao menos uma vez
+{
+    leia(opcao)
+} enquanto (opcao &lt; 1 ou opcao &gt; 3)
+
+para (inteiro j = 1; j &lt;= 10; j++)   // início; condição; passo
+{
+    se (j % 2 == 0) { pare }         // pare sai do laço
+    escreva(j, "\n")
+}</code></pre>
+  <h3>Escolha múltipla: <code>escolha</code></h3>
+  <pre><code class="koine">escolha (opcao)
+{
+    caso 1:
+        escreva("um\n")
+        pare
+    caso 2:
+    caso 3:                     // sem pare, a execução continua no próximo caso
+        escreva("dois ou três\n")
+        pare
+    caso contrario:
+        escreva("outro\n")
+}</code></pre>
+  <p><code>escolha</code> aceita inteiros, caracteres e cadeias.</p>
+
+  <h2 id="funcoes">Funções</h2>
+  <pre><code class="koine">funcao inteiro fatorial(inteiro n)          // tipo de retorno antes do nome
+{
+    se (n &lt;= 1) { retorne 1 }
+    retorne n * fatorial(n - 1)             // recursão
+}
+
+funcao trocar(inteiro &amp;x, inteiro &amp;y)      // sem tipo = não retorna nada
+{                                           // &amp; passa por referência: altera a variável original
+    inteiro t = x
+    x = y
+    y = t
+}
+
+funcao real media(real valores[])           // vetores são sempre passados por referência
+{
+    real soma = 0.0
+    para (inteiro i = 0; i &lt; Util.numero_elementos(valores); i++) { soma += valores[i] }
+    retorne soma / Util.numero_elementos(valores)
+}</code></pre>
+  <p>Funções podem ser declaradas depois de serem usadas. Uma função com tipo precisa terminar com <code>retorne</code> em todos os caminhos; o verificador avisa quando falta.</p>
+
+  <h2 id="vetores">Vetores e matrizes</h2>
+  <pre><code class="koine">inteiro notas[5]                      // 5 posições, de 0 a 4, zeradas
+inteiro primos[] = {2, 3, 5, 7}       // tamanho pelo conteúdo
+real m[3][3]                          // matriz 3×3
+inteiro tab[][] = {{1, 2}, {3, 4}}
+
+notas[0] = 10
+m[1][2] = 0.5
+escreva(primos[3], " ", Util.numero_elementos(primos), " ", Util.numero_linhas(tab), "\n")</code></pre>
+  <p>Índices começam em 0. Acessar fora do tamanho é erro de execução com a linha e o índice. Vetores podem ter estruturas e objetos como elementos.</p>
+
+  <h2 id="bibliotecas">Bibliotecas</h2>
+  <p>Funções prontas ficam em quatro bibliotecas. Inclua a que precisar no início do programa; <code>--&gt;</code> dá um apelido curto.</p>
+  <pre><code class="koine">inclua biblioteca Matematica --&gt; mat
+inclua biblioteca Texto
+inclua biblioteca Util
+inclua biblioteca Tipos
+
+real r = mat.raiz(16.0, 2.0)                       // 4.0
+real p = mat.potencia(2.0, 10.0)                   // 1024.0
+inteiro maior = mat.maior_numero(3, 9)
+inteiro n = Texto.numero_caracteres("Koiné")       // 5
+cadeia s = Texto.caixa_alta("abc")                 // "ABC"
+inteiro sorte = Util.sorteia(1, 6)                 // inteiro aleatório entre 1 e 6
+Util.aguarde(500)                                  // espera 500 ms
+inteiro x = Tipos.cadeia_para_inteiro("42")
+logico eh = Tipos.e_inteiro(entrada)               // valida antes de converter</code></pre>
+  <table>
+    <tr><th>Biblioteca</th><th>Tem</th></tr>
+    <tr><td><code>Matematica</code></td><td><code>PI</code>, <code>E</code>, <code>raiz</code>, <code>potencia</code>, <code>arredondar</code>, <code>valor_absoluto</code>, <code>seno</code>, <code>cosseno</code>, <code>tangente</code>, <code>logaritmo</code>, <code>maior_numero</code>, <code>menor_numero</code></td></tr>
+    <tr><td><code>Texto</code></td><td><code>numero_caracteres</code>, <code>caixa_alta</code>, <code>caixa_baixa</code>, <code>obter_caractere</code>, <code>posicao_texto</code>, <code>substituir</code>, <code>extrair_subtexto</code>, <code>preencher_a_esquerda</code>, <code>preencher_a_direita</code>, <code>inverter</code>, <code>remover_espacos</code></td></tr>
+    <tr><td><code>Util</code></td><td><code>aguarde</code>, <code>sorteia</code>, <code>tempo_decorrido</code>, <code>numero_elementos</code>, <code>numero_linhas</code>, <code>numero_colunas</code></td></tr>
+    <tr><td><code>Tipos</code></td><td>conversões <code>inteiro_para_cadeia</code>, <code>cadeia_para_inteiro</code>, <code>real_para_inteiro</code>, <code>cadeia_para_real</code>, <code>caracter_para_inteiro</code>… e validações <code>e_inteiro</code>, <code>e_real</code></td></tr>
+  </table>
+  <p>Assinaturas e exemplos de cada função estão na <a href="referencia.html#cat-funcao">referência</a>.</p>
+
+  <h2 id="estruturas">Estruturas</h2>
+  <p>Uma <code>estrutura</code> agrupa campos. É um <strong>valor</strong>: atribuir ou passar para uma função copia; <code>==</code> compara campo a campo.</p>
+  <pre><code class="koine">estrutura Ponto { real x  real y }
+
+funcao inicio()
+{
+    Ponto a = Ponto(1.0, 2.0)      // construção posicional
+    Ponto origem                   // sem valor: campos zerados (Ponto() também)
+    Ponto b = a                    // cópia
+    b.x = 9.0                      // a.x continua 1.0
+    escreva(a, " ", a == Ponto(1.0, 2.0), "\n")   // Ponto{x: 1.0, y: 2.0} verdadeiro
+}
+
+funcao real distancia(Ponto p, Ponto q) { retorne Matematica.raiz((p.x - q.x) * (p.x - q.x) + (p.y - q.y) * (p.y - q.y), 2.0) }</code></pre>
+
+  <h2 id="classes">Classes e herança</h2>
+  <p>Uma <code>classe</code> tem campos, construtor (função com o nome da classe) e métodos. Objetos são <strong>compartilhados</strong>: duas variáveis podem apontar para o mesmo objeto, e <code>nulo</code> é um valor válido. Campos e métodos são <code>privado</code> por padrão (visíveis na classe e nas subclasses); <code>publico</code> abre para fora.</p>
+  <pre><code class="koine">classe Forma
+{
+    privado cadeia nome
+    publico Forma(cadeia nome) { este.nome = nome }
+    publico real area() { retorne 0.0 }
+    publico cadeia descreve() { retorne nome + " com área " + area() }   // chama a versão da subclasse
+}
+
+classe Circulo herda Forma
+{
+    privado real raio
+    publico Circulo(real r)
+    {
+        super("círculo")       // construtor do pai, sempre o primeiro comando
+        raio = r
+    }
+    publico real area() { retorne Matematica.PI * raio * raio }   // sobrescreve
+}
+
+funcao inicio()
+{
+    Forma f = Circulo(2.0)                 // polimorfismo: f.area() chama Circulo.area
+    escreva(f.descreve(), "\n")
+    Forma g = nulo
+    se (g == nulo) { escreva("sem forma\n") }
+}</code></pre>
+  <p>Uma subclasse não pode ser atribuída a partir da classe-mãe sem conversão (o verificador explica: "nem todo Forma é Circulo"). Chamar um método em <code>nulo</code> é erro de execução apontando a linha.</p>
+
+  <h2 id="referencias">Referências</h2>
+  <p>Uma <code>ref</code> aponta para uma variável, um elemento de vetor ou um campo. É segura: não existe aritmética, só pegar o endereço com <code>&amp;</code> e acessar com <code>*</code>.</p>
+  <pre><code class="koine">inteiro n = 10
+ref inteiro r = &amp;n
+*r = 20                        // n agora é 20
+incrementa(&amp;n)                 // ou passe a referência para uma função
+escreva(n, " ", r == nulo, "\n")   // 21 falso
+
+funcao incrementa(ref inteiro x) { *x = *x + 1 }</code></pre>
+  <p>Comparar duas referências diretamente é erro (compare <code>*a == *b</code>), assim como fazer contas com a referência em vez do valor.</p>
+
+  <h2 id="modulos">Módulos</h2>
+  <p>Um arquivo sem <code>inicio()</code> é um módulo. Outro arquivo da mesma pasta o importa com <code>importe</code> e usa tudo o que ele declarou <code>publico</code>: funções, variáveis, constantes, estruturas e classes. O que não é público fica privado ao módulo.</p>
+  <div class="grid2">
+    <div><div class="label">geometria.koi</div><pre><code class="koine">programa
+{
+    modulo Geometria            // opcional; o padrão é o nome do arquivo
+    publico const real PI = 3.14159
+    publico estrutura Ponto { real x  real y }
+
+    publico real distancia(Ponto a, Ponto b)
+    {
+        retorne raiz(quadrado(a.x - b.x) + quadrado(a.y - b.y))
+    }
+    real quadrado(real v) { retorne v * v }      // privada ao módulo
+    real raiz(real v) { retorne Matematica.raiz(v, 2.0) }
+    inclua biblioteca Matematica
+}</code></pre></div>
+    <div><div class="label">principal.koi</div><pre><code class="koine">programa
+{
+    importe Geometria
+    // ou: importe "lib/geometria.koi" --&gt; geo
+
+    funcao inicio()
+    {
+        Ponto a = Ponto(0.0, 0.0)
+        Ponto b = Ponto(3.0, 4.0)
+        escreva(Geometria.distancia(a, b), "\n")   // 5.0
+        escreva(distancia(a, b), "\n")             // sem qualificar também vale, se não houver ambiguidade
+    }
+}</code></pre></div>
+  </div>
+  <p>Importações circulares, módulos repetidos e nomes ambíguos (duas importações com a mesma função) são erros apontados no arquivo certo. Na IDE, <kbd>F5</kbd> executa o projeto inteiro; veja <a href="guia.html#projetos">Projetos</a>.</p>
+
+  <h2 id="testes">Testes</h2>
+  <p>Um <code>teste</code> é um bloco com nome que roda isolado (as globais são reiniciadas a cada teste) e falha quando uma afirmação não se cumpre. Pode ficar no próprio programa ou num arquivo separado que importa o programa, e nesse caso enxerga até as funções privadas.</p>
+  <pre><code class="koine">programa
+{
+    importe calculadora
+
+    teste "soma de dois números"
+    {
+        afirme_igual(5, soma(2, 3))                   // esperado, obtido
+        afirme_diferente(0, soma(2, 3))
+        afirme(eh_par(10), "10 é par")                // condição, mensagem opcional
+        afirme_aproximado(2.5, media(2, 3), 0.001)    // reais, com tolerância
+    }
+
+    teste "programa completo, com entrada e saída"
+    {
+        entrada("2\n3")                // o que o usuário digitaria
+        inicio()                       // executa o programa
+        afirme_igual("Soma: 5\n", saida())
+    }
+}</code></pre>
+  <table>
+    <tr><th>Afirmação</th><th>Falha quando</th></tr>
+    <tr><td><code>afirme(cond[, msg])</code></td><td>a condição é falsa</td></tr>
+    <tr><td><code>afirme_igual(esperado, obtido[, msg])</code></td><td>os valores diferem (estruturas campo a campo, vetores item a item, objetos por identidade)</td></tr>
+    <tr><td><code>afirme_diferente(a, b[, msg])</code></td><td>os valores são iguais</td></tr>
+    <tr><td><code>afirme_aproximado(esperado, obtido, tolerancia[, msg])</code></td><td>a diferença passa da tolerância</td></tr>
+    <tr><td><code>entrada(texto)</code> / <code>saida()</code></td><td>fornecem as próximas linhas para <code>leia</code> e devolvem tudo o que o programa escreveu</td></tr>
+  </table>
+  <p>Os testes rodam com <kbd>F7</kbd> ou pelo painel <strong>Testes</strong>, que também mostra a cobertura. Veja <a href="guia.html#testar">Testar</a> no guia.</p>
+</main>
+
+<footer class="foot">
+  <p>Koiné IDE é software livre (MIT). Feito por <a href="https://github.com/6a8i">6a8i</a> e <a href="https://github.com/6a8i/koine-ide/graphs/contributors">colaboradores</a>. <a href="https://github.com/6a8i/koine-ide/issues">Relate um problema</a> · <a href="https://github.com/6a8i/koine-ide/blob/main/CONTRIBUTING.md">Contribua</a>.</p>
+</footer>
+<script src="site.js"></script>
+</body>
+</html>

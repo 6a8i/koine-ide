@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guia da IDE · Koiné IDE</title>
+<meta name="description" content="Como instalar e usar o Koiné IDE: escrever e executar programas, ler dados, depurar, testar, trabalhar com projetos e trocar o idioma.">
+<link rel="icon" href="img/icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="./"><img src="img/icon.png" alt="" width="28" height="28"> Koiné<span>IDE</span></a>
+  <nav>
+    <a href="./">Início</a>
+    <a href="guia.html" aria-current="page">Guia da IDE</a>
+    <a href="linguagem.html">A linguagem</a>
+    <a href="referencia.html">Referência</a>
+    <a href="exemplos.html">Exemplos</a>
+    <a href="idiomas.html">Idiomas</a>
+    <a class="gh" href="https://github.com/6a8i/koine-ide">GitHub</a>
+    <a class="download" href="https://github.com/6a8i/koine-ide/releases/latest" data-latest-link>Baixar</a>
+  </nav>
+</header>
+
+<main class="page">
+  <header class="page-head">
+    <h1>Guia da IDE</h1>
+    <p>Tudo o que a janela faz, na ordem em que você vai precisar: instalar, escrever e executar, ler dados, entender erros, depurar, testar, organizar um projeto em vários arquivos e trocar o idioma.</p>
+  </header>
+  <nav class="toc"><ul>
+    <li><a href="#instalar">Instalar</a></li><li><a href="#janela">A janela</a></li><li><a href="#executar">Escrever e executar</a></li>
+    <li><a href="#entrada">Ler dados</a></li><li><a href="#erros">Erros</a></li><li><a href="#depurar">Depurar</a></li>
+    <li><a href="#testar">Testar</a></li><li><a href="#projetos">Projetos</a></li><li><a href="#referencia">Exemplos e referência</a></li>
+    <li><a href="#idiomas">Idiomas</a></li><li><a href="#atalhos">Atalhos</a></li><li><a href="#faq">Perguntas frequentes</a></li>
+  </ul></nav>
+
+  <h2 id="instalar">Instalar</h2>
+  <ol class="steps">
+    <li>Baixe o instalador mais recente: <a href="https://github.com/6a8i/koine-ide/releases/latest" data-latest-link><code>Koine.IDE_x.y.z_x64-setup.exe</code></a> (Windows 10/11, 64 bits). Há também um <a href="https://github.com/6a8i/koine-ide/releases/latest" data-latest-msi>pacote MSI</a> para instalação em rede.</li>
+    <li>Execute o arquivo. O instalador coloca o programa só na sua conta de usuário, então não pede senha de administrador.</li>
+    <li>Como o instalador ainda não é assinado digitalmente, o Windows SmartScreen pode mostrar "O Windows protegeu o computador". Clique em <em>Mais informações</em> e depois em <em>Executar assim mesmo</em>.</li>
+    <li>Pronto: o Koiné IDE aparece no menu Iniciar e arquivos <code>.koi</code> passam a abrir com duplo clique.</li>
+  </ol>
+  <div class="callout">Para atualizar, basta instalar a versão nova por cima. Seus arquivos ficam onde você salvou; o rascunho não salvo e as preferências ficam na IDE.</div>
+
+  <h2 id="janela">A janela</h2>
+  <figure class="fig"><img class="shot" src="img/editor.png" alt="Janela do Koiné IDE com barra de ferramentas, abas, editor, console e painel de variáveis" width="1600" height="920">
+    <figcaption>Barra de ferramentas em cima; abas dos arquivos abertos; editor; console e painéis (Variáveis/Testes) embaixo; barra de status com o arquivo, a posição do cursor e o tempo da última execução.</figcaption></figure>
+  <ul>
+    <li><strong>Barra de ferramentas</strong>: Novo, Abrir, Salvar (e, no modo projeto, Pasta e Salvar tudo); Executar, Depurar, Testar e Parar; Exemplos, Referência, o seletor de idioma e o tema claro/escuro.</li>
+    <li><strong>Abas</strong>: cada arquivo aberto é uma aba. O ponto indica alterações não salvas. Clique do meio ou <kbd>Ctrl</kbd>+<kbd>W</kbd> fecha; <kbd>Ctrl</kbd>+<kbd>Tab</kbd> alterna.</li>
+    <li><strong>Editor</strong>: destaque de sintaxe, autocompletar (comece a digitar ou <kbd>Ctrl</kbd>+<kbd>Espaço</kbd>), dobra de blocos na margem, busca com <kbd>Ctrl</kbd>+<kbd>F</kbd>, múltiplos cursores com <kbd>Alt</kbd>+clique. Passe o mouse sobre uma palavra reservada para ver uma explicação; sobre uma variável, depois de executar, para ver o valor.</li>
+    <li><strong>Console</strong>: saída do programa, entrada de dados e mensagens. Arraste a borda para mudar a altura. Os botões à direita mostram o painel de <em>Variáveis</em> ou de <em>Testes</em>.</li>
+    <li><strong>Painel do projeto</strong> (à esquerda, quando uma pasta está aberta): árvore de arquivos com menu de contexto. <kbd>Ctrl</kbd>+<kbd>B</kbd> mostra ou esconde.</li>
+  </ul>
+
+  <h2 id="executar">Escrever e executar</h2>
+  <p>Um programa novo (<kbd>Ctrl</kbd>+<kbd>N</kbd>) já vem com o esqueleto mínimo: o bloco <code>programa</code> e a função <code>inicio()</code>, por onde a execução começa.</p>
+  <pre><code class="koine">programa
+{
+    funcao inicio()
+    {
+        escreva("Olá, mundo!\n")
+    }
+}</code></pre>
+  <p>Pressione <kbd>F5</kbd> (ou <kbd>Ctrl</kbd>+<kbd>Enter</kbd>, ou o botão <strong>Executar</strong>). A saída aparece no console junto com o tempo de execução. <strong>Parar</strong> (<kbd>Shift</kbd>+<kbd>F5</kbd>) interrompe um programa que não termina. O programa roda em segundo plano, então a janela nunca trava, mesmo num laço infinito.</p>
+  <p>Salve com <kbd>Ctrl</kbd>+<kbd>S</kbd>. Enquanto não salvar, o texto fica guardado como rascunho e volta quando você reabre a IDE.</p>
+
+  <h2 id="entrada">Ler dados</h2>
+  <p>Quando o programa chega a um <code>leia(...)</code>, o console abre uma linha de entrada. Digite o valor e pressione <kbd>Enter</kbd>. Vários valores no mesmo <code>leia</code> são pedidos um a um.</p>
+  <pre><code class="koine">inteiro idade
+escreva("Qual a sua idade? ")
+leia(idade)
+escreva("Em dez anos você terá ", idade + 10, " anos\n")</code></pre>
+  <p>O tempo que o programa passa esperando você digitar não conta no tempo de execução mostrado na barra de status.</p>
+
+  <h2 id="erros">Erros</h2>
+  <p>Antes de executar, a IDE verifica o programa inteiro: variáveis não declaradas, tipos incompatíveis, funções chamadas com parâmetros errados, blocos não fechados. O erro aparece no console com linha e coluna, a linha fica marcada no editor e a mensagem tenta dizer como corrigir:</p>
+  <pre><code>Linha 7, coluna 9: A condição do "se" usa "=" (atribuição). Para comparar valores use "=="</code></pre>
+  <p>Erros em tempo de execução (divisão por zero, índice fora do vetor, variável usada antes de receber valor, recursão sem fim) também apontam a linha e deixam o painel de variáveis com os valores do momento do erro.</p>
+
+  <h2 id="depurar">Depurar</h2>
+  <figure class="fig"><img class="shot" src="img/depurador.png" alt="Depurador pausado na linha 15 de uma função recursiva, com três quadros de fatorial e o quadro de inicio no painel de variáveis" width="1600" height="920">
+    <figcaption>Pausado dentro de <code>fatorial</code>: a linha atual fica destacada e o painel mostra cada chamada na pilha com as suas variáveis.</figcaption></figure>
+  <ol class="steps">
+    <li>Clique na margem esquerda, ao lado do número da linha, para colocar um <strong>ponto de parada</strong> (bolinha vermelha). Clique de novo para tirar.</li>
+    <li>Pressione <kbd>F6</kbd> (<strong>Depurar</strong>). O programa roda até o primeiro ponto de parada. Sem nenhum ponto, pausa na primeira linha.</li>
+    <li>Avance com <kbd>F10</kbd> <strong>Passo</strong> (executa a linha sem entrar em funções), <kbd>F11</kbd> <strong>Entrar</strong> (entra na função chamada), <kbd>Shift</kbd>+<kbd>F11</kbd> <strong>Sair</strong> (volta para quem chamou) e <kbd>F8</kbd> <strong>Continuar</strong> (até o próximo ponto). <strong>Pausar</strong> interrompe um programa que está rodando.</li>
+  </ol>
+  <p>O painel <strong>Variáveis</strong> mostra a pilha de chamadas, do quadro atual para o mais externo, e o valor e o tipo de cada variável; os que mudaram desde a última pausa ficam destacados. Clique em "linha N" para ir até a linha. Estruturas e objetos aparecem com seus campos (<code>Ponto{x: 1.0, y: 2.0}</code>), referências com o valor apontado. Depois de uma execução normal, sem depurar, o painel continua mostrando os valores finais.</p>
+
+  <h2 id="testar">Testar</h2>
+  <figure class="fig"><img class="shot" src="img/testes.png" alt="Painel de testes: quatro testes aprovados, um reprovado, e a cobertura de 90% do arquivo calculadora.koi" width="1600" height="920">
+    <figcaption>O exemplo <em>Testes automatizados</em>: o arquivo de testes importa o programa, cada teste roda isolado e a cobertura mostra o que ficou sem testar.</figcaption></figure>
+  <p>Um teste é um bloco <code>teste "nome" { ... }</code> com afirmações. Pode ficar no próprio programa ou num arquivo separado que o importa (o arquivo de testes enxerga até as funções privadas do programa). Testes não rodam com F5; só com <kbd>F7</kbd> ou pelo painel <strong>Testes</strong>.</p>
+  <pre><code class="koine">teste "soma de dois números"
+{
+    afirme_igual(5, soma(2, 3))            // esperado, obtido
+    afirme(eh_par(10), "10 é par")         // condição, mensagem opcional
+}
+teste "programa completo"
+{
+    entrada("2\n3")                        // o que o usuário digitaria
+    inicio()                               // roda o programa
+    afirme_igual("Soma: 5\n", saida())     // tudo o que ele escreveu
+}</code></pre>
+  <p>No painel, ▶ ao lado de <em>Todos</em>, de um arquivo ou de um teste executa só aquilo. Cada teste mostra passou/falhou, o tempo e, se falhou, a mensagem com link para a linha. A seção <strong>Cobertura</strong> traz o percentual de linhas executadas por arquivo, lista as funções que nenhum teste chamou e marca no editor, em verde e vermelho, as linhas cobertas e descobertas. Veja a <a href="linguagem.html#testes">sintaxe completa das afirmações</a>.</p>
+
+  <h2 id="projetos">Projetos com vários arquivos</h2>
+  <p>Clique em <strong>Pasta</strong> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd>) ou arraste uma pasta para a janela. A árvore à esquerda lista os arquivos <code>.koi</code> e as subpastas; o menu de contexto cria, renomeia, exclui (para a lixeira), define o arquivo principal e abre no Explorer. Arquivos editados fora da IDE são recarregados ao voltar para a janela.</p>
+  <p>Com uma pasta aberta, <kbd>F5</kbd> executa o <strong>projeto inteiro</strong>: todos os arquivos participam, e o ponto de partida é o <strong>arquivo principal</strong>. A regra é: o arquivo fixado na barra de status (clique em ▶ para escolher) → a aba ativa, se tiver <code>funcao inicio()</code> → um arquivo chamado <code>principal.koi</code> ou <code>main.koi</code> → o último executado → o único com <code>inicio</code>. Erros e pausas do depurador abrem a aba do arquivo certo.</p>
+  <p>Um arquivo sem <code>inicio()</code> é um <strong>módulo</strong>: outros arquivos o usam com <code>importe Nome</code> e enxergam o que ele declarou <code>publico</code>. O exemplo <em>Projeto com vários arquivos</em> abre três abas que funcionam juntas mesmo sem salvar. A sintaxe está em <a href="linguagem.html#modulos">A linguagem → Módulos</a>.</p>
+
+  <h2 id="referencia">Exemplos e referência</h2>
+  <figure class="fig"><img class="shot" src="img/referencia.png" alt="Painel de referência aberto ao lado do editor, filtrado pela palavra escolha" width="1600" height="920"></figure>
+  <p><strong>Exemplos</strong> abre uma lista de programas prontos, do olá-mundo a classes e testes; cada um abre numa aba nova, já no idioma selecionado. <strong>Referência</strong> (<kbd>F1</kbd>) abre o painel lateral com todas as palavras reservadas, comandos, operadores e funções, com explicação, forma de uso e exemplo que pode ser inserido no editor com um clique. Com o cursor sobre uma palavra, <kbd>F1</kbd> já abre a entrada certa. A mesma referência está nesta documentação: <a href="referencia.html">Referência</a>.</p>
+
+  <h2 id="idiomas">Idiomas</h2>
+  <figure class="fig"><img class="shot" src="img/grego.png" alt="Interface e código em grego" width="1600" height="920"></figure>
+  <p>O seletor na barra de ferramentas troca o idioma da interface e das palavras reservadas: destaque, autocompletar, referência e exemplos passam para o idioma escolhido. Se houver arquivos abertos, a IDE pergunta se deve <strong>converter</strong> as palavras reservadas deles; só palavras reservadas e funções nativas mudam, textos entre aspas, comentários e nomes de variáveis ficam como estão, e a conversão de volta é exata. Em qualquer idioma as palavras em português continuam sendo aceitas. A lista completa está em <a href="idiomas.html">Idiomas</a>.</p>
+
+  <h2 id="atalhos">Atalhos</h2>
+  <table class="keys">
+    <tr><th>Tecla</th><th>Ação</th></tr>
+    <tr><td><kbd>F5</kbd> / <kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Executar</td></tr>
+    <tr><td><kbd>Shift</kbd>+<kbd>F5</kbd></td><td>Parar</td></tr>
+    <tr><td><kbd>F6</kbd></td><td>Depurar</td></tr>
+    <tr><td><kbd>F8</kbd> · <kbd>F10</kbd> · <kbd>F11</kbd> · <kbd>Shift</kbd>+<kbd>F11</kbd></td><td>Continuar · Passo · Entrar · Sair</td></tr>
+    <tr><td><kbd>F7</kbd></td><td>Executar todos os testes</td></tr>
+    <tr><td><kbd>F1</kbd></td><td>Referência (da palavra sob o cursor)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>N</kbd> · <kbd>Ctrl</kbd>+<kbd>O</kbd> · <kbd>Ctrl</kbd>+<kbd>S</kbd> · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>Novo · Abrir · Salvar · Salvar como</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> · <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd></td><td>Abrir pasta · Salvar tudo</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>W</kbd> · <kbd>Ctrl</kbd>+<kbd>Tab</kbd> · <kbd>Ctrl</kbd>+<kbd>PageUp</kbd>/<kbd>PageDown</kbd></td><td>Fechar aba · Alternar abas</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd> · <kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Painel do projeto · Limpar console</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd> · <kbd>Ctrl</kbd>+<kbd>Espaço</kbd> · <kbd>Alt</kbd>+clique</td><td>Buscar · Autocompletar · Mais um cursor</td></tr>
+  </table>
+
+  <h2 id="faq">Perguntas frequentes</h2>
+  <h3>O Windows diz que o aplicativo é de um "editor desconhecido".</h3>
+  <p>O instalador ainda não tem assinatura digital. Clique em <em>Mais informações</em> → <em>Executar assim mesmo</em>. O código é aberto e o instalador é gerado automaticamente a partir dele pelo GitHub Actions, com o registro público de cada build.</p>
+  <h3>Funciona em Linux ou macOS?</h3>
+  <p>Hoje o instalador é só para Windows. O programa em si é multiplataforma (Tauri), e gerar os pacotes para outros sistemas está no caminho; acompanhe nas <a href="https://github.com/6a8i/koine-ide/issues">issues</a>.</p>
+  <h3>Posso usar no navegador?</h3>
+  <p>Não há uma versão hospedada, mas quem baixa o código-fonte pode rodar <code>npm run dev</code> e usar a IDE no navegador, sem o painel de projeto.</p>
+  <h3>Onde fica o rascunho?</h3>
+  <p>Nas preferências da IDE, no seu perfil do Windows. Salve o arquivo (<kbd>Ctrl</kbd>+<kbd>S</kbd>) para tê-lo numa pasta de verdade e poder enviar para alguém.</p>
+  <h3>Como reporto um problema ou sugiro algo?</h3>
+  <p>Pelas <a href="https://github.com/6a8i/koine-ide/issues/new/choose">issues no GitHub</a>, com o programa que reproduz o problema. Ideias e dúvidas vão nas <a href="https://github.com/6a8i/koine-ide/discussions">discussões</a>.</p>
+</main>
+
+<footer class="foot">
+  <p>Koiné IDE é software livre (MIT). Feito por <a href="https://github.com/6a8i">6a8i</a> e <a href="https://github.com/6a8i/koine-ide/graphs/contributors">colaboradores</a>. <a href="https://github.com/6a8i/koine-ide/issues">Relate um problema</a> · <a href="https://github.com/6a8i/koine-ide/blob/main/CONTRIBUTING.md">Contribua</a>.</p>
+</footer>
+<script src="site.js"></script>
+</body>
+</html>
