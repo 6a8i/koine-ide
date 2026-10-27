@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Dúvidas e conversa
+    url: https://github.com/6a8i/koine-ide/discussions
+    about: Perguntas sobre uso, ideias ainda vagas e apresentação de projetos feitos com o Koiné IDE.
+  - name: Guia de contribuição
+    url: https://github.com/6a8i/koine-ide/blob/main/CONTRIBUTING.md
+    about: Como preparar o ambiente, rodar os testes e abrir um pull request.
