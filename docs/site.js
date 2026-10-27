@@ -5,21 +5,41 @@
   const CONST = /^(verdadeiro|falso|true|false|αληθής|ψευδής|真|偽)$/u;
   const BUILTIN = /^(escreva|leia|limpa|afirme|afirme_igual|afirme_diferente|afirme_aproximado|saida|entrada|write|read|clear|assert|assert_equal|assert_not_equal|assert_near|output|input|γράψε|διάβασε|書く|読む)$/u;
   const LIB = /^(Matematica|Texto|Util|Tipos|Math|Text|Types|Μαθηματικά|Κείμενο|Εργαλεία|Τύποι|数学|テキスト|ユーティリティ|型)$/u;
-  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const RE = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)')|(\b\d+(?:\.\d+)?\b)|([\p{L}_][\p{L}\p{N}_]*)/gu;
-  const hl = (src) => src.replace(RE, (m, c, s, n, w, off, all) => {
-    if (c) return `<span class="tk-comment">${esc(c)}</span>`;
-    if (s) return `<span class="tk-str">${esc(s)}</span>`;
-    if (n) return `<span class="tk-num">${n}</span>`;
-    if (KW.test(w)) return `<span class="tk-kw">${esc(w)}</span>`;
-    if (TYPES.test(w)) return `<span class="tk-type">${esc(w)}</span>`;
-    if (CONST.test(w)) return `<span class="tk-const">${esc(w)}</span>`;
-    if (BUILTIN.test(w)) return `<span class="tk-builtin">${esc(w)}</span>`;
-    if (LIB.test(w)) return `<span class="tk-lib">${esc(w)}</span>`;
-    if (/^\s*\(/.test(all.slice(off + w.length))) return `<span class="tk-fn">${esc(w)}</span>`;
-    return esc(w);
-  });
-  for (const el of document.querySelectorAll("code.koine")) el.innerHTML = hl(el.textContent);
+  // classe do token, ou null para texto comum
+  const classOf = (c, s, n, w, rest) => {
+    if (c) return "tk-comment";
+    if (s) return "tk-str";
+    if (n) return "tk-num";
+    if (KW.test(w)) return "tk-kw";
+    if (TYPES.test(w)) return "tk-type";
+    if (CONST.test(w)) return "tk-const";
+    if (BUILTIN.test(w)) return "tk-builtin";
+    if (LIB.test(w)) return "tk-lib";
+    if (/^\s*\(/.test(rest)) return "tk-fn";
+    return null;
+  };
+  // Monta o destaque com nós do DOM (texto e <span>), sem interpretar nada como HTML.
+  const highlight = (el) => {
+    const src = el.textContent;
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    for (const m of src.matchAll(RE)) {
+      const [tok, c, s, n, w] = m;
+      if (m.index > last) frag.appendChild(document.createTextNode(src.slice(last, m.index)));
+      const cls = classOf(c, s, n, w, src.slice(m.index + tok.length));
+      if (cls) {
+        const span = document.createElement("span");
+        span.className = cls;
+        span.textContent = tok;
+        frag.appendChild(span);
+      } else frag.appendChild(document.createTextNode(tok));
+      last = m.index + tok.length;
+    }
+    if (last < src.length) frag.appendChild(document.createTextNode(src.slice(last)));
+    el.replaceChildren(frag);
+  };
+  for (const el of document.querySelectorAll("code.koine")) highlight(el);
 
   // versão mais recente: preenche links e número de versão
   const links = document.querySelectorAll("[data-latest-link]");
