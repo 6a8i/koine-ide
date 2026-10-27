@@ -11,6 +11,13 @@ Feita com [Tauri 2](https://tauri.app) (janela nativa, instalador de poucos MB),
 
 ## Funcionalidades
 
+- **Projetos em pasta**: abra uma pasta (botão *Pasta*, Ctrl+Shift+O, ou arraste-a para a janela) e trabalhe com vários
+  arquivos em abas, com árvore de arquivos à esquerda (criar, renomear, excluir para a lixeira, definir o arquivo principal).
+  F5 executa o projeto inteiro da linguagem ativa; erros e pausas do depurador abrem o arquivo certo.
+- **Módulos**: um arquivo importa outro com `importe` e usa só o que foi declarado `publico`
+  (funções, variáveis, estruturas/registros e classes). Veja a sintaxe abaixo.
+- **Estruturas/registros, classes com herança e referências seguras** nas duas linguagens.
+
 - Editor com destaque de sintaxe, autocompletar, dobra de blocos, busca (Ctrl+F) e múltiplos cursores.
 - Execução instantânea (F5) com console integrado: entrada de dados inline (`leia`), saída em tempo real, botão **Parar**.
 - Mensagens de erro em português, com linha/coluna e destaque no editor — pensadas para quem está aprendendo
@@ -68,11 +75,124 @@ src-tauri/       aplicação nativa (Rust): janela, diálogos, leitura/escrita d
 tests/run.ts     casos de teste dos interpretadores
 ```
 
+### Módulos, visibilidade, estruturas, classes e referências
+
+Tudo é opcional: programas antigos continuam funcionando. As palavras novas são reservadas
+(`modulo importe publico privado estrutura classe herda este super nulo ref`; no VisuAlg também `fimmodulo fimclasse novo como`).
+
+**Portugol Studio**
+
+```portugol
+// geometria.por — biblioteca (sem funcao inicio)
+programa
+{
+    modulo Geometria                       // opcional: o padrão é o nome do arquivo
+    publico const real PI = 3.14159
+
+    publico estrutura Ponto { real x  real y }        // valor: copiada ao atribuir/passar
+
+    publico classe Forma
+    {
+        privado cadeia nome                           // privado = só na classe e nas subclasses
+        publico Forma(cadeia nome) { este.nome = nome }
+        publico real area() { retorne 0.0 }
+    }
+    publico classe Circulo herda Forma
+    {
+        privado real raio
+        publico Circulo(real r) { super("círculo")  raio = r }
+        publico real area() { retorne PI * raio * raio }   // sobrescreve
+    }
+    publico real distancia(Ponto a, Ponto b) { ... }      // pública
+    real quadrado(real v) { retorne v * v }               // privada ao módulo (padrão)
+}
+
+// principal.por
+programa
+{
+    importe Geometria                      // ou importe "lib/geometria.por" --> geo
+    funcao inicio()
+    {
+        Ponto p = Ponto(1.0, 2.0)          // Ponto() zera os campos
+        Forma f = Circulo(2.0)             // objetos são compartilhados por referência; aceitam nulo
+        inteiro n = 10
+        ref inteiro r = &n                 // referência segura: &x pega, *r acessa, sem aritmética
+        *r = 20
+        escreva(Geometria.distancia(p, p), " ", f.area(), " ", n, "\n")
+    }
+}
+```
+
+**VisuAlg**
+
+```
+{ geometria.alg — biblioteca }
+modulo "geometria"
+const
+    publico PI = 3.14159
+tipo
+    publico Ponto = registro
+        x, y: real
+    fimregistro
+    publico Forma = classe
+        privado nome: caractere
+        publico procedimento iniciar(n: caractere)   { construtor; só o cabeçalho aqui }
+        publico funcao area(): real
+    fimclasse
+    publico Circulo = classe herda Forma
+        privado raio: real
+        publico procedimento iniciar(r: real)
+        publico funcao area(): real
+    fimclasse
+procedimento Forma.iniciar(n: caractere)            { corpos fora da classe }
+inicio
+    este.nome <- n
+fimprocedimento
+funcao Forma.area(): real
+inicio
+    retorne 0
+fimfuncao
+procedimento Circulo.iniciar(r: real)
+inicio
+    super.iniciar("círculo")
+    raio <- r
+fimprocedimento
+funcao Circulo.area(): real
+inicio
+    retorne PI * raio * raio
+fimfuncao
+fimmodulo
+
+{ principal.alg }
+algoritmo "principal"
+importe geometria                        { ou importe "geometria.alg" como geo }
+var
+    p: Ponto
+    f: Forma
+    n: inteiro
+    r: ref inteiro
+inicio
+    p.x <- 1
+    f <- novo Circulo(2.0)
+    r <- &n
+    *r <- 20
+    escreval(f.area(), n)
+fimalgoritmo
+```
+
+Regras comuns: `privado` é o padrão; campos privados são visíveis na classe e nas subclasses; estruturas/registros
+são copiados, objetos são compartilhados; `nulo` só cabe em variáveis de classe ou `ref`; `==`/`=` compara estruturas
+campo a campo e objetos por identidade; duas referências não se comparam diretamente (compare `*a` com `*b`).
+
 ### Como os interpretadores funcionam
 
 Cada linguagem é analisada para uma árvore (AST) com tipos já resolvidos e variáveis mapeadas para posições fixas (slots),
 o que torna a execução rápida (milhões de operações por segundo). Comandos que precisam esperar o usuário (`leia`, `aguarde`,
 `pausa`) são marcados na análise; só esses trechos são executados de forma assíncrona — todo o resto roda de forma síncrona.
+
+Num projeto, cada arquivo é analisado separadamente; o ligador (`src/lang/shared/modules.ts`) resolve os `importe`,
+detecta ciclos e ordena os módulos, e o resolvedor/parser verifica tipos e visibilidade com os módulos importados.
+Erros e pontos de parada carregam o arquivo de origem.
 
 No modo de depuração a árvore inteira é marcada como assíncrona e, antes de cada comando, o interpretador chama o
 depurador (`src/lang/shared/debug.ts`), que decide se pausa (ponto de parada, passo) e envia uma "foto" das variáveis

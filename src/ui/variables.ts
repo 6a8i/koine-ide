@@ -5,7 +5,7 @@ import { Lang } from "../lang/shared/types";
 export class VariablesPanel {
   private body: HTMLElement;
   private prev = new Map<string, string>();
-  onGoTo: ((line: number) => void) | null = null;
+  onGoTo: ((line: number, file?: string) => void) | null = null;
 
   constructor(private root: HTMLElement) {
     this.body = root.querySelector(".vars-body")!;
@@ -29,7 +29,7 @@ export class VariablesPanel {
     const next = new Map<string, string>();
     let any = false;
 
-    const section = (title: string, line: number | null, vars: Snapshot["globals"], key: string, current: boolean) => {
+    const section = (title: string, line: number | null, vars: Snapshot["globals"], key: string, current: boolean, file?: string) => {
       if (!vars.length && key !== "globals") return;
       const sec = document.createElement("div");
       sec.className = "vars-section" + (current ? " current" : "");
@@ -39,7 +39,7 @@ export class VariablesPanel {
       h.appendChild(t);
       if (line) {
         const l = document.createElement("a"); l.href = "#"; l.className = "vars-line"; l.textContent = `linha ${line}`;
-        l.addEventListener("click", (e) => { e.preventDefault(); this.onGoTo?.(line); });
+        l.addEventListener("click", (e) => { e.preventDefault(); this.onGoTo?.(line, file); });
         h.appendChild(l);
       }
       sec.appendChild(h);
@@ -69,7 +69,7 @@ export class VariablesPanel {
     for (let i = snap.frames.length - 1; i >= 0; i--) {
       const f = snap.frames[i];
       const title = lang === "visualg" && f.name === "algoritmo" ? "algoritmo (principal)" : `${f.name}()`;
-      section(title, f.line || null, f.vars, `f${i}:${f.name}`, i === snap.frames.length - 1);
+      section(title, f.line || null, f.vars, `f${i}:${f.name}`, i === snap.frames.length - 1, f.file);
     }
     section(lang === "visualg" ? "Variáveis" : "Globais", null, snap.globals, "globals", false);
     if (!any) { this.body.innerHTML = ""; this.setEmpty("Este programa não tem variáveis."); }

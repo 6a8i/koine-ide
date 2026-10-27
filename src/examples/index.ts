@@ -25,6 +25,175 @@ fimalgoritmo
 `;
 
 export const EXAMPLES: Example[] = [
+  {
+    lang: "studio",
+    title: "Estruturas e referências",
+    description: "Estrutura por valor (cópia), referência segura com ref/&/*.",
+    code: `programa
+{
+    estrutura Ponto
+    {
+        real x
+        real y
+    }
+
+    funcao inicio()
+    {
+        Ponto a = Ponto(1.0, 2.0)
+        Ponto b = a            // cópia: mudar b não muda a
+        b.x = 9.0
+        escreva("a = ", a, "  b = ", b, "\\n")
+
+        inteiro n = 10
+        ref inteiro r = &n     // r aponta para n
+        *r = 20                // escreve em n através de r
+        dobra(&n)
+        escreva("n = ", n, "\\n")
+    }
+
+    funcao dobra(ref inteiro x)
+    {
+        *x = *x * 2
+    }
+}
+`,
+  },
+  {
+    lang: "studio",
+    title: "Classes e herança",
+    description: "Classe com construtor, campos privados, herança e método sobrescrito.",
+    code: `programa
+{
+    inclua biblioteca Matematica
+
+    classe Forma
+    {
+        privado cadeia nome
+
+        publico Forma(cadeia nome) { este.nome = nome }
+        publico real area() { retorne 0.0 }
+        publico cadeia descreve() { retorne nome + " com área " + area() }
+    }
+
+    classe Circulo herda Forma
+    {
+        privado real raio
+
+        publico Circulo(real raio)
+        {
+            super("círculo")
+            este.raio = raio
+        }
+        publico real area() { retorne Matematica.PI * raio * raio }
+    }
+
+    classe Quadrado herda Forma
+    {
+        privado real lado
+        publico Quadrado(real lado) { super("quadrado")  este.lado = lado }
+        publico real area() { retorne lado * lado }
+    }
+
+    funcao inicio()
+    {
+        Forma formas[] = {Circulo(1.0), Quadrado(2.0), Forma("genérica")}
+        para (inteiro i = 0; i < 3; i++)
+        {
+            escreva(formas[i].descreve(), "\\n")   // chama o area() de cada objeto
+        }
+    }
+}
+`,
+  },
+  {
+    lang: "visualg",
+    title: "Registros e referências",
+    description: "Registro (tipo ... registro), cópia por valor e referência com ref/&/*.",
+    code: `algoritmo "registros"
+tipo
+    Ponto = registro
+        x, y: real
+    fimregistro
+var
+    a, b: Ponto
+    n: inteiro
+    r: ref inteiro
+
+procedimento dobra(x: ref inteiro)
+inicio
+    *x <- *x * 2
+fimprocedimento
+
+inicio
+    a.x <- 1
+    a.y <- 2
+    b <- a            // cópia: mudar b não muda a
+    b.x <- 9
+    escreval("a = ", a, "  b = ", b)
+
+    n <- 10
+    r <- &n           // r aponta para n
+    *r <- 20
+    dobra(&n)
+    escreval("n = ", n)
+fimalgoritmo
+`,
+  },
+  {
+    lang: "visualg",
+    title: "Classes e herança",
+    description: "Classe com construtor iniciar, campos privados, herança e método sobrescrito.",
+    code: `algoritmo "classes"
+tipo
+    Forma = classe
+        privado nome: caractere
+        publico procedimento iniciar(n: caractere)
+        publico funcao area(): real
+        publico funcao descreve(): caractere
+    fimclasse
+
+    Circulo = classe herda Forma
+        privado raio: real
+        publico procedimento iniciar(r: real)
+        publico funcao area(): real
+    fimclasse
+var
+    f: Forma
+
+procedimento Forma.iniciar(n: caractere)
+inicio
+    este.nome <- n
+fimprocedimento
+
+funcao Forma.area(): real
+inicio
+    retorne 0
+fimfuncao
+
+funcao Forma.descreve(): caractere
+inicio
+    retorne nome + " com área " + numpcarac(area())
+fimfuncao
+
+procedimento Circulo.iniciar(r: real)
+inicio
+    super.iniciar("círculo")
+    raio <- r
+fimprocedimento
+
+funcao Circulo.area(): real
+inicio
+    retorne pi() * raio * raio
+fimfuncao
+
+inicio
+    f <- novo Circulo(1.0)
+    escreval(f.descreve())      // chama o area() do Circulo
+    f <- novo Forma("genérica")
+    escreval(f.descreve())
+fimalgoritmo
+`,
+  },
   // ---------------- Portugol Studio ----------------
   {
     lang: "studio",
