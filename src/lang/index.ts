@@ -1,6 +1,6 @@
 import { compileStudio, compileStudioProject } from "./studio/interpreter";
 import { compileVisualg, compileVisualgProject } from "./visualg/interpreter";
-import { Lang, Program } from "./shared/types";
+import { CompileOptions, Lang, Program } from "./shared/types";
 import { SourceFile } from "./protocol";
 
 /** Compila um único arquivo (atalho usado pelos testes). */
@@ -9,8 +9,8 @@ export function compile(lang: Lang, src: string): Program {
 }
 
 /** Compila um projeto: todos os arquivos da linguagem, com `entry` como ponto de partida. */
-export function compileProject(lang: Lang, files: SourceFile[], entry: string): Program {
-  return lang === "visualg" ? compileVisualgProject(files, entry) : compileStudioProject(files, entry);
+export function compileProject(lang: Lang, files: SourceFile[], entry: string, opts: CompileOptions = {}): Program {
+  return lang === "visualg" ? compileVisualgProject(files, entry, opts) : compileStudioProject(files, entry, opts);
 }
 
 export const LANG_INFO: Record<Lang, { name: string; ext: string; short: string }> = {

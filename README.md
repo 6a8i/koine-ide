@@ -28,6 +28,11 @@ Feita com [Tauri 2](https://tauri.app) (janela nativa, instalador de poucos MB),
   F8 Continuar, Pausar), destaque da linha atual e painel **Variáveis** com a pilha de chamadas e o valor de cada variável,
   atualizado ao vivo. Passe o mouse sobre uma variável no editor para ver seu valor e tipo; sobre uma palavra reservada,
   para ver uma explicação rápida. Depois de uma execução normal, os valores finais continuam disponíveis.
+- **Testes automatizados** (F7): blocos `teste "nome"` escritos em Portugol, no próprio programa ou em um arquivo
+  separado que o importa, com `afirme`, `afirme_igual`, `afirme_aproximado`, `entrada(...)`/`saida()` para testar o
+  programa inteiro. O painel **Testes** executa todos, só um arquivo ou só um teste, mostra o que passou e falhou (com link
+  para a linha) e a **cobertura**: percentual de linhas executadas por arquivo, funções sem nenhum teste e marcas
+  verde/vermelho no editor. Veja a sintaxe abaixo.
 - Tempo de execução de cada programa na barra de status e no console (sem contar o tempo esperando o usuário).
 - Painel lateral **Referência** (F1): todas as palavras reservadas, comandos, operadores e funções de cada linguagem,
   com explicação, forma de uso e exemplo que pode ser inserido no editor.
@@ -79,7 +84,7 @@ tests/run.ts     casos de teste dos interpretadores
 ### Módulos, visibilidade, estruturas, classes e referências
 
 Tudo é opcional: programas antigos continuam funcionando. As palavras novas são reservadas
-(`modulo importe publico privado estrutura classe herda este super nulo ref`; no VisuAlg também `fimmodulo fimclasse novo como`).
+(`modulo importe publico privado estrutura classe herda este super nulo ref teste`; no VisuAlg também `fimmodulo fimclasse fimteste novo como`).
 
 **Portugol Studio**
 
@@ -184,6 +189,56 @@ fimalgoritmo
 Regras comuns: `privado` é o padrão; campos privados são visíveis na classe e nas subclasses; estruturas/registros
 são copiados, objetos são compartilhados; `nulo` só cabe em variáveis de classe ou `ref`; `==`/`=` compara estruturas
 campo a campo e objetos por identidade; duas referências não se comparam diretamente (compare `*a` com `*b`).
+
+### Testes automatizados
+
+Um teste é um bloco com nome, que roda isolado (as variáveis globais são reiniciadas a cada teste) e falha quando uma
+afirmação não se cumpre. Os testes não rodam com F5, só com F7 ou pelo painel **Testes**.
+
+**Portugol Studio** (no próprio programa, ou num arquivo separado com `importe`):
+
+```portugol
+programa
+{
+    importe calculadora                  // arquivo de testes: enxerga até as funções privadas do programa
+
+    teste "soma de dois números"
+    {
+        afirme_igual(5, soma(2, 3))                  // esperado, obtido
+        afirme(eh_par(10), "10 é par")               // condição, mensagem opcional
+        afirme_aproximado(2.5, media(2, 3), 0.001)   // reais: com tolerância
+    }
+    teste "programa completo"
+    {
+        entrada("2
+3")                 // o que o usuário digitaria
+        inicio()                        // roda o programa
+        afirme_igual("Soma: 5
+", saida())
+    }
+}
+```
+
+**VisuAlg** (onde ficam as funções, antes do `inicio`; ou num `modulo` separado que importa o algoritmo):
+
+```
+teste "soma de dois números"
+inicio
+    afirme_igual(5, soma(2, 3))
+fimteste
+teste "algoritmo completo"
+inicio
+    entrada("2")
+    entrada("3")
+    executar_algoritmo()
+    afirme_igual("Soma:  5" + carac(10), saida())
+fimteste
+```
+
+Afirmações: `afirme(cond[, msg])`, `afirme_igual(esperado, obtido[, msg])` (estruturas/registros campo a campo, vetores
+item a item), `afirme_diferente(a, b[, msg])`, `afirme_aproximado(esperado, obtido, tolerancia[, msg])`. A cobertura conta
+as linhas de comando de funções, métodos e do programa principal que algum teste executou; os próprios testes não contam.
+Arquivos que nenhum teste alcança aparecem com 0%.
 
 ### Como os interpretadores funcionam
 

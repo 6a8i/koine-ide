@@ -1,8 +1,10 @@
 import type { Debugger, Snapshot } from "./debug";
+import type { CoverageCollector, TestInfo } from "./testing";
 
 export type Lang = "studio" | "visualg";
 
-export type ErrorKind = "sintaxe" | "execucao" | "interno";
+/** "teste": uma afirmação de teste falhou */
+export type ErrorKind = "sintaxe" | "execucao" | "interno" | "teste";
 
 /** Erro gerado pela análise ou pela execução de um programa. Posições são 1-based. */
 export class PortugolError extends Error {
@@ -35,6 +37,16 @@ export interface Host {
   readLine(): Promise<string>;
   clear(): void;
   sleep(ms: number): Promise<void>;
+  /** (testes) tudo o que o programa escreveu até agora */
+  captured?(): string;
+  /** (testes) fornece linhas para os próximos `leia` */
+  feed?(text: string): void;
+}
+
+/** Opções de compilação de um projeto. */
+export interface CompileOptions {
+  /** modo de testes: a entrada pode ser um módulo (arquivo só de testes) e módulos de teste enxergam membros privados */
+  tests?: boolean;
 }
 
 export interface Program {
@@ -45,6 +57,12 @@ export interface Program {
   attachDebugger(d: Debugger): void;
   /** Estado atual das variáveis (globais + função principal, ou a pilha toda em depuração). */
   snapshot(): Snapshot;
+  /** testes (`teste "nome"`) do arquivo de entrada */
+  tests: TestInfo[];
+  /** Executa um teste isoladamente (globais reiniciadas). Lança PortugolError de tipo "teste" quando uma afirmação falha. */
+  runTest(host: Host, id: number): Promise<void>;
+  /** Liga um coletor de cobertura (antes de executar). */
+  attachCoverage(c: CoverageCollector): void;
 }
 
 export interface Pos {

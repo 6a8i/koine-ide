@@ -399,12 +399,183 @@ check("entry último usado", resolveEntry({ candidates: [cands[0], cands[2], { p
 check("entry único com entrada", resolveEntry({ candidates: [cands[0], cands[2]], pinned: null, active: null, last: null }), "teste.por");
 check("entry nenhum", resolveEntry({ candidates: [cands[0]], pinned: null, active: null, last: null }), null);
 
+// ---------------- Testes em Portugol (blocos `teste`, afirmações, saida/entrada, cobertura) ----------------
+import { CoverageCollector, TestHost, hasTests } from "../src/lang/shared/testing";
+
+interface TCase {
+  name: string; lang: Lang; files: Record<string, string>; entry: string;
+  /** nome do teste -> "passou" | "falhou" | "erro" (+ trecho da mensagem) */
+  expect: Record<string, "passou" | ["falhou" | "erro", RegExp]>;
+  /** função -> coberta? */
+  coverage?: Record<string, boolean>;
+  /** erro de compilação esperado */
+  compileError?: RegExp;
+  /** compila sem o modo de testes (como F5) */
+  normal?: boolean;
+}
+
+const tcases: TCase[] = [
+  {
+    name: "studio: testes no próprio programa", lang: "studio", entry: "calc.por",
+    files: { "calc.por": `programa {
+  funcao inteiro dobro(inteiro x) { retorne x * 2 }
+  funcao inteiro nunca(inteiro x) { retorne 0 }
+  funcao inicio() { inteiro n  leia(n)  escreva("dobro: ", dobro(n), "\\n") }
+  teste "dobro" { afirme_igual(8, dobro(4)) }
+  teste "falha" { afirme_igual(9, dobro(4), "dobro errado") }
+  teste "programa inteiro" { entrada("21")  inicio()  afirme_igual("dobro: 42\\n", saida()) }
+  teste "afirme com mensagem" { afirme(dobro(1) == 3, "um dobrado") }
+  teste "erro de execução" { inteiro v[] = {1}  escreva(v[5]) }
+  teste "leia sem entrada" { inicio() }
+  teste "aproximado" { afirme_aproximado(1.0, 1.0004, 0.001)  afirme_diferente(1, 2) }
+}` },
+    expect: {
+      dobro: "passou", falha: ["falhou", /dobro errado: esperava 9, mas obteve 8/], "programa inteiro": "passou",
+      "afirme com mensagem": ["falhou", /um dobrado/], "erro de execução": ["erro", /fora dos limites/], "leia sem entrada": ["erro", /entrada\(/], aproximado: "passou",
+    },
+    coverage: { dobro: true, nunca: false, inicio: true },
+  },
+  {
+    name: "studio: arquivo de testes importa o programa e vê funções privadas", lang: "studio", entry: "principal.teste.por",
+    files: {
+      "principal.por": `programa {\n  real quadrado(real v) { retorne v * v }\n  funcao inicio() { escreva(quadrado(3.0)) }\n}`,
+      "principal.teste.por": `programa {\n  importe principal\n  teste "quadrado privado" { afirme_aproximado(9.0, quadrado(3.0), 0.001) }\n  teste "roda inicio" { inicio()  afirme_igual("9.0", saida()) }\n  teste "qualificado" { afirme_igual(4.0, principal.quadrado(2.0)) }\n}`,
+    },
+    expect: { "quadrado privado": "passou", "roda inicio": "passou", qualificado: "passou" },
+    coverage: { "principal.quadrado": true, "principal.inicio": true },
+  },
+  {
+    name: "studio: estruturas e vetores em afirme_igual", lang: "studio", entry: "t.por",
+    files: { "t.por": `programa {\n  estrutura P { inteiro x  inteiro y }\n  funcao inicio() {}\n  teste "struct" { P a = P(1, 2)  P b = P(1, 2)  afirme_igual(a, b)  b.y = 3  afirme_diferente(a, b) }\n  teste "vetor" { inteiro v[] = {1, 2}  inteiro w[] = {1, 2}  afirme_igual(v, w) }\n  teste "struct diferente" { afirme_igual(P(1, 2), P(1, 3)) }\n}` },
+    expect: { struct: "passou", vetor: "passou", "struct diferente": ["falhou", /esperava P\{x: 1, y: 2\}, mas obteve P\{x: 1, y: 3\}/] },
+  },
+  {
+    name: "studio: saida fora de teste é erro de compilação", lang: "studio", entry: "a.por",
+    files: { "a.por": `programa { funcao inicio() { escreva(saida()) } }` }, expect: {}, compileError: /só pode ser usada em testes/, normal: true,
+  },
+  {
+    name: "studio: programa comum não pode importar outro programa", lang: "studio", entry: "a.por",
+    files: { "a.por": `programa { importe "b.por"  funcao inicio() {} }`, "b.por": `programa { funcao inicio() {} }` }, expect: {}, compileError: /programa principal e não pode ser importado/,
+  },
+  {
+    name: "visualg: testes no próprio algoritmo", lang: "visualg", entry: "calc.alg",
+    files: { "calc.alg": `algoritmo "calc"
+var
+  n: inteiro
+funcao dobro(x: inteiro): inteiro
+inicio
+  retorne x * 2
+fimfuncao
+procedimento nunca()
+inicio
+  escreval("x")
+fimprocedimento
+teste "dobro"
+inicio
+  afirme_igual(8, dobro(4))
+fimteste
+teste "programa inteiro"
+var
+  s: caractere
+inicio
+  entrada("21")
+  executar_algoritmo()
+  s <- saida()
+  afirme_igual("dobro:  42", s)
+fimteste
+teste "falha"
+inicio
+  afirme(dobro(2) = 5, "dois dobrado")
+fimteste
+teste "aproximado"
+inicio
+  afirme_aproximado(2.5, 5 / 2, 0.0001)
+  afirme_diferente("a", "b")
+fimteste
+inicio
+  leia(n)
+  escreva("dobro: ", dobro(n))
+fimalgoritmo` },
+    expect: { dobro: "passou", "programa inteiro": "passou", falha: ["falhou", /dois dobrado/], aproximado: "passou" },
+    coverage: { dobro: true, nunca: false, algoritmo: true },
+  },
+  {
+    name: "visualg: módulo de testes importa o algoritmo", lang: "visualg", entry: "testes.alg",
+    files: {
+      "principal.alg": `algoritmo "principal"\nvar\n  x: inteiro\nfuncao quadrado(v: inteiro): inteiro\ninicio\n  retorne v * v\nfimfuncao\ninicio\n  x <- quadrado(3)\n  escreval(x)\nfimalgoritmo`,
+      "testes.alg": `modulo "testes"\nimporte principal\nteste "quadrado privado"\ninicio\n  afirme_igual(9, quadrado(3))\nfimteste\nteste "roda o algoritmo"\ninicio\n  executar_algoritmo()\n  afirme_igual(" 9" + carac(10), saida())\nfimteste\nfimmodulo`,
+    },
+    expect: { "quadrado privado": "passou", "roda o algoritmo": "passou" },
+    coverage: { "principal.quadrado": true, algoritmo: true },
+  },
+  {
+    name: "visualg: registros em afirme_igual e teste sem fimteste", lang: "visualg", entry: "t.alg",
+    files: { "t.alg": `algoritmo "t"\ntipo\n  P = registro\n    x: inteiro\n  fimregistro\nvar\n  a, b: P\nteste "registro"\ninicio\n  a.x <- 1\n  b.x <- 1\n  afirme_igual(a, b)\n  b.x <- 2\n  afirme_igual(a, b, "mudou")\nfimteste\ninicio\nfimalgoritmo` },
+    expect: { registro: ["falhou", /mudou: esperava P\{x: 1\}, mas obteve P\{x: 2\}/] },
+  },
+  {
+    name: "visualg: executar_algoritmo sem algoritmo", lang: "visualg", entry: "m.alg",
+    files: { "m.alg": `modulo "m"\nteste "x"\ninicio\n  executar_algoritmo()\nfimteste\nfimmodulo` },
+    expect: { x: ["erro", /precisa de um algoritmo/] },
+  },
+];
+
+for (const c of tcases) {
+  const files = Object.entries(c.files).map(([path, source]) => ({ path, source }));
+  let program;
+  try {
+    program = compileProject(c.lang, files, c.entry, c.normal ? {} : { tests: true });
+  } catch (e) {
+    if (c.compileError && e instanceof PortugolError && c.compileError.test(e.message)) { pass++; continue; }
+    console.log(`✗ ${c.name}: erro de compilação inesperado: ${(e as Error).message}`); fail++; continue;
+  }
+  if (c.compileError) { console.log(`✗ ${c.name}: esperava erro de compilação ${c.compileError}`); fail++; continue; }
+  const cov = new CoverageCollector();
+  program.attachCoverage(cov);
+  const got: Record<string, string> = {};
+  let problem: string | null = null;
+  for (const t of program.tests) {
+    const host = new TestHost();
+    try { await program.runTest(host, t.id); got[t.name] = "passou"; }
+    catch (e) {
+      const pe = e as PortugolError;
+      got[t.name] = pe.kind === "teste" ? "falhou" : "erro";
+      const want = c.expect[t.name];
+      if (Array.isArray(want) && !want[1].test(pe.message)) problem = `mensagem de "${t.name}": ${JSON.stringify(pe.message)} não casa com ${want[1]}`;
+    }
+  }
+  for (const [name, want] of Object.entries(c.expect)) {
+    const w = Array.isArray(want) ? want[0] : want;
+    if (got[name] !== w) problem = problem ?? `"${name}": ${got[name] ?? "não executado"}, esperava ${w}`;
+  }
+  if (Object.keys(got).length !== Object.keys(c.expect).length) problem = problem ?? `encontrou ${Object.keys(got).length} testes, esperava ${Object.keys(c.expect).length}`;
+  if (c.coverage) {
+    const report = cov.report();
+    for (const [fn, covered] of Object.entries(c.coverage)) {
+      const f = report.functions.find((x) => x.name === fn);
+      if (!f) problem = problem ?? `cobertura: função "${fn}" não está no relatório (${report.functions.map((x) => x.name).join(", ")})`;
+      else if ((f.hit > 0) !== covered) problem = problem ?? `cobertura: "${fn}" ${f.hit}/${f.total}, esperava ${covered ? "coberta" : "sem cobertura"}`;
+    }
+  }
+  if (problem) { console.log(`✗ ${c.name}: ${problem}`); fail++; } else pass++;
+}
+
 // ---------------- Exemplos (todos compilam e executam sem erro) ----------------
 import { EXAMPLES } from "../src/examples";
 for (const ex of EXAMPLES) {
   const name = `exemplo ${ex.lang}: ${ex.title}`;
   try {
     const files = ex.files ? ex.files.map((f) => ({ path: f.name, source: f.code })) : [{ path: "principal." + (ex.lang === "visualg" ? "alg" : "por"), source: ex.code ?? "" }];
+    if (hasTests(ex.lang, files[0].source)) {
+      // exemplo de testes: todos passam, exceto o que falha de propósito
+      const program = compileProject(ex.lang, files, files[0].path, { tests: true });
+      for (const t of program.tests) {
+        try { await program.runTest(new TestHost(), t.id); if (/de propósito/.test(t.name)) throw new Error(`"${t.name}" deveria falhar`); }
+        catch (e) { if (!/de propósito/.test(t.name)) throw new Error(`"${t.name}": ${(e as Error).message}`); }
+      }
+      pass++;
+      continue;
+    }
     const program = compileProject(ex.lang, files, files[0].path);
     const host = new BufferHost(["1", "2", "3", "4", "5", "6", "7", "8"]);
     try { await program.run(host); } catch (e) { if (!/não há mais linhas/.test(String(e))) throw e; }

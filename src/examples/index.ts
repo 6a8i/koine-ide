@@ -35,6 +35,162 @@ fimalgoritmo
 export const EXAMPLES: Example[] = [
   {
     lang: "studio",
+    title: "Testes automatizados",
+    description: "Um programa e um arquivo de testes: afirme, afirme_igual, entrada/saida e cobertura. Pressione F7.",
+    files: [
+      {
+        name: "calculadora.teste.por",
+        code: `// calculadora.teste.por — testes do programa ao lado. Pressione F7 (ou o botão Testar).
+programa
+{
+    importe calculadora            // um arquivo de testes pode importar o programa e usar até as funções privadas
+
+    teste "soma de dois números"
+    {
+        afirme_igual(5, soma(2, 3))
+        afirme_igual(0, soma(-4, 4))
+    }
+
+    teste "média é real"
+    {
+        afirme_aproximado(2.5, media(2, 3), 0.001)
+    }
+
+    teste "par e ímpar"
+    {
+        afirme(eh_par(10), "10 é par")
+        afirme(nao eh_par(7), "7 é ímpar")
+    }
+
+    teste "programa completo, com entrada e saída"
+    {
+        entrada("2\\n3")                 // o que o usuário digitaria, uma linha por vez
+        inicio()                        // roda o programa
+        afirme_igual("Primeiro número: Segundo número: Soma: 5\\n", saida())
+    }
+
+    teste "este falha de propósito"
+    {
+        afirme_igual(6, soma(2, 3), "a soma está errada")
+    }
+}
+`,
+      },
+      {
+        name: "calculadora.por",
+        code: `// calculadora.por — o programa: lê dois números e mostra a soma
+programa
+{
+    funcao inteiro soma(inteiro a, inteiro b) { retorne a + b }
+
+    funcao real media(inteiro a, inteiro b)
+    {
+        retorne (a + b) / 2.0
+    }
+
+    funcao logico eh_par(inteiro n) { retorne n % 2 == 0 }
+
+    // nenhum teste chama esta função: o painel Testes mostra "sem testes"
+    funcao inteiro dobro(inteiro n) { retorne n * 2 }
+
+    funcao inicio()
+    {
+        inteiro a, b
+        escreva("Primeiro número: ")
+        leia(a)
+        escreva("Segundo número: ")
+        leia(b)
+        escreva("Soma: ", soma(a, b), "\\n")
+    }
+}
+`,
+      },
+    ],
+  },
+  {
+    lang: "visualg",
+    title: "Testes automatizados",
+    description: "Um algoritmo e um arquivo de testes: afirme, afirme_igual, entrada/saida e cobertura. Pressione F7.",
+    files: [
+      {
+        name: "calculadora.teste.alg",
+        code: `// calculadora.teste.alg — testes do algoritmo ao lado. Pressione F7 (ou o botão Testar).
+modulo "testes_calculadora"
+importe calculadora            // um arquivo de testes pode importar o algoritmo e usar até as funções privadas
+
+teste "soma de dois números"
+inicio
+    afirme_igual(5, soma(2, 3))
+    afirme_igual(0, soma(-4, 4))
+fimteste
+
+teste "média é real"
+inicio
+    afirme_aproximado(2.5, media(2, 3), 0.001)
+fimteste
+
+teste "par e ímpar"
+inicio
+    afirme(eh_par(10), "10 é par")
+    afirme(nao eh_par(7), "7 é ímpar")
+fimteste
+
+teste "algoritmo completo, com entrada e saída"
+inicio
+    entrada("2")                   // o que o usuário digitaria, uma linha por vez
+    entrada("3")
+    executar_algoritmo()           // roda o inicio...fimalgoritmo
+    afirme_igual("Primeiro número: Segundo número: Soma:  5" + carac(10), saida())
+fimteste
+
+teste "este falha de propósito"
+inicio
+    afirme_igual(6, soma(2, 3), "a soma está errada")
+fimteste
+fimmodulo
+`,
+      },
+      {
+        name: "calculadora.alg",
+        code: `// calculadora.alg — o algoritmo: lê dois números e mostra a soma
+algoritmo "calculadora"
+var
+    a, b: inteiro
+
+funcao soma(x, y: inteiro): inteiro
+inicio
+    retorne x + y
+fimfuncao
+
+funcao media(x, y: inteiro): real
+inicio
+    retorne (x + y) / 2
+fimfuncao
+
+funcao eh_par(n: inteiro): logico
+inicio
+    retorne n mod 2 = 0
+fimfuncao
+
+// nenhum teste chama esta função: o painel Testes mostra "sem testes"
+funcao dobro(n: inteiro): inteiro
+inicio
+    retorne n * 2
+fimfuncao
+
+inicio
+    escreva("Primeiro número: ")
+    leia(a)
+    escreva("Segundo número: ")
+    leia(b)
+    escreval("Soma: ", soma(a, b))
+fimalgoritmo
+`,
+      },
+    ],
+  },
+  {
+    lang: "studio",
     title: "Projeto com vários arquivos",
     description: "Três arquivos que se importam: módulo de números, módulo de geometria e programa principal.",
     files: [
