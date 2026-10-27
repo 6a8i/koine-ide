@@ -113,8 +113,8 @@ export interface VarLookup {
 }
 
 /** Procura a variável do quadro mais interno para o mais externo e depois nas globais. */
-export function lookupVar(snap: Snapshot, name: string, caseInsensitive: boolean): VarLookup | null {
-  const eq = caseInsensitive ? (a: string, b: string) => a.toLowerCase() === b.toLowerCase() : (a: string, b: string) => a === b;
+export function lookupVar(snap: Snapshot, name: string): VarLookup | null {
+  const eq = (a: string, b: string) => a === b;
   for (let i = snap.frames.length - 1; i >= 0; i--) {
     const f = snap.frames[i];
     const v = f.vars.find((x) => eq(x.name, name));
@@ -126,7 +126,6 @@ export function lookupVar(snap: Snapshot, name: string, caseInsensitive: boolean
 
 export interface HoverProviders {
   snapshot(): Snapshot | null;
-  caseInsensitive(): boolean;
   /** dica de referência para palavras reservadas (HTML pronto ou null) */
   reference(word: string): HTMLElement | null;
 }
@@ -167,10 +166,9 @@ export function variableHover(p: HoverProviders): Extension {
       const w = wordAt(view.state, pos);
       if (!w) return null;
       const line = view.state.doc.lineAt(pos);
-      const ci = p.caseInsensitive();
-      if (inStringOrComment(line.text, pos - line.from, "//", ci ? "{" : "/*")) return null;
+      if (inStringOrComment(line.text, pos - line.from, "//", "/*")) return null;
       const snap = p.snapshot();
-      const found = snap ? lookupVar(snap, w.text, ci) : null;
+      const found = snap ? lookupVar(snap, w.text) : null;
       if (found) {
         return {
           pos: w.from, end: w.to, above: true,

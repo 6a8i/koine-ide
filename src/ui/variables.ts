@@ -1,6 +1,5 @@
 /** Painel "Variáveis": mostra a pilha de chamadas e o valor de cada variável durante a depuração. */
 import { Snapshot } from "../lang/shared/debug";
-import { Lang } from "../lang/shared/types";
 import { t } from "../i18n";
 
 export class VariablesPanel {
@@ -25,7 +24,7 @@ export class VariablesPanel {
     this.body.appendChild(e);
   }
 
-  render(snap: Snapshot, lang: Lang, live: boolean) {
+  render(snap: Snapshot, live: boolean) {
     this.body.innerHTML = "";
     const next = new Map<string, string>();
     let any = false;
@@ -69,10 +68,10 @@ export class VariablesPanel {
     // quadros do mais interno (atual) para o mais externo
     for (let i = snap.frames.length - 1; i >= 0; i--) {
       const f = snap.frames[i];
-      const title = lang === "visualg" && f.name === "algoritmo" ? t("algoritmo (principal)") : `${f.name}()`;
+      const title = `${f.name}()`;
       section(title, f.line || null, f.vars, `f${i}:${f.name}`, i === snap.frames.length - 1, f.file);
     }
-    section(lang === "visualg" ? t("Variáveis") : t("Globais"), null, snap.globals, "globals", false);
+    section(t("Globais"), null, snap.globals, "globals", false);
     if (!any) { this.body.innerHTML = ""; this.setEmpty(t("Este programa não tem variáveis.")); }
     this.prev = next;
   }

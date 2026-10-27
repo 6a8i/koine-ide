@@ -9,10 +9,9 @@ import { FileTree } from "./ui/filetree";
 import { showMenu, MenuItem } from "./ui/menu";
 import { promptDialog, validateFileName } from "./ui/dialogs";
 import { Runner } from "./runner";
-import { Lang } from "./lang/shared/types";
-import { LANG_INFO, langFromFilename, detectLang } from "./lang";
+import { LANG } from "./lang";
 import { DebugCommand, Snapshot } from "./lang/shared/debug";
-import { EXAMPLES, NEW_STUDIO, NEW_VISUALG } from "./examples";
+import { EXAMPLES, NEW_PROGRAM } from "./examples";
 import { TestsPanel, TestsState, applyResult } from "./ui/tests";
 import { coverageSpec } from "./ui/coverage";
 import { discoverTests, hasTests } from "./lang/shared/testing";
@@ -32,9 +31,6 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySe
 const prefs = {
   get theme() { return localStorage.getItem("theme") ?? "dark"; },
   set theme(v: string) { localStorage.setItem("theme", v); },
-  /** linguagem padrão para novos documentos */
-  get lang(): Lang { return (localStorage.getItem("lang") as Lang) ?? "studio"; },
-  set lang(v: Lang) { localStorage.setItem("lang", v); },
   get consoleH() { return Number(localStorage.getItem("consoleH") ?? 240); },
   set consoleH(v: number) { localStorage.setItem("consoleH", String(v)); },
   get sidebarW() { return Number(localStorage.getItem("sidebarW") ?? 240); },
@@ -70,12 +66,12 @@ const debugControls = $("#debug-controls");
 const btnContinue = $<HTMLButtonElement>("#btn-continue"), btnPause = $<HTMLButtonElement>("#btn-pause");
 const btnStepOver = $<HTMLButtonElement>("#btn-step-over"), btnStepInto = $<HTMLButtonElement>("#btn-step-into"), btnStepOut = $<HTMLButtonElement>("#btn-step-out");
 const runState = $("#run-state");
-const stFile = $("#st-file"), stDirty = $("#st-dirty"), stPos = $("#st-pos"), stLang = $("#st-lang"), stTime = $("#st-time");
+const stFile = $("#st-file"), stDirty = $("#st-dirty"), stPos = $("#st-pos"), stTime = $("#st-time");
 const stRoot = $("#st-root"), stEntry = $<HTMLButtonElement>("#st-entry"), btnSidebar = $<HTMLButtonElement>("#btn-sidebar");
 const examplesPanel = $("#examples-panel");
 const varsPane = $("#vars-pane"), varsState = $("#vars-state"), btnVars = $<HTMLButtonElement>("#btn-vars");
 const testsPane = $("#tests-pane"), btnTests = $<HTMLButtonElement>("#btn-tests"), btnRunTests = $<HTMLButtonElement>("#btn-run-tests");
-const refPanel = $("#ref-panel"), btnReference = $<HTMLButtonElement>("#btn-reference"), refLang = $("#ref-lang");
+const refPanel = $("#ref-panel"), btnReference = $<HTMLButtonElement>("#btn-reference");
 const sidebar = $("#sidebar"), sidebarSplitter = $("#sidebar-splitter"), sidebarRoot = $("#sidebar-root");
 
 // ---------- console e variáveis ----------
@@ -92,13 +88,13 @@ function setVarsState(cls: string, text: string) {
 /** Guarda o último estado das variáveis: usado na dica do editor e no painel. */
 function applySnapshot(snap: Snapshot | null, live: boolean, label: string) {
   editor.snapshot = snap;
-  if (snap) varsPanel.render(snap, lastRun?.lang ?? prefs.lang, live);
+  if (snap) varsPanel.render(snap, live);
   else varsPanel.clear();
   setVarsState(live ? "live" : "", label);
 }
 
 // ---------- execução ----------
-interface LastRun { lang: Lang; entry: string; fileMap: Map<string, string> }
+interface LastRun { entry: string; fileMap: Map<string, string> }
 let lastRun: LastRun | null = null;
 let debugLoc: { key: string } | null = null;
 
@@ -271,21 +267,21 @@ testsPanel.onGoTo = (file, line, col) => void revealLocation(file, line, col, "g
 async function refreshTests() {
   const doc = project.activeDoc;
   if (!doc) return;
-  const set = await project.collectRunFiles(doc.lang, false);
+  const set = await project.collectRunFiles(false);
   const files = "error" in set ? [] : set.files;
   const prev = new Map(testsState.files.map((f) => [f.file, f]));
   const locale = getLocale();
-  testsState.files = files.filter((f) => hasTests(doc.lang, f.source, locale)).map((f) => {
+  testsState.files = files.filter((f) => hasTests(f.source, locale)).map((f) => {
     const old = prev.get(f.path);
     return {
       file: f.path, label: baseName(f.path), error: old?.error,
-      tests: discoverTests(doc.lang, f.source, locale).map((found) => {
+      tests: discoverTests(f.source, locale).map((found) => {
         const o = old?.tests.find((x) => x.name === found.name);
         return o ? { ...o, line: found.line } : { name: found.name, line: found.line, status: "pendente" as const };
       }),
     };
   });
-  testsState.otherFiles = files.filter((f) => !hasTests(doc.lang, f.source, locale)).map((f) => f.path);
+  testsState.otherFiles = files.filter((f) => !hasTests(f.source, locale)).map((f) => f.path);
   testsPanel.render(testsState);
 }
 let refreshTestsTimer = 0;
@@ -300,7 +296,7 @@ async function runTests(only?: TestSelector[]) {
   if (runner.running) return;
   const doc = project.activeDoc;
   if (!doc) return;
-  const set = await project.collectRunFiles(doc.lang, false);
+  const set = await project.collectRunFiles(false);
   if ("error" in set) { toast(set.error, true); return; }
   if (!testsPane.hidden) { /* já visível */ } else setTestsVisible(true);
   await refreshTests();
@@ -311,7 +307,7 @@ async function runTests(only?: TestSelector[]) {
   consolePanel.clear();
   editor.clearError();
   stTime.textContent = "";
-  lastRun = { lang: doc.lang, entry: "", fileMap: set.fileMap };
+  lastRun = { entry: "", fileMap: set.fileMap };
   const selected = (file: string, name?: string) => !only || only.some((s) => s.file === file && (s.name === undefined || name === undefined || s.name === name));
   for (const f of testsState.files) {
     if (!selected(f.file)) continue;
@@ -332,7 +328,7 @@ async function runTests(only?: TestSelector[]) {
     ? tn(testsState.files.length, "todos os testes ({n} arquivo)", "todos os testes ({n} arquivos)")
     : only.length === 1 && only[0].name ? t('o teste "{nome}"', { nome: only[0].name }) : t("os testes de {arquivos}", { arquivos: only.map((s) => baseName(s.file)).join(", ") });
   consolePanel.system(t("Executando {oque}…", { oque: what }));
-  runner.runTests(doc.lang, set.files, only, getLocale());
+  runner.runTests(set.files, only, getLocale());
 }
 
 function finishTestsRun(s: RunnerTestsSummary | null) {
@@ -422,7 +418,7 @@ const shortcuts = Prec.highest(keymap.of([
   { key: "Ctrl-b", mac: "Cmd-b", run: () => { if (isTauri) setSidebarVisible(sidebar.hidden); return true; } },
 ]));
 
-const editor = new Editor($("#editor"), prefs.lang, "", shortcuts);
+const editor = new Editor($("#editor"), "", shortcuts);
 editor.locale = getLocale();
 
 // ---------- projeto ----------
@@ -436,7 +432,6 @@ const project = new Project(
     active: (doc) => {
       tabs.setActive(doc.key);
       editor.clearError();
-      setLangUi(doc.lang);
       updateTitle();
       renderTree();
       applyCoverageToActive();
@@ -497,11 +492,10 @@ function renderEntry() {
 }
 
 stEntry.addEventListener("click", (e) => {
-  const lang = project.activeDoc?.lang ?? prefs.lang;
   const items: MenuItem[] = [{ label: t("Automático (aba ativa, depois principal.*)"), checked: project.entryMode === "auto", action: () => project.setEntry("auto") }, { separator: true }];
-  const files = [...project.files.values()].filter((f) => f.lang === lang).sort((a, b) => a.path.localeCompare(b.path));
+  const files = [...project.files.values()].sort((a, b) => a.path.localeCompare(b.path));
   for (const f of files) items.push({ label: project.rel(f), checked: project.entryMode === f.key, action: () => project.setEntry(f.key) });
-  if (!files.length) items.push({ label: t("Nenhum arquivo {linguagem} no projeto", { linguagem: LANG_INFO[lang].name }), disabled: true });
+  if (!files.length) items.push({ label: t("Nenhum arquivo .koi no projeto"), disabled: true });
   const r = stEntry.getBoundingClientRect();
   showMenu(items, r.left, r.top - 8 - Math.min(400, 32 * (items.length + 1)));
   e.preventDefault();
@@ -552,58 +546,22 @@ function breakpointLinesOf(doc: Doc) {
   return breakpointLines(project.stateOf(doc));
 }
 
-/** Atualiza o seletor de linguagem, a referência e a barra de status para a linguagem do documento ativo. */
-function setLangUi(lang: Lang) {
-  document.querySelectorAll<HTMLButtonElement>(".seg-btn").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.lang === lang)));
-  stLang.textContent = LANG_INFO[lang].name;
-  refLang.textContent = LANG_INFO[lang].name;
-  refPanelUi.setLang(lang);
-}
-
-/** Troca a linguagem do documento ativo (seletor da toolbar). */
-function switchLang(lang: Lang) {
-  const doc = project.activeDoc;
-  prefs.lang = lang;
-  if (!doc) return;
-  if (doc.lang === lang) return;
-  // arquivo salvo, ou aba sem título cujo nome já tem a extensão de uma linguagem (ex.: exemplos): a linguagem vem do nome
-  const byName = langFromFilename(doc.name);
-  if (doc.path || (byName && byName !== lang && !/^sem título/.test(doc.name))) {
-    toast(t("Este arquivo é {atual} pela extensão .{extAtual}. Crie um novo arquivo .{extNova} para usar {nova}.", { atual: LANG_INFO[doc.lang].name, extAtual: LANG_INFO[doc.lang].ext, extNova: LANG_INFO[lang].ext, nova: LANG_INFO[lang].name }));
-    setLangUi(doc.lang);
-    return;
-  }
-  doc.lang = lang;
-  editor.setLang(lang);
-  const cur = editor.text.trim();
-  if (cur === NEW_STUDIO.trim() || cur === NEW_VISUALG.trim() || cur === "") {
-    editor.setText(lang === "visualg" ? NEW_VISUALG : NEW_STUDIO);
-    doc.savedText = editor.text;
-    doc.dirty = false;
-  }
-  if (/^sem título/.test(doc.name)) doc.name = doc.name.replace(/\.[a-z]+$/, "." + LANG_INFO[lang].ext);
-  project.saveDrafts();
-  tabs.updateMeta(doc, project.rel(doc));
-  setLangUi(lang);
-  updateTitle();
-}
-
 // ---------- ações ----------
 async function runProgram(debug = false) {
   if (runner.running) return;
   const doc = project.activeDoc;
   if (!doc) return;
-  const set = await project.collectRunFiles(doc.lang);
+  const set = await project.collectRunFiles();
   if ("error" in set) { toast(set.error, true); return; }
   consolePanel.clear();
   editor.clearError();
   stTime.textContent = "";
   applySnapshot(null, debug, debug ? t("iniciando…") : "");
   setRunState("running", debug ? t("depurando") : t("executando"));
-  lastRun = { lang: doc.lang, entry: set.entry, fileMap: set.fileMap };
+  lastRun = { entry: set.entry, fileMap: set.fileMap };
   renderEntry();
   const bps = allBreakpoints(lastRun);
-  runner.run(doc.lang, set.files, set.entry, debug ? { breakpoints: bps } : undefined, getLocale());
+  runner.run(set.files, set.entry, debug ? { breakpoints: bps } : undefined, getLocale());
   setRunning(true);
   if (set.files.length > 1) {
     const extra = set.files.length - 1;
@@ -632,7 +590,7 @@ async function confirmDiscardDocs(docs: Doc[]): Promise<boolean> {
 }
 
 function newProgram() {
-  project.newUntitled(prefs.lang);
+  project.newUntitled();
   editor.focus();
 }
 
@@ -641,7 +599,7 @@ async function closeDoc(key: string) {
   if (!doc) return;
   if (doc.dirty && !(await confirmDiscardDocs([doc]))) return;
   project.closeDoc(key, true);
-  if (!project.order.length) project.newUntitled(prefs.lang);
+  if (!project.order.length) project.newUntitled();
   editor.focus();
 }
 function closeActive() {
@@ -658,7 +616,7 @@ async function openProgram() {
     const f = await openFile();
     if (!f) return;
     if (f.path) await openPathAsDoc(f.path);
-    else project.newUntitled(langFromFilename(f.name) ?? detectLang(f.content, getLocale()), f.content, f.name);
+    else project.newUntitled(f.content, f.name);
     editor.focus();
   } catch (e) {
     toast(t("Não foi possível abrir o arquivo: {erro}", { erro: (e as Error).message }), true);
@@ -683,7 +641,7 @@ async function openRootSafe(root: string): Promise<boolean> {
     for (const d of [...project.docs.values()]) if (d.path && prevRoot && project.files.has(d.key)) project.closeDoc(d.key, true);
     await project.openRoot(root);
     prefs.lastRoot = root;
-    if (!project.order.length) project.newUntitled(prefs.lang);
+    if (!project.order.length) project.newUntitled();
     return true;
   } catch (e) {
     toast(t("Não foi possível abrir a pasta: {erro}", { erro: (e as Error).message }), true);
@@ -745,8 +703,7 @@ function dirOf(n: TreeNode | null): string {
 }
 
 function defaultExt(): string {
-  const lang = project.activeDoc?.lang ?? prefs.lang;
-  return LANG_INFO[lang].ext;
+  return LANG.ext;
 }
 
 async function treeNewFile(n: TreeNode | null) {
@@ -757,9 +714,8 @@ async function treeNewFile(n: TreeNode | null) {
   if (!name) return;
   const full = /\.[a-z0-9]+$/i.test(name) ? name : `${name}.${ext}`;
   const path = joinPath(dir, full);
-  const lang = langFromFilename(full) ?? (ext === "alg" ? "visualg" : "studio");
   try {
-    await createFile(path, lang === "visualg" ? NEW_VISUALG : NEW_STUDIO);
+    await createFile(path, translateSource(NEW_PROGRAM, "pt-BR", getLocale()));
     if (n) project.expanded.add(n.kind === "dir" ? n.key : dirName(n.key));
     await project.refreshTree();
     await project.openDoc(path);
@@ -806,7 +762,7 @@ async function treeDelete(n: TreeNode) {
   try {
     await deletePath(n.path);
     for (const d of openInside) project.closeDoc(d.key, true);
-    if (!project.order.length) project.newUntitled(prefs.lang);
+    if (!project.order.length) project.newUntitled();
     await project.refreshTree();
   } catch (e) {
     toast(t("Não foi possível excluir: {erro}", { erro: (e as Error).message }), true);
@@ -822,7 +778,7 @@ function treeMenu(n: TreeNode, x: number, y: number) {
   if (n.kind === "file") {
     items.push({ separator: true });
     items.push({ label: t("Abrir"), action: () => project.openDoc(n.path) });
-    if (n.lang) items.push({ label: t("Definir como arquivo principal"), checked: project.entryMode === n.key, action: () => project.setEntry(project.entryMode === n.key ? "auto" : n.key) });
+    items.push({ label: t("Definir como arquivo principal"), checked: project.entryMode === n.key, action: () => project.setEntry(project.entryMode === n.key ? "auto" : n.key) });
   }
   if (!isRoot) {
     items.push({ separator: true });
@@ -846,7 +802,7 @@ async function closeFolder() {
   for (const d of [...project.docs.values()]) if (d.path && project.files.has(d.key)) project.closeDoc(d.key, true);
   project.closeRoot();
   prefs.lastRoot = null;
-  if (!project.order.length) project.newUntitled(prefs.lang);
+  if (!project.order.length) project.newUntitled();
   updateTitle();
 }
 
@@ -854,36 +810,30 @@ async function closeFolder() {
 function buildExamples() {
   const list = $("#examples-list");
   list.innerHTML = "";
-  for (const lang of ["studio", "visualg"] as Lang[]) {
-    const g = document.createElement("div");
-    g.className = "ex-group";
-    g.textContent = LANG_INFO[lang].name;
-    list.appendChild(g);
-    const grid = document.createElement("div");
-    grid.className = "ex-grid";
-    for (const ex of EXAMPLES.filter((e) => e.lang === lang)) {
-      const b = document.createElement("button");
-      b.className = "ex-item";
-      b.innerHTML = `<span class="ex-title"></span><span class="ex-desc"></span>`;
-      b.querySelector(".ex-title")!.textContent = t(ex.title);
-      b.querySelector(".ex-desc")!.textContent = ex.files ? t("{desc} ({n} arquivos)", { desc: t(ex.description), n: ex.files.length }) : t(ex.description);
-      b.addEventListener("click", () => {
-        hideExamples();
-        const slug = ex.title.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-        if (ex.files) {
-          // cada arquivo vira uma aba; o grupo faz todas serem executadas juntas; o primeiro (principal) fica ativo
-          const group = `ex:${slug}:${Date.now()}`;
-          const docs = ex.files.map((f) => project.newUntitled(ex.lang, translateSource(ex.lang, f.code, "pt-BR", getLocale()), f.name, false, true, group));
-          project.activate(docs[0].key);
-        } else {
-          project.newUntitled(ex.lang, translateSource(ex.lang, ex.code ?? "", "pt-BR", getLocale()), `${slug}.${LANG_INFO[ex.lang].ext}`, true, true);
-        }
-        editor.focus();
-      });
-      grid.appendChild(b);
-    }
-    list.appendChild(grid);
+  const grid = document.createElement("div");
+  grid.className = "ex-grid";
+  for (const ex of EXAMPLES) {
+    const b = document.createElement("button");
+    b.className = "ex-item";
+    b.innerHTML = `<span class="ex-title"></span><span class="ex-desc"></span>`;
+    b.querySelector(".ex-title")!.textContent = t(ex.title);
+    b.querySelector(".ex-desc")!.textContent = ex.files ? t("{desc} ({n} arquivos)", { desc: t(ex.description), n: ex.files.length }) : t(ex.description);
+    b.addEventListener("click", () => {
+      hideExamples();
+      const slug = ex.title.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      if (ex.files) {
+        // cada arquivo vira uma aba; o grupo faz todas serem executadas juntas; o primeiro (principal) fica ativo
+        const group = `ex:${slug}:${Date.now()}`;
+        const docs = ex.files.map((f) => project.newUntitled(translateSource(f.code, "pt-BR", getLocale()), f.name, false, true, group));
+        project.activate(docs[0].key);
+      } else {
+        project.newUntitled(translateSource(ex.code ?? "", "pt-BR", getLocale()), `${slug}.${LANG.ext}`, true, true);
+      }
+      editor.focus();
+    });
+    grid.appendChild(b);
   }
+  list.appendChild(grid);
 }
 buildExamples();
 function showExamples() { examplesPanel.hidden = false; (examplesPanel.querySelector("button") as HTMLElement)?.focus(); }
@@ -973,7 +923,7 @@ async function changeLocale(next: Locale) {
   for (const k of project.order) {
     if (k === project.active) continue;
     const d = project.docs.get(k)!;
-    project.applyToDoc(k, editor.relocalize(d.lang));
+    project.applyToDoc(k, editor.relocalize());
   }
   buildExamples();
   refPanelUi.refresh();
@@ -981,15 +931,14 @@ async function changeLocale(next: Locale) {
   renderTree();
   renderEntry();
   updateTitle();
-  if (project.activeDoc) setLangUi(project.activeDoc.lang);
   testsPanel.render(testsState);
   if (!editor.snapshot) varsPanel.clear();
   const docs = project.order.map((k) => project.docs.get(k)!);
-  const changed = docs.filter((d) => translateSource(d.lang, project.textOf(d), prev, next) !== project.textOf(d));
+  const changed = docs.filter((d) => translateSource(project.textOf(d), prev, next) !== project.textOf(d));
   if (changed.length && await confirmDialog(t("Converter as palavras reservadas dos arquivos abertos de {de} para {para}?", { de: localeName(prev), para: localeName(next) }), t("Idioma"))) {
     for (const d of changed) {
       const src = project.textOf(d);
-      const out = translateSource(d.lang, src, prev, next);
+      const out = translateSource(src, prev, next);
       project.applyToDoc(d.key, { changes: { from: 0, to: src.length, insert: out } });
       project.noteChangeOf(d);
     }
@@ -997,7 +946,6 @@ async function changeLocale(next: Locale) {
   editor.focus();
 }
 $("#btn-examples").addEventListener("click", () => (examplesPanel.hidden ? showExamples() : hideExamples()));
-document.querySelectorAll<HTMLButtonElement>(".seg-btn").forEach((b) => b.addEventListener("click", () => switchLang(b.dataset.lang as Lang)));
 
 // ---------- splitters ----------
 function makeSplitter(el: HTMLElement, axis: "x" | "y", startSize: () => number, apply: (size: number) => void, reset: () => void) {
@@ -1087,8 +1035,8 @@ async function onWindowFocus() {
       if (!d.dirty) {
         // recarrega silenciosamente mantendo os pontos de parada
         const lines = breakpointLinesOf(d);
-        const st = editor.createState(text, d.lang, lines);
-        if (d.key === project.active) editor.swap({ state: st, lang: d.lang, scroll: null });
+        const st = editor.createState(text, lines);
+        if (d.key === project.active) editor.swap({ state: st, scroll: null });
         else d.state = st;
         project.markSaved(d, text);
       } else {
@@ -1104,7 +1052,7 @@ window.addEventListener("beforeunload", (e) => {
 });
 
 // ---------- início ----------
-if (!project.restoreDrafts()) project.newUntitled(prefs.lang, undefined, undefined, false);
+if (!project.restoreDrafts()) project.newUntitled(undefined, undefined, false);
 if (prefs.showTests) setTestsVisible(true);
 project.activate(project.order[project.order.length - 1]);
 refPanelUi.render();

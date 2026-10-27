@@ -4,9 +4,7 @@ import { t } from "../i18n";
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 const FILTERS = () => [
-  { name: t("Programas Portugol"), extensions: ["por", "alg"] },
-  { name: "Portugol Studio", extensions: ["por"] },
-  { name: "VisuAlg", extensions: ["alg"] },
+  { name: t("Programas Koiné"), extensions: ["koi"] },
   { name: t("Todos os arquivos"), extensions: ["*"] },
 ];
 
@@ -27,7 +25,7 @@ export async function openFile(): Promise<OpenedFile | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".por,.alg,.txt";
+    input.accept = ".koi,.txt";
     input.onchange = async () => {
       const f = input.files?.[0];
       if (!f) return resolve(null);
@@ -66,7 +64,7 @@ export async function pickFolder(): Promise<string | null> {
   const p = await open({ directory: true, multiple: false, title: t("Abrir pasta do projeto") });
   return typeof p === "string" ? p : null;
 }
-/** Lista recursivamente a pasta (só .por/.alg e subpastas). */
+/** Lista recursivamente a pasta (só .koi e subpastas). */
 export const listDir = (root: string) => inv<DirEntry>("list_dir", { root });
 export const statPath = (path: string) => inv<PathInfo>("stat_path", { path });
 export const createFile = (path: string, content = "") => inv<void>("create_file", { path, content });
@@ -101,7 +99,7 @@ export async function saveFile(content: string, path: string | null, suggestedNa
     if (!target || forceDialog) {
       target = await save({ defaultPath: path ?? suggestedName, filters: FILTERS(), title: t("Salvar programa") });
       if (!target) return null;
-      if (!/\.[^./\\]+$/.test(target)) target += "." + (suggestedName.split(".").pop() ?? "por");
+      if (!/\.[^./\\]+$/.test(target)) target += "." + (suggestedName.split(".").pop() ?? "koi");
     }
     await writeTextFile(target, content);
     return { path: target, name: baseName(target) };

@@ -1,8 +1,7 @@
 /**
- * Referência das palavras reservadas, comandos e funções de cada linguagem.
+ * Referência das palavras reservadas, comandos e funções do Koiné.
  * Usada no painel lateral "Referência" e nas dicas ao passar o mouse no editor.
  */
-import { Lang } from "../lang/shared/types";
 import { Locale, toCanonicalMap, translateSource, word } from "../lang/i18n";
 import { REF_I18N } from "./i18n";
 
@@ -32,8 +31,8 @@ export interface RefEntry {
   aliases?: string[];
 }
 
-// ======================= Portugol Studio =======================
-const STUDIO: RefEntry[] = [
+// ======================= entradas =======================
+export const REFERENCE: RefEntry[] = [
   // ---- estrutura ----
   { name: "programa", category: "estrutura", summary: "Bloco que envolve todo o código. Tudo (funções, variáveis globais, inclusões) fica entre suas chaves.", syntax: "programa\n{\n    ...\n}", example: "programa\n{\n    funcao inicio()\n    {\n        escreva(\"Olá!\\n\")\n    }\n}" },
   { name: "funcao", category: "estrutura", summary: "Declara uma função. Se tiver tipo de retorno, deve usar 'retorne'. Parâmetros com & são passados por referência (a função altera a variável original).", syntax: "funcao [tipo] nome([tipo param, tipo &param, tipo vetor[]])\n{\n    ...\n}", example: "funcao inteiro dobro(inteiro n)\n{\n    retorne n * 2\n}" },
@@ -45,7 +44,7 @@ const STUDIO: RefEntry[] = [
 
   // ---- módulos e visibilidade ----
   { name: "modulo", category: "estrutura", summary: "Dá nome ao módulo deste arquivo (sem 'modulo', o nome é o do arquivo). Um arquivo sem 'funcao inicio' é uma biblioteca que outros arquivos podem importar.", syntax: "programa\n{\n    modulo Nome\n    ...\n}", example: "modulo Geometria\n" },
-  { name: "importe", category: "estrutura", summary: "Traz para este arquivo tudo o que outro módulo do projeto declarou como 'publico'. Use pelo nome do módulo ou pelo caminho do arquivo; '--> apelido' dá um nome curto.", syntax: "importe Nome\nimporte \"pasta/arquivo.por\" --> apelido", example: "importe Geometria\n" },
+  { name: "importe", category: "estrutura", summary: "Traz para este arquivo tudo o que outro módulo do projeto declarou como 'publico'. Use pelo nome do módulo ou pelo caminho do arquivo; '--> apelido' dá um nome curto.", syntax: "importe Nome\nimporte \"pasta/arquivo.koi\" --> apelido", example: "importe Geometria\n" },
   { name: "teste", category: "estrutura", summary: "Bloco de teste automatizado: código que confere se o programa faz o que deveria. Escreva no próprio programa ou em um arquivo separado que o importe (um arquivo de testes enxerga até as funções privadas). Execute com F7 ou pelo painel Testes; os testes não rodam com F5.", syntax: "teste \"nome do teste\"\n{\n    ...afirmações...\n}", example: "teste \"soma de dois números\"\n{\n    afirme_igual(5, soma(2, 3))\n}\n" },
   { name: "afirme", category: "funcao", summary: "Dentro de um teste: falha o teste se a condição for falsa. A mensagem (opcional) explica o que era esperado.", syntax: "afirme(condicao)\nafirme(condicao, \"mensagem\")", example: "afirme(eh_par(10), \"10 é par\")\n" },
   { name: "afirme_igual", category: "funcao", summary: "Falha o teste se o valor obtido for diferente do esperado (números, textos, lógicos, estruturas campo a campo, vetores item a item). Para reais use afirme_aproximado.", syntax: "afirme_igual(esperado, obtido)\nafirme_igual(esperado, obtido, \"mensagem\")", example: "afirme_igual(5, soma(2, 3))\n", aliases: ["afirme_diferente"] },
@@ -132,146 +131,49 @@ const STUDIO: RefEntry[] = [
   { name: "Tipos.inteiro_para_caracter", category: "funcao", summary: "Conversões entre caractere e código numérico, e entre inteiro e lógico.", syntax: "Tipos.inteiro_para_caracter(inteiro codigo) : caracter\nTipos.caracter_para_inteiro(caracter c) : inteiro", example: "caracter c = Tipos.inteiro_para_caracter(65)   // 'A'\n", aliases: ["Tipos.caracter_para_inteiro", "Tipos.inteiro_para_logico", "Tipos.logico_para_inteiro"] },
 ];
 
-// ======================= VisuAlg =======================
-const VISUALG: RefEntry[] = [
-  // ---- estrutura ----
-  { name: "algoritmo", category: "estrutura", summary: "Primeira linha do programa, com o nome entre aspas. O programa termina com 'fimalgoritmo'.", syntax: "algoritmo \"nome\"\nvar\n    ...\ninicio\n    ...\nfimalgoritmo", example: "algoritmo \"exemplo\"\nvar\n    x: inteiro\ninicio\n    x <- 1\n    escreval(x)\nfimalgoritmo", aliases: ["fimalgoritmo"] },
-  { name: "var", category: "estrutura", summary: "Seção de declaração de variáveis (antes de 'inicio'). Em parâmetros, 'var' indica passagem por referência.", syntax: "var\n    nome1, nome2: tipo", example: "var\n    nome: caractere\n    idade: inteiro\n" },
-  { name: "const", category: "estrutura", summary: "Seção de constantes: valores que não mudam durante o programa.", syntax: "const\n    NOME = valor", example: "const\n    MAXIMO = 100\n" },
-  { name: "inicio", category: "estrutura", summary: "Marca o começo dos comandos do algoritmo (ou de uma função/procedimento).", example: "inicio\n    escreval(\"Olá\")\n" },
-  { name: "funcao", category: "estrutura", summary: "Subprograma que devolve um valor. O resultado é dado por 'retorne' ou atribuindo ao próprio nome da função.", syntax: "funcao nome(param: tipo): tipoRetorno\nvar ...\ninicio\n    retorne valor\nfimfuncao", example: "funcao dobro(n: inteiro): inteiro\ninicio\n    retorne n * 2\nfimfuncao\n", aliases: ["fimfuncao"] },
-  { name: "procedimento", category: "estrutura", summary: "Subprograma que não devolve valor. Use 'var' antes de um parâmetro para alterar a variável original.", syntax: "procedimento nome(var param: tipo)\ninicio\n    ...\nfimprocedimento", example: "procedimento troca(var a, b: inteiro)\nvar t: inteiro\ninicio\n    t <- a\n    a <- b\n    b <- t\nfimprocedimento\n", aliases: ["fimprocedimento"] },
-  { name: "retorne", category: "estrutura", summary: "Encerra a função devolvendo o valor.", syntax: "retorne valor", example: "retorne n * 2\n" },
-  { name: "// comentário", category: "outro", summary: "Texto ignorado pelo programa. '//' comenta até o fim da linha; '{ ... }' comenta um trecho.", syntax: "// uma linha\n{ várias linhas }", example: "// calcula a média\n", aliases: ["comentario", "comentário", "{"] },
 
-  // ---- módulos e visibilidade ----
-  { name: "modulo", category: "estrutura", summary: "Começa um arquivo de biblioteca (no lugar de 'algoritmo'): só constantes, variáveis, tipos, funções e procedimentos, sem 'inicio'. Termina com 'fimmodulo'. Outros arquivos usam o que for 'publico'.", syntax: "modulo \"nome\"\n...\nfimmodulo", example: "modulo \"geometria\"\npublico funcao area(r: real): real\ninicio\n    retorne 3.14 * r * r\nfimfuncao\nfimmodulo", aliases: ["fimmodulo"] },
-  { name: "importe", category: "estrutura", summary: "Logo depois de 'algoritmo' ou 'modulo': traz o que outro módulo do projeto declarou como 'publico'. Pelo nome do módulo ou pelo caminho do arquivo; 'como apelido' dá um nome curto.", syntax: "importe nome\nimporte \"pasta/arquivo.alg\" como apelido", example: "importe geometria\n", aliases: ["como"] },
-  { name: "teste", category: "estrutura", summary: "Bloco de teste automatizado: código que confere se o algoritmo faz o que deveria. Fica onde ficam as funções (antes do inicio), ou em um módulo separado que importe o algoritmo (um arquivo de testes enxerga até as funções privadas). Execute com F7 ou pelo painel Testes; os testes não rodam com F5.", syntax: "teste \"nome do teste\"\n[var ...]\ninicio\n    ...afirmações...\nfimteste", example: "teste \"soma de dois números\"\ninicio\n    afirme_igual(5, soma(2, 3))\nfimteste\n", aliases: ["fimteste"] },
-  { name: "afirme", category: "funcao", summary: "Dentro de um teste: falha o teste se a condição for falsa. A mensagem (opcional) explica o que era esperado.", syntax: "afirme(condicao)\nafirme(condicao, \"mensagem\")", example: "afirme(eh_par(10), \"10 é par\")\n" },
-  { name: "afirme_igual", category: "funcao", summary: "Falha o teste se o valor obtido for diferente do esperado (números, textos, lógicos, registros campo a campo, vetores item a item). Para reais use afirme_aproximado.", syntax: "afirme_igual(esperado, obtido)\nafirme_igual(esperado, obtido, \"mensagem\")", example: "afirme_igual(5, soma(2, 3))\n", aliases: ["afirme_diferente"] },
-  { name: "afirme_aproximado", category: "funcao", summary: "Falha o teste se |esperado − obtido| for maior que a tolerância. Use para números reais.", syntax: "afirme_aproximado(esperado, obtido, tolerancia)", example: "afirme_aproximado(2.5, media(2, 3), 0.001)\n" },
-  { name: "saida", category: "funcao", summary: "Dentro de um teste: devolve tudo o que o código testado escreveu até agora. Com entrada(...) e executar_algoritmo() dá para testar o algoritmo inteiro. Quebras de linha: carac(10).", syntax: "saida()", example: "entrada(\"2\")\nentrada(\"3\")\nexecutar_algoritmo()\nafirme_igual(\"Soma:  5\" + carac(10), saida())\n" },
-  { name: "entrada", category: "funcao", summary: "Dentro de um teste: fornece uma linha (ou várias) que os próximos leia vão ler. Chame uma vez por linha. Sem isso, um leia dentro de um teste dá erro.", syntax: "entrada(\"texto\")", example: "entrada(\"Ana\")\nentrada(\"20\")\n" },
-  { name: "executar_algoritmo", category: "funcao", summary: "Dentro de um teste: executa o bloco inicio...fimalgoritmo do algoritmo (o do próprio arquivo, ou o do algoritmo importado pelo arquivo de testes). Combine com entrada(...) e saida().", syntax: "executar_algoritmo()", example: "executar_algoritmo()\n" },
-  { name: "publico", category: "estrutura", summary: "Antes de uma linha de 'var' ou 'const', de um tipo, de uma função/procedimento, ou de um campo/método de classe: fica visível fora do arquivo (ou fora da classe). Sem 'publico', tudo é privado.", syntax: "publico funcao nome(...): tipo\npublico x: inteiro", example: "publico funcao dobro(n: inteiro): inteiro\n", aliases: ["privado"] },
-  { name: "privado", category: "estrutura", summary: "Visível só no próprio arquivo, ou só dentro da classe e das classes que herdam dela. É o padrão.", example: "privado raio: real\n" },
-
-  // ---- registros, classes e referências ----
-  { name: "registro", category: "tipo", summary: "Agrupa campos em um novo tipo (seção 'tipo'). É um valor: copiado ao atribuir e ao passar sem 'var'. Começa com os campos zerados.", syntax: "tipo\n    Nome = registro\n        campo1: tipo\n        campo2: tipo\n    fimregistro", example: "tipo\n    Ponto = registro\n        x, y: real\n    fimregistro\n", aliases: ["fimregistro", "estrutura"] },
-  { name: "classe", category: "tipo", summary: "Tipo com campos e métodos (seção 'tipo'). Dentro da classe ficam só os cabeçalhos; os corpos são escritos fora como 'funcao Classe.metodo'. Objetos são criados com 'novo' e compartilhados por referência.", syntax: "tipo\n    Nome = classe [herda Mae]\n        privado campo: tipo\n        publico procedimento iniciar(parametros)\n        publico funcao metodo(parametros): tipo\n    fimclasse\n\nprocedimento Nome.iniciar(parametros)\ninicio ... fimprocedimento", example: "tipo\n    Contador = classe\n        privado n: inteiro\n        publico funcao proximo(): inteiro\n    fimclasse\n\nfuncao Contador.proximo(): inteiro\ninicio\n    n <- n + 1\n    retorne n\nfimfuncao\n", aliases: ["fimclasse", "iniciar", "metodo", "método"] },
-  { name: "herda", category: "tipo", summary: "A classe recebe os campos e métodos de outra. Um método com o mesmo cabeçalho sobrescreve o da mãe; a chamada usa sempre o método do objeto real.", syntax: "Filha = classe herda Mae ... fimclasse", example: "Circulo = classe herda Forma\n    privado raio: real\n    publico funcao area(): real\nfimclasse\n" },
-  { name: "novo", category: "tipo", summary: "Cria um objeto de uma classe e chama o construtor 'iniciar' com os argumentos.", syntax: "variavel <- novo Classe(argumentos)", example: "f <- novo Circulo(2.0)\n" },
-  { name: "este", category: "tipo", summary: "Dentro de um método, é o próprio objeto. Útil para distinguir um campo de um parâmetro com o mesmo nome.", syntax: "este.campo", example: "este.nome <- nome\n" },
-  { name: "super", category: "tipo", summary: "Dentro de uma classe filha: 'super.iniciar(...)' (ou 'super(...)') chama o construtor da mãe, e 'super.metodo(...)' chama a versão da mãe de um método.", syntax: "super.iniciar(argumentos)\nsuper.metodo(argumentos)", example: "procedimento Circulo.iniciar(r: real)\ninicio\n    super.iniciar(\"círculo\")\n    raio <- r\nfimprocedimento\n" },
-  { name: "nulo", category: "tipo", summary: "Valor de uma variável de classe ou ref que não aponta para nada (todo objeto começa nulo até receber 'novo'). Usar um objeto nulo dá erro; compare com '= nulo' antes.", syntax: "variavel = nulo", example: "se f = nulo entao\n    escreval(\"sem forma\")\nfimse\n" },
-  { name: "ref", category: "tipo", summary: "Referência segura (um 'ponteiro' sem aritmética): guarda o endereço de uma variável, posição de vetor ou campo. Obtenha com & e acesse o alvo com *.", syntax: "r: ref tipo\nr <- &variavel\n*r <- valor", example: "var\n    n: inteiro\n    r: ref inteiro\ninicio\n    r <- &n\n    *r <- 20\n", aliases: ["ponteiro", "referencia", "referência"] },
-  { name: "& (endereço)", category: "operador", summary: "Antes de uma variável, posição de vetor ou campo, produz uma referência (ref) para ela.", syntax: "&variavel  &vetor[i]  &objeto.campo", example: "r <- &total\n", aliases: ["&"] },
-  { name: "* (acesso pela referência)", category: "operador", summary: "Antes de uma referência, acessa a variável apontada: '*r' lê e '*r <- v' escreve. Em referência nula dá erro de execução.", syntax: "*referencia", example: "*r <- *r + 1\n", aliases: ["*"] },
-  { name: ". (campo e método)", category: "operador", summary: "Acessa um campo ou chama um método: 'p.x', 'c.area()'. Também qualifica nomes de módulo: 'geometria.area(2)'.", syntax: "objeto.campo\nobjeto.metodo(argumentos)\nmodulo.nome", example: "escreval(p.x, c.area())\n", aliases: ["."] },
-
-  // ---- tipos ----
-  { name: "inteiro", category: "tipo", summary: "Número inteiro: -3, 0, 42. Use 'div' ou '\\' para divisão inteira.", syntax: "nome: inteiro", example: "idade: inteiro\n" },
-  { name: "real", category: "tipo", summary: "Número com casas decimais: 3.14. Ao escrever, use ponto.", syntax: "nome: real", example: "altura: real\n" },
-  { name: "caractere", category: "tipo", summary: "Texto entre aspas duplas (também aceito como 'caracter' ou 'literal'). Junte textos com +.", syntax: "nome: caractere", example: "nome: caractere\n", aliases: ["caracter", "literal"] },
-  { name: "logico", category: "tipo", summary: "Valor lógico: verdadeiro ou falso.", syntax: "nome: logico", example: "achou: logico\n" },
-  { name: "verdadeiro", category: "tipo", summary: "Valor lógico 'sim'. É mostrado como VERDADEIRO.", example: "achou <- verdadeiro\n" },
-  { name: "falso", category: "tipo", summary: "Valor lógico 'não'. É mostrado como FALSO.", example: "achou <- falso\n" },
-  { name: "vetor", category: "tipo", summary: "Lista de valores com índices em um intervalo que você escolhe (ex.: 1..10). Matriz: dois intervalos separados por vírgula.", syntax: "nome: vetor[ini..fim] de tipo\nnome: vetor[1..L, 1..C] de tipo", example: "notas: vetor[1..5] de real\nm: vetor[1..2, 1..3] de inteiro\n", aliases: ["de", "matriz", "..", "[]"] },
-
-  // ---- controle ----
-  { name: "se", category: "controle", summary: "Executa os comandos somente se a condição for verdadeira. 'senao' trata o caso contrário. Termina com 'fimse'.", syntax: "se condicao entao\n    ...\nsenao\n    ...\nfimse", example: "se idade >= 18 entao\n    escreval(\"maior de idade\")\nsenao\n    escreval(\"menor de idade\")\nfimse\n", aliases: ["entao", "senao", "fimse"] },
-  { name: "enquanto", category: "controle", summary: "Repete enquanto a condição for verdadeira (testa antes de cada repetição). Termina com 'fimenquanto'.", syntax: "enquanto condicao faca\n    ...\nfimenquanto", example: "i <- 1\nenquanto i <= 5 faca\n    escreval(i)\n    i <- i + 1\nfimenquanto\n", aliases: ["faca", "fimenquanto"] },
-  { name: "para", category: "controle", summary: "Laço com contador: vai de um valor até outro, com 'passo' opcional (pode ser negativo). Termina com 'fimpara'.", syntax: "para i de inicio ate fim [passo p] faca\n    ...\nfimpara", example: "para i de 1 ate 10 faca\n    escreval(i)\nfimpara\n", aliases: ["ate", "passo", "fimpara"] },
-  { name: "repita", category: "controle", summary: "Repete o bloco até que a condição se torne verdadeira. O bloco executa pelo menos uma vez.", syntax: "repita\n    ...\nate condicao", example: "repita\n    escreva(\"Digite 0 para sair: \")\n    leia(opcao)\nate opcao = 0\n", aliases: ["fimrepita"] },
-  { name: "escolha", category: "controle", summary: "Compara um valor com vários 'caso' (valores, listas ou intervalos 'a'). 'outrocaso' trata os demais. Termina com 'fimescolha'.", syntax: "escolha valor\n    caso 1, 2\n        ...\n    caso 3 a 5\n        ...\n    outrocaso\n        ...\nfimescolha", example: "escolha opcao\n    caso 1\n        escreval(\"um\")\n    caso 2, 3\n        escreval(\"dois ou três\")\n    outrocaso\n        escreval(\"outro\")\nfimescolha\n", aliases: ["caso", "outrocaso", "fimescolha"] },
-  { name: "interrompa", category: "controle", summary: "Sai imediatamente do laço (enquanto, para, repita) em que está.", syntax: "interrompa", example: "se x = 0 entao\n    interrompa\nfimse\n" },
-
-  // ---- operadores ----
-  { name: "<- (atribuição)", category: "operador", summary: "Guarda um valor na variável. Para comparar igualdade use '='.", syntax: "variavel <- valor", example: "total <- total + 1\n", aliases: ["<-", ":="] },
-  { name: "+ - * /", category: "operador", summary: "Aritmética básica. '/' sempre dá resultado real; para inteiros use 'div' e 'mod'. Com textos, '+' junta.", example: "media <- soma / 2\n", aliases: ["+", "-", "*", "/"] },
-  { name: "div", category: "operador", summary: "Divisão inteira (descarta o resto). Também pode ser escrita como '\\'.", example: "metade <- 7 div 2   // 3\n", aliases: ["\\"] },
-  { name: "mod", category: "operador", summary: "Resto da divisão inteira. Também pode ser escrito como '%'.", example: "resto <- 7 mod 3   // 1\n", aliases: ["%"] },
-  { name: "^ (potência)", category: "operador", summary: "Potenciação: base ^ expoente.", example: "quadrado <- x ^ 2\n", aliases: ["^"] },
-  { name: "= <> < > <= >=", category: "operador", summary: "Comparação: igual, diferente, menor, maior, menor ou igual, maior ou igual. O resultado é lógico.", example: "se nota >= 7 e faltas < 10 entao\n", aliases: ["=", "<>", "<", ">", "<=", ">="] },
-  { name: "e", category: "operador", summary: "E lógico: verdadeiro só se os dois lados forem verdadeiros.", example: "se idade >= 18 e idade < 65 entao\n" },
-  { name: "ou", category: "operador", summary: "OU lógico: verdadeiro se pelo menos um dos lados for verdadeiro.", example: "se dia = 6 ou dia = 7 entao\n" },
-  { name: "nao", category: "operador", summary: "NÃO lógico: inverte o valor.", example: "se nao achou entao\n" },
-  { name: "xou", category: "operador", summary: "OU exclusivo: verdadeiro quando apenas um dos lados é verdadeiro.", example: "se a xou b entao\n" },
-
-  // ---- entrada e saída ----
-  { name: "escreva", category: "entrada-saida", summary: "Mostra valores no console, sem quebrar a linha ao final. Formate com :largura ou :largura:decimais.", syntax: "escreva(valor1, valor2, ...)\nescreva(x:8:2)", example: "escreva(\"Total: \", total:8:2)\n" },
-  { name: "escreval", category: "entrada-saida", summary: "Igual a 'escreva', mas quebra a linha ao final.", syntax: "escreval(valor1, valor2, ...)", example: "escreval(\"Olá, \", nome)\n" },
-  { name: "leia", category: "entrada-saida", summary: "Lê um valor digitado pelo usuário e guarda na variável (convertido para o tipo dela).", syntax: "leia(variavel1, variavel2, ...)", example: "escreva(\"Idade: \")\nleia(idade)\n" },
-  { name: "limpatela", category: "entrada-saida", summary: "Limpa o console.", example: "limpatela\n" },
-  { name: "pausa", category: "entrada-saida", summary: "Pausa a execução por alguns milissegundos (sem argumento, não espera).", syntax: "pausa(milissegundos)", example: "pausa(500)\n" },
-  { name: "aleatorio", category: "outro", summary: "Comandos de ambiente do VisuAlg original (aleatorio, timer, eco, cronometro, debug, arquivo). São aceitos e ignorados nesta IDE.", syntax: "aleatorio on | off\ntimer on | off", example: "", aliases: ["timer", "eco", "cronometro", "debug", "arquivo", "on", "off"] },
-
-  // ---- funções ----
-  { name: "abs", category: "funcao", summary: "Valor absoluto (sem sinal).", syntax: "abs(x)", example: "d <- abs(-7)   // 7\n" },
-  { name: "int", category: "funcao", summary: "Parte inteira de um número real (descarta as casas decimais).", syntax: "int(x): inteiro", example: "i <- int(3.9)   // 3\n" },
-  { name: "raizq", category: "funcao", summary: "Raiz quadrada.", syntax: "raizq(x): real", example: "r <- raizq(16)   // 4\n" },
-  { name: "quad", category: "funcao", summary: "Quadrado do número (x * x).", syntax: "quad(x)", example: "q <- quad(5)   // 25\n" },
-  { name: "exp", category: "funcao", summary: "Base elevada ao expoente.", syntax: "exp(base, expoente): real", example: "p <- exp(2, 10)   // 1024\n" },
-  { name: "log", category: "funcao", summary: "Logaritmo na base 10. 'logn' é o logaritmo natural (base e).", syntax: "log(x): real\nlogn(x): real", example: "l <- log(1000)   // 3\n", aliases: ["logn"] },
-  { name: "pi", category: "funcao", summary: "Valor de π (3,14159…).", syntax: "pi(): real", example: "area <- pi() * r ^ 2\n" },
-  { name: "sen", category: "funcao", summary: "Trigonometria (ângulo em radianos): sen, cos, tan, cotan, arcsen, arccos, arctan.", syntax: "sen(x): real", example: "s <- sen(pi() / 2)   // 1\n", aliases: ["cos", "tan", "cotan", "arcsen", "arccos", "arctan"] },
-  { name: "grauprad", category: "funcao", summary: "Converte graus em radianos. 'radpgrau' faz o inverso.", syntax: "grauprad(graus): real", example: "r <- grauprad(180)   // 3.14159...\n", aliases: ["radpgrau"] },
-  { name: "rand", category: "funcao", summary: "Número real aleatório entre 0 e 1. 'randi(n)' dá um inteiro aleatório de 0 a n-1.", syntax: "rand(): real\nrandi(n): inteiro", example: "dado <- randi(6) + 1\n", aliases: ["randi"] },
-  { name: "compr", category: "funcao", summary: "Quantidade de caracteres de um texto.", syntax: "compr(texto): inteiro", example: "n <- compr(\"VisuAlg\")   // 7\n" },
-  { name: "copia", category: "funcao", summary: "Parte do texto a partir da posição (a primeira é 1) com o tamanho indicado.", syntax: "copia(texto, posicao, tamanho): caractere", example: "s <- copia(\"VisuAlg\", 1, 4)   // \"Visu\"\n" },
-  { name: "pos", category: "funcao", summary: "Posição em que um trecho aparece no texto (0 se não aparecer).", syntax: "pos(trecho, texto): inteiro", example: "p <- pos(\"Alg\", \"VisuAlg\")   // 5\n" },
-  { name: "maiusc", category: "funcao", summary: "Converte para MAIÚSCULAS. 'minusc' converte para minúsculas.", syntax: "maiusc(texto): caractere", example: "s <- maiusc(\"olá\")\n", aliases: ["minusc"] },
-  { name: "asc", category: "funcao", summary: "Código numérico de um caractere. 'carac' faz o inverso (código → caractere).", syntax: "asc(c): inteiro\ncarac(codigo): caractere", example: "c <- carac(65)   // \"A\"\n", aliases: ["carac"] },
-  { name: "numpcarac", category: "funcao", summary: "Converte número em texto. 'caracpnum' converte texto em número.", syntax: "numpcarac(x): caractere\ncaracpnum(texto): real", example: "s <- numpcarac(42) + \"!\"\n", aliases: ["caracpnum"] },
-];
-
-export const REFERENCE: Record<Lang, RefEntry[]> = { studio: STUDIO, visualg: VISUALG };
 
 export const CATEGORIES: RefCategory[] = ["estrutura", "tipo", "controle", "operador", "entrada-saida", "funcao", "outro"];
 
-const indexCache = new Map<Lang, Map<string, RefEntry>>();
+let indexCache: Map<string, RefEntry> | null = null;
 
 /** Nome de entrada no idioma: traduz cada palavra canônica (ex.: "Matematica.raiz", "inclua biblioteca"). */
-export function localizeName(lang: Lang, locale: Locale, name: string): string {
+export function localizeName(locale: Locale, name: string): string {
   if (locale === "pt-BR") return name;
-  return name.replace(/[\p{L}_][\p{L}\p{N}_]*/gu, (w) => word(lang, locale, w));
+  return name.replace(/[\p{L}_][\p{L}\p{N}_]*/gu, (w) => word(locale, w));
 }
 
 /** Entrada pronta para exibir no idioma: nome e apelidos traduzidos, resumo do dicionário, código convertido. */
-export function localizeEntry(lang: Lang, locale: Locale, e: RefEntry): RefEntry {
+export function localizeEntry(locale: Locale, e: RefEntry): RefEntry {
   if (locale === "pt-BR") return e;
-  const tr = REF_I18N[locale]?.[`${lang}:${e.name}`];
+  const tr = REF_I18N[locale]?.[e.name];
   return {
     ...e,
-    name: localizeName(lang, locale, e.name),
+    name: localizeName(locale, e.name),
     summary: tr?.summary ?? e.summary,
-    syntax: tr?.syntax ?? (e.syntax ? translateSource(lang, e.syntax, "pt-BR", locale) : undefined),
-    example: e.example ? translateSource(lang, e.example, "pt-BR", locale) : undefined,
-    aliases: e.aliases?.map((a) => localizeName(lang, locale, a)),
+    syntax: tr?.syntax ?? (e.syntax ? translateSource(e.syntax, "pt-BR", locale) : undefined),
+    example: e.example ? translateSource(e.example, "pt-BR", locale) : undefined,
+    aliases: e.aliases?.map((a) => localizeName(locale, a)),
   };
 }
 
 /** Encontra a entrada para uma palavra do código (nome, apelido ou primeira palavra do nome), no idioma dado ou em português. */
-export function findReference(lang: Lang, word: string, locale: Locale = "pt-BR"): RefEntry | null {
-  const key0 = lang === "visualg" ? word.toLowerCase() : word;
-  const canon = toCanonicalMap(lang, locale)?.get(key0) ?? word;
-  const found = findCanonical(lang, canon);
-  return found ? localizeEntry(lang, locale, found) : null;
+export function findReference(word: string, locale: Locale = "pt-BR"): RefEntry | null {
+  const canon = toCanonicalMap(locale)?.get(word) ?? word;
+  const found = findCanonical(canon);
+  return found ? localizeEntry(locale, found) : null;
 }
 
-function findCanonical(lang: Lang, word: string): RefEntry | null {
-  let idx = indexCache.get(lang);
-  if (!idx) {
-    idx = new Map();
-    const put = (k: string, e: RefEntry) => { const key = lang === "visualg" ? k.toLowerCase() : k; if (!idx!.has(key)) idx!.set(key, e); };
-    for (const e of REFERENCE[lang]) {
+function findCanonical(word: string): RefEntry | null {
+  if (!indexCache) {
+    const idx = (indexCache = new Map());
+    const put = (k: string, e: RefEntry) => { if (!idx.has(k)) idx.set(k, e); };
+    for (const e of REFERENCE) {
       put(e.name, e);
       const first = e.name.split(/[\s(]/)[0];
       if (first) put(first, e);
       for (const a of e.aliases ?? []) put(a, e);
     }
-    indexCache.set(lang, idx);
   }
-  return idx.get(lang === "visualg" ? word.toLowerCase() : word) ?? null;
+  return indexCache.get(word) ?? null;
 }

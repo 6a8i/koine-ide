@@ -74,10 +74,6 @@ export function describeValue(v: any, depth = 0, refType = false): string {
     const items = v.f.slice(0, MAX_ITEMS).map((x: any, i: number) => `${names[i] ?? i}: ${describeValue(x, depth + 1)}`);
     return `${decl.name}{${items.join(", ")}${v.f.length > MAX_ITEMS ? ", …" : ""}}`;
   }
-  // VArray do VisuAlg: { lo, hi, data }
-  if (Array.isArray(v.data) && typeof v.lo === "number") {
-    return (v.lo !== 0 ? `[${v.lo}..${v.hi}] ` : "") + describeList(v.data, depth);
-  }
   return String(v);
 }
 

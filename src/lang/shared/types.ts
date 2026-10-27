@@ -2,13 +2,13 @@ import type { Debugger, Snapshot } from "./debug";
 import type { CoverageCollector, TestInfo } from "./testing";
 import type { Locale } from "../i18n";
 
-export type Lang = "studio" | "visualg";
+
 
 /** "teste": uma afirmação de teste falhou */
 export type ErrorKind = "sintaxe" | "execucao" | "interno" | "teste";
 
 /** Erro gerado pela análise ou pela execução de um programa. Posições são 1-based. */
-export class PortugolError extends Error {
+export class KoineError extends Error {
   /** nome do arquivo (preenchido na borda do projeto a partir de `fileIndex`) */
   file?: string;
   constructor(
@@ -20,7 +20,7 @@ export class PortugolError extends Error {
     public fileIndex: number = 0,
   ) {
     super(message);
-    this.name = "PortugolError";
+    this.name = "KoineError";
   }
 }
 
@@ -53,7 +53,7 @@ export interface CompileOptions {
 }
 
 export interface Program {
-  /** nomes dos arquivos do projeto, na ordem dos índices usados em `PortugolError.fileIndex` */
+  /** nomes dos arquivos do projeto, na ordem dos índices usados em `KoineError.fileIndex` */
   files: string[];
   run(host: Host): Promise<void>;
   /** Liga o depurador (antes de `run`): a execução passa a ser passo a passo. */
@@ -62,7 +62,7 @@ export interface Program {
   snapshot(): Snapshot;
   /** testes (`teste "nome"`) do arquivo de entrada */
   tests: TestInfo[];
-  /** Executa um teste isoladamente (globais reiniciadas). Lança PortugolError de tipo "teste" quando uma afirmação falha. */
+  /** Executa um teste isoladamente (globais reiniciadas). Lança KoineError de tipo "teste" quando uma afirmação falha. */
   runTest(host: Host, id: number): Promise<void>;
   /** Liga um coletor de cobertura (antes de executar). */
   attachCoverage(c: CoverageCollector): void;

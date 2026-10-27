@@ -30,11 +30,10 @@
     "targets": ["nsis", "msi"],
     "category": "Education",
     "shortDescription": "IDE para aprender programação com pseudocódigo em vários idiomas",
-    "longDescription": "Escreva, depure e teste programas em Portugol Studio (.por) e VisuAlg (.alg), com palavras reservadas e interface no seu idioma.",
+    "longDescription": "Escreva, depure e teste programas em Koiné (.koi), uma linguagem de pseudocódigo com palavras reservadas e interface no seu idioma.",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico", "icons/icon.png"],
     "fileAssociations": [
-      { "ext": ["por"], "name": "Programa Portugol Studio", "description": "Programa Portugol Studio", "role": "Editor" },
-      { "ext": ["alg"], "name": "Algoritmo VisuAlg", "description": "Algoritmo VisuAlg", "role": "Editor" }
+      { "ext": ["koi"], "name": "Programa Koiné", "description": "Programa Koiné", "role": "Editor" }
     ],
     "windows": {
       "nsis": { "installMode": "currentUser", "languages": ["PortugueseBR"] },

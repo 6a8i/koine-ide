@@ -75,7 +75,6 @@ export class FileTree {
       if (n.kind === "dir") row.setAttribute("aria-expanded", String(isOpen));
       if (n.key === activeKey) row.classList.add("active");
       if (n.key === entryKey) row.classList.add("entry");
-      if (n.lang) row.dataset.lang = n.lang;
       row.innerHTML = `<span class="tree-chevron">${n.kind === "dir" ? (isOpen ? "▾" : "▸") : ""}</span><span class="tree-icon"></span><span class="tree-name"></span>${n.key === entryKey ? '<span class="tree-badge">▶</span>' : ""}`;
       if (n.key === entryKey) row.querySelector<HTMLElement>(".tree-badge")!.title = t("Arquivo principal");
       row.querySelector(".tree-name")!.textContent = n.name;
