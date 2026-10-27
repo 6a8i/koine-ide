@@ -17,6 +17,8 @@ export interface FrameInfo {
   name: string;
   /** linha do comando sendo executado neste quadro */
   line: number;
+  /** arquivo do comando (caminho relativo ao projeto) */
+  file?: string;
   vars: VarInfo[];
 }
 
@@ -38,14 +40,16 @@ interface Frame {
   names: FrameNames;
   F: any[];
   line: number;
+  file: number;
 }
 
 const MAX_ITEMS = 60;
 const MAX_STR = 200;
 
 /** Converte um valor em texto legível (sem depender da linguagem). */
-export function describeValue(v: any, depth = 0): string {
-  if (v === undefined || v === null) return "(sem valor)";
+export function describeValue(v: any, depth = 0, refType = false): string {
+  if (v === undefined) return "(sem valor)";
+  if (v === null) return "nulo";
   if (typeof v === "boolean") return v ? "verdadeiro" : "falso";
   if (typeof v === "number") {
     if (Number.isInteger(v)) return String(v);
@@ -56,11 +60,19 @@ export function describeValue(v: any, depth = 0): string {
     const s = v.length > MAX_STR ? v.slice(0, MAX_STR) + "…" : v;
     return JSON.stringify(s);
   }
-  // referência (parâmetro por &/var)
+  // referência: variável `ref` mostra o alvo; parâmetro por &/var é transparente
   if (typeof v.get === "function" && typeof v.set === "function") {
-    try { return describeValue(v.get(), depth); } catch { return "(sem valor)"; }
+    try { const inner = describeValue(v.get(), depth); return refType ? "ref -> " + inner : inner; } catch { return refType ? "ref -> ?" : "(sem valor)"; }
   }
   if (Array.isArray(v)) return describeList(v, depth);
+  // estrutura/registro ou objeto: { decl|cls, f }
+  if (Array.isArray(v.f) && (v.decl || v.cls)) {
+    const decl = v.decl ?? v.cls;
+    if (depth > 2) return `${decl.name}{…}`;
+    const names: string[] = decl.fieldNames ?? [];
+    const items = v.f.slice(0, MAX_ITEMS).map((x: any, i: number) => `${names[i] ?? i}: ${describeValue(x, depth + 1)}`);
+    return `${decl.name}{${items.join(", ")}${v.f.length > MAX_ITEMS ? ", …" : ""}}`;
+  }
   // VArray do VisuAlg: { lo, hi, data }
   if (Array.isArray(v.data) && typeof v.lo === "number") {
     return (v.lo !== 0 ? `[${v.lo}..${v.hi}] ` : "") + describeList(v.data, depth);
@@ -77,17 +89,20 @@ function describeList(arr: any[], depth: number): string {
 
 export function describeFrame(names: FrameNames, F: any[]): VarInfo[] {
   const out: VarInfo[] = [];
-  for (const s of names.slots) out.push({ name: s.name, type: s.type, value: describeValue(F[s.slot]) });
+  for (const s of names.slots) out.push({ name: s.name, type: s.type, value: describeValue(F[s.slot], 0, s.type.startsWith("ref ")) });
   return out;
 }
 
 export interface DebugEvents {
-  paused(line: number, col: number, snapshot: Snapshot): void;
+  /** `file` é o nome do arquivo em que parou (índice traduzido via `setFiles`) */
+  paused(line: number, col: number, snapshot: Snapshot, file: string): void;
   snapshot(snapshot: Snapshot): void;
 }
 
 export class Debugger {
-  breakpoints = new Set<number>();
+  /** pontos de parada por índice de arquivo */
+  breakpoints = new Map<number, Set<number>>();
+  private files: string[] = [];
   private mode: DebugCommand = "into";
   private targetDepth = 0;
   private stack: Frame[] = [];
@@ -96,16 +111,34 @@ export class Debugger {
   private resume: (() => void) | null = null;
   private lastYield = 0;
   private lastSnap = 0;
-  private lastStop: { line: number; frame: Frame | null } | null = null;
+  private lastStop: { line: number; file: number; frame: Frame | null } | null = null;
   private channel = new MessageChannel();
   paused = false;
 
-  constructor(private ev: DebugEvents, breakpoints: number[], startPaused: boolean) {
-    for (const b of breakpoints) this.breakpoints.add(b);
+  constructor(private ev: DebugEvents, breakpoints: { file: string; line: number }[], startPaused: boolean, files: string[] = []) {
+    this.files = files;
+    this.setBreakpoints(breakpoints);
     this.mode = startPaused ? "into" : "continue";
     // no Node (testes) as portas manteriam o processo vivo
     (this.channel.port1 as any).unref?.();
     (this.channel.port2 as any).unref?.();
+  }
+
+  /** Nomes dos arquivos do programa (índice = `NodeBase.file`). */
+  setFiles(files: string[]) {
+    this.files = files;
+  }
+
+  setBreakpoints(list: { file: string; line: number }[]) {
+    this.breakpoints.clear();
+    for (const b of list) {
+      const idx = this.files.indexOf(b.file);
+      const i = idx < 0 ? (this.files.length === 0 ? 0 : -1) : idx;
+      if (i < 0) continue;
+      let set = this.breakpoints.get(i);
+      if (!set) this.breakpoints.set(i, (set = new Set()));
+      set.add(b.line);
+    }
   }
 
   setGlobals(names: FrameNames, G: any[]) {
@@ -114,7 +147,7 @@ export class Debugger {
   }
 
   enter(names: FrameNames, F: any[]) {
-    this.stack.push({ names, F, line: 0 });
+    this.stack.push({ names, F, line: 0, file: 0 });
   }
 
   leave() {
@@ -127,16 +160,17 @@ export class Debugger {
 
   snapshot(): Snapshot {
     return {
-      frames: this.stack.map((f) => ({ name: f.names.name, line: f.line, vars: describeFrame(f.names, f.F) })),
+      frames: this.stack.map((f) => ({ name: f.names.name, line: f.line, file: this.files[f.file], vars: describeFrame(f.names, f.F) })),
       globals: describeFrame(this.globals, this.G),
     };
   }
 
   /** Chamado pelo interpretador antes de executar cada comando. */
-  async before(s: { line: number; col: number }): Promise<void> {
+  async before(s: { line: number; col: number; file?: number }): Promise<void> {
     const depth = this.stack.length;
     const top = this.stack[depth - 1] ?? null;
-    if (top) top.line = s.line;
+    const file = s.file ?? 0;
+    if (top) { top.line = s.line; top.file = file; }
 
     let stop = false;
     switch (this.mode) {
@@ -147,15 +181,15 @@ export class Debugger {
     }
     // Comandos seguidos na mesma linha do mesmo quadro contam como um único passo;
     // ao mudar de linha (ou voltar a ela num laço) o controle é zerado.
-    if (this.lastStop && (this.lastStop.line !== s.line || this.lastStop.frame !== top)) this.lastStop = null;
+    if (this.lastStop && (this.lastStop.line !== s.line || this.lastStop.file !== file || this.lastStop.frame !== top)) this.lastStop = null;
     const sameAsLast = this.lastStop !== null;
     if (stop && this.mode !== "pause" && sameAsLast) stop = false;
-    if (!stop && !sameAsLast && this.breakpoints.has(s.line)) stop = true;
+    if (!stop && !sameAsLast && this.breakpoints.get(file)?.has(s.line)) stop = true;
 
     if (stop) {
-      this.lastStop = { line: s.line, frame: top };
+      this.lastStop = { line: s.line, file, frame: top };
       this.paused = true;
-      this.ev.paused(s.line, s.col, this.snapshot());
+      this.ev.paused(s.line, s.col, this.snapshot(), this.files[file] ?? "");
       await new Promise<void>((r) => { this.resume = r; });
       this.paused = false;
       return;

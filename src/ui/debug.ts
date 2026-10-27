@@ -3,7 +3,7 @@
  * destaque da linha atual e dica (tooltip) com o valor das variáveis.
  */
 import { EditorView, Decoration, DecorationSet, GutterMarker, gutter, hoverTooltip, Tooltip } from "@codemirror/view";
-import { EditorState, StateEffect, StateField, RangeSet, Extension } from "@codemirror/state";
+import { EditorState, StateEffect, StateField, RangeSet, Extension, TransactionSpec } from "@codemirror/state";
 import { Snapshot, VarInfo } from "../lang/shared/debug";
 
 // ---------------- pontos de parada ----------------
@@ -201,6 +201,21 @@ function varTipDom(v: VarLookup): HTMLElement {
   return dom;
 }
 
-export function debugExtensions(p: HoverProviders): Extension {
-  return [breakpointField, breakpointGutter, debugLineField, variableHover(p)];
+/** Efeito para marcar/limpar a linha do depurador num estado que não está no editor (aba em segundo plano). */
+export function debugLineSpec(line: number | null): TransactionSpec {
+  return { effects: setDebugLineEffect.of(line) };
+}
+
+/**
+ * Extensões de depuração. `initialBreakpoints` restaura pontos de parada (linhas 1-based)
+ * num estado recém-criado; linhas fora do documento são ignoradas.
+ */
+export function debugExtensions(p: HoverProviders, initialBreakpoints: number[] = []): Extension {
+  const field = initialBreakpoints.length
+    ? breakpointField.init((s) => {
+        const uniq = [...new Set(initialBreakpoints.filter((n) => n >= 1 && n <= s.doc.lines))].sort((a, b) => a - b);
+        return RangeSet.of(uniq.map((n) => bpMarker.range(s.doc.line(n).from)));
+      })
+    : breakpointField;
+  return [field, breakpointGutter, debugLineField, variableHover(p)];
 }

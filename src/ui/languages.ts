@@ -3,7 +3,7 @@ import { Completion, CompletionContext, CompletionResult } from "@codemirror/aut
 import { Lang } from "../lang/shared/types";
 
 // ---------------- Portugol Studio ----------------
-const STUDIO_KW = ["programa", "funcao", "inclua", "biblioteca", "const", "se", "senao", "enquanto", "faca", "para", "escolha", "caso", "contrario", "pare", "retorne"];
+const STUDIO_KW = ["programa", "funcao", "inclua", "biblioteca", "const", "se", "senao", "enquanto", "faca", "para", "escolha", "caso", "contrario", "pare", "retorne", "modulo", "importe", "publico", "privado", "estrutura", "classe", "herda", "este", "super", "nulo", "ref"];
 const STUDIO_TYPES = ["inteiro", "real", "cadeia", "caracter", "logico", "vazio"];
 const STUDIO_CONST = ["verdadeiro", "falso"];
 const STUDIO_LOGIC = ["e", "ou", "nao"];
@@ -51,7 +51,7 @@ const studioStream = StreamLanguage.define<State>({
 });
 
 // ---------------- VisuAlg ----------------
-const VA_KW = ["algoritmo", "var", "inicio", "fimalgoritmo", "const", "se", "entao", "senao", "fimse", "enquanto", "faca", "fimenquanto", "para", "de", "ate", "passo", "fimpara", "repita", "escolha", "caso", "outrocaso", "fimescolha", "funcao", "fimfuncao", "procedimento", "fimprocedimento", "retorne", "interrompa", "vetor", "tipo", "registro", "fimregistro"];
+const VA_KW = ["algoritmo", "var", "inicio", "fimalgoritmo", "const", "se", "entao", "senao", "fimse", "enquanto", "faca", "fimenquanto", "para", "de", "ate", "passo", "fimpara", "repita", "fimrepita", "escolha", "caso", "outrocaso", "fimescolha", "funcao", "fimfuncao", "procedimento", "fimprocedimento", "retorne", "interrompa", "vetor", "tipo", "registro", "fimregistro", "modulo", "fimmodulo", "importe", "como", "publico", "privado", "classe", "fimclasse", "herda", "novo", "este", "super", "nulo", "ref"];
 const VA_TYPES = ["inteiro", "real", "caractere", "caracter", "literal", "logico"];
 const VA_CONST = ["verdadeiro", "falso"];
 const VA_LOGIC = ["e", "ou", "nao", "xou", "div", "mod"];
@@ -83,8 +83,8 @@ const visualgStream = StreamLanguage.define<State>({
       if (stream.match(/^\s*\(/, false)) return "variableName.function";
       return "variableName";
     }
-    if (stream.match(/^(<-|:=|<=|>=|<>|\.\.|[-+*/\\^%=<>])/)) return "operator";
-    if (stream.match(/^[()[\],:;]/)) return "punctuation";
+    if (stream.match(/^(<-|:=|<=|>=|<>|\.\.|[-+*/\\^%=<>&])/)) return "operator";
+    if (stream.match(/^[()[\],:;.]/)) return "punctuation";
     stream.next();
     return null;
   },
@@ -128,6 +128,9 @@ function completions(lang: Lang): Completion[] {
       { label: "se …", type: "keyword", apply: "se (condicao)\n{\n\t\n}", detail: "modelo" },
       { label: "enquanto …", type: "keyword", apply: "enquanto (condicao)\n{\n\t\n}", detail: "modelo" },
       { label: "para …", type: "keyword", apply: "para (inteiro i = 0; i < 10; i++)\n{\n\t\n}", detail: "modelo" },
+      { label: "estrutura …", type: "keyword", apply: "estrutura Nome\n{\n\tinteiro campo\n}", detail: "modelo" },
+      { label: "classe …", type: "keyword", apply: "classe Nome\n{\n\tprivado inteiro valor\n\n\tpublico Nome(inteiro v) { este.valor = v }\n\tpublico inteiro obter() { retorne valor }\n}", detail: "modelo" },
+      { label: "importe …", type: "keyword", apply: "importe Modulo", detail: "modelo" },
     ];
   }
   return [
@@ -142,6 +145,8 @@ function completions(lang: Lang): Completion[] {
     { label: "para … fimpara", type: "keyword", apply: "para i de 1 ate 10 faca\n\t\nfimpara", detail: "modelo" },
     { label: "repita … ate", type: "keyword", apply: "repita\n\t\nate condicao", detail: "modelo" },
     { label: "escolha … fimescolha", type: "keyword", apply: "escolha x\n\tcaso 1\n\t\t\n\toutrocaso\n\t\t\nfimescolha", detail: "modelo" },
+    { label: "registro … fimregistro", type: "keyword", apply: "tipo\n\tNome = registro\n\t\tcampo: inteiro\n\tfimregistro", detail: "modelo" },
+    { label: "classe … fimclasse", type: "keyword", apply: "tipo\n\tNome = classe\n\t\tprivado valor: inteiro\n\t\tpublico procedimento iniciar(v: inteiro)\n\t\tpublico funcao obter(): inteiro\n\tfimclasse", detail: "modelo" },
   ];
 }
 

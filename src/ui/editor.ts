@@ -1,4 +1,4 @@
-import { EditorState, Compartment, Extension } from "@codemirror/state";
+import { EditorState, Compartment, Extension, StateEffect } from "@codemirror/state";
 import {
   EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection,
   highlightSpecialChars, rectangularSelection, crosshairCursor, dropCursor,
@@ -84,18 +84,43 @@ export class Editor {
   /** estado das variáveis mostrado na dica ao passar o mouse (null = nenhum) */
   snapshot: Snapshot | null = null;
   private lastBps = "";
+  private keymaps: Extension;
 
   constructor(parent: HTMLElement, lang: Lang, doc: string, keymaps: Extension) {
     this.lang = lang;
-    const state = EditorState.create({
-      doc,
-      extensions: [
-        keymaps,
+    this.keymaps = keymaps;
+    this.view = new EditorView({ state: this.createState(doc, lang), parent });
+  }
+
+  /** Cria o estado de um documento (cada aba tem o seu: histórico, pontos de parada, seleção...). */
+  createState(doc: string, lang: Lang, breakpoints: number[] = []): EditorState {
+    return EditorState.create({ doc, extensions: this.baseExtensions(lang, breakpoints) });
+  }
+
+  /**
+   * Troca o documento mostrado. O estado anterior é devolvido em `save` para a aba guardar.
+   * `setState` não dispara o updateListener, então cursor e pontos de parada são reemitidos aqui.
+   */
+  swap(next: { state: EditorState; lang: Lang; scroll: StateEffect<unknown> | null }, save?: (state: EditorState, scroll: StateEffect<unknown>) => void) {
+    if (save) save(this.view.state, this.view.scrollSnapshot());
+    this.lang = next.lang;
+    this.view.setState(next.state);
+    if (next.scroll) this.view.dispatch({ effects: next.scroll });
+    this.lastBps = breakpointLines(this.view.state).join(",");
+    const head = this.view.state.selection.main.head;
+    const l = this.view.state.doc.lineAt(head);
+    this.onCursor?.(l.number, head - l.from + 1);
+    this.onBreakpoints?.(breakpointLines(this.view.state));
+  }
+
+  private baseExtensions(lang: Lang, breakpoints: number[]): Extension {
+    return [
+        this.keymaps,
         debugExtensions({
           snapshot: () => this.snapshot,
           caseInsensitive: () => this.lang === "visualg",
           reference: (w) => referenceTip(this.lang, w),
-        }),
+        }, breakpoints),
         lineNumbers(),
         highlightActiveLineGutter(),
         highlightSpecialChars(),
@@ -131,9 +156,7 @@ export class Editor {
             if (key !== this.lastBps) { this.lastBps = key; this.onBreakpoints?.(bps); }
           }
         }),
-      ],
-    });
-    this.view = new EditorView({ state, parent });
+    ];
   }
 
   private langExt(lang: Lang) {

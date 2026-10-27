@@ -6,15 +6,26 @@ export type ErrorKind = "sintaxe" | "execucao" | "interno";
 
 /** Erro gerado pela análise ou pela execução de um programa. Posições são 1-based. */
 export class PortugolError extends Error {
+  /** nome do arquivo (preenchido na borda do projeto a partir de `fileIndex`) */
+  file?: string;
   constructor(
     message: string,
     public line: number,
     public col: number,
     public kind: ErrorKind = "execucao",
+    /** índice do arquivo dentro do projeto compilado */
+    public fileIndex: number = 0,
   ) {
     super(message);
     this.name = "PortugolError";
   }
+}
+
+/** Posição de um nó/erro (índice do arquivo opcional para código antigo). */
+export interface Loc {
+  line: number;
+  col: number;
+  file?: number;
 }
 
 /** Interface entre o interpretador e o mundo exterior (console, entrada, relógio). */
@@ -27,6 +38,8 @@ export interface Host {
 }
 
 export interface Program {
+  /** nomes dos arquivos do projeto, na ordem dos índices usados em `PortugolError.fileIndex` */
+  files: string[];
   run(host: Host): Promise<void>;
   /** Liga o depurador (antes de `run`): a execução passa a ser passo a passo. */
   attachDebugger(d: Debugger): void;
