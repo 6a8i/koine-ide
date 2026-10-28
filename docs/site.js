@@ -41,20 +41,43 @@
   };
   for (const el of document.querySelectorAll("code.koine")) highlight(el);
 
-  // versão mais recente: preenche links e número de versão
+  // versão mais recente: escolhe o instalador do sistema do visitante e preenche links, nomes e número de versão
+  const ua = navigator.userAgent || "";
+  const os = /Windows/i.test(ua) ? "windows" : /Mac/i.test(ua) && !/iPhone|iPad/i.test(ua) ? "macos" : /Linux|X11/i.test(ua) && !/Android/i.test(ua) ? "linux" : "windows";
+  const OS_NAME = { windows: "Windows", linux: "Linux", macos: "macOS" };
+  for (const el of document.querySelectorAll("[data-os-name]")) el.textContent = OS_NAME[os];
   const links = document.querySelectorAll("[data-latest-link]");
-  const msi = document.querySelectorAll("[data-latest-msi]");
   const vers = document.querySelectorAll("[data-latest-version]");
-  if (links.length || vers.length) {
+  const others = document.querySelector("[data-latest-others]");
+  if (links.length || vers.length || others) {
     fetch("https://api.github.com/repos/6a8i/koine-ide/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
       .then((r) => (r.ok ? r.json() : null))
       .then((rel) => {
         if (!rel) return;
-        const exe = (rel.assets || []).find((a) => /-setup\.exe$/i.test(a.name));
-        const m = (rel.assets || []).find((a) => /\.msi$/i.test(a.name));
-        if (exe) for (const a of links) a.href = exe.browser_download_url;
-        if (m) { for (const a of msi) { a.href = m.browser_download_url; a.hidden = false; } for (const s of document.querySelectorAll("[data-latest-msi-sep]")) s.hidden = false; }
+        const assets = rel.assets || [];
+        const find = (re) => assets.find((x) => re.test(x.name));
+        const kinds = [
+          { key: "windows", label: "Windows (.exe)", asset: find(/-setup\.exe$/i) },
+          { key: "windows-msi", label: "Windows (.msi)", asset: find(/\.msi$/i) },
+          { key: "linux", label: "Linux (.AppImage)", asset: find(/\.AppImage$/i) },
+          { key: "linux-deb", label: "Linux (.deb)", asset: find(/\.deb$/i) },
+          { key: "macos", label: "macOS (.dmg)", asset: find(/\.dmg$/i) },
+        ].filter((k) => k.asset);
+        const primary = kinds.find((k) => k.key === os) || kinds[0];
+        if (primary) for (const l of links) l.href = primary.asset.browser_download_url;
         for (const v of vers) v.textContent = rel.tag_name.replace(/^v/, "");
+        if (others) {
+          others.textContent = "";
+          const rest = kinds.filter((k) => k !== primary);
+          rest.forEach((k, i) => {
+            const el = document.createElement("a");
+            el.href = k.asset.browser_download_url;
+            el.textContent = k.label;
+            others.appendChild(el);
+            if (i < rest.length - 1) others.appendChild(document.createTextNode(" · "));
+          });
+          others.hidden = rest.length === 0;
+        }
       })
       .catch(() => {});
   }
