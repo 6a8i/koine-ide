@@ -159,7 +159,10 @@ A execução normal não paga nada por isso.
 e interpretador não mudam; `verdadeiro`/`falso` são escritos e lidos no idioma. O conversor (`translateSource`) troca só
 os tokens de vocabulário, preservando textos e comentários. Os textos da interface usam o português como chave
 (`src/i18n/ui/*.ts`) e os resumos da referência ficam em `src/reference/i18n/*.ts`. `npm test` valida as tabelas.
-Limitação atual: as mensagens de erro do compilador/interpretador e os comentários dos exemplos continuam em português.
+As mensagens de erro do compilador e do interpretador também são traduzidas: o código usa `m("texto em português")`
+(`src/lang/i18n/messages.ts`) e cada idioma tem um dicionário em `src/lang/i18n/messages/*.ts`; os comentários e textos dos
+exemplos têm o seu em `src/examples/i18n/*.ts`. O validador confere que nenhuma mensagem ficou sem tradução e que os
+parâmetros `{x}` batem.
 
 ## Contribuindo
 

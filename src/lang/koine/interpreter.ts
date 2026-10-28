@@ -1,3 +1,4 @@
+import { m as msg } from "../i18n/messages";
 import { BREAK, CompileOptions, Host, KoineError, Program, ReturnSignal } from "../shared/types";
 import { CoverageCollector, CoverageUnit, TestInfo, statementLines } from "../shared/testing";
 import { SourceFile } from "../protocol";
@@ -60,7 +61,7 @@ export function compileKoineProject(files: SourceFile[], entry: string, opts: Co
   const raws: RawModule[] = files.map((f, i) => parseKoine(f.source, i, f.path, opts.locale ?? "pt-BR"));
   const entryRaw = raws[entryIndex];
   if (entryRaw.importable && !opts.tests) {
-    throw new KoineError(`O arquivo ${entryRaw.file} não tem a função "inicio" e não pode ser executado diretamente. Execute o arquivo principal do projeto`, 1, 1, "sintaxe", entryIndex);
+    throw new KoineError(msg("O arquivo {file} não tem a função \"inicio\" e não pode ser executado diretamente. Execute o arquivo principal do projeto", { file: entryRaw.file }), 1, 1, "sintaxe", entryIndex);
   }
   // um arquivo só de testes pode importar o programa que testa
   const link = linkModules(raws, entryRaw, false, { canImportProgram: (from) => !!opts.tests && from.importable && from.tests.length > 0 });
@@ -98,15 +99,15 @@ function zeroStruct(decl: A.StructDecl): StructVal {
 
 function makeArray(sizes: number[], t: TypeRef, n: Loc): any {
   const [s, ...rest] = sizes;
-  if (!Number.isInteger(s) || s < 0) throw rt(`Tamanho de vetor inválido: ${s}`, n);
+  if (!Number.isInteger(s) || s < 0) throw rt(msg("Tamanho de vetor inválido: {s}", { s }), n);
   const arr = new Array(s);
   for (let i = 0; i < s; i++) arr[i] = rest.length ? makeArray(rest, t, n) : defaultValue(t);
   return arr;
 }
 
 const nullCheck = (v: any, what: string, n: Loc) => {
-  if (v === null) throw rt(`"${what}" é nulo: nenhum objeto foi criado para ele (use NomeDaClasse(...) para criar)`, n);
-  if (v === undefined) throw rt(`"${what}" foi usada antes de receber um valor`, n);
+  if (v === null) throw rt(msg("\"{what}\" é nulo: nenhum objeto foi criado para ele (use NomeDaClasse(...) para criar)", { what }), n);
+  if (v === undefined) throw rt(msg("\"{what}\" foi usada antes de receber um valor", { what }), n);
 };
 
 function describeExpr(e: A.Expr): string {
@@ -115,7 +116,7 @@ function describeExpr(e: A.Expr): string {
     case "index": return describeExpr(e.target) + "[...]";
     case "member": return describeExpr(e.obj) + "." + e.name;
     case "deref": return "*" + describeExpr(e.e);
-    default: return "expressão";
+    default: return msg("expressão");
   }
 }
 
@@ -158,7 +159,7 @@ class KoineProgram implements Program {
   /** Executa um teste: globais reiniciadas, corpo como uma função sem parâmetros. */
   async runTest(host: Host, id: number) {
     const t = this.ast.tests[id];
-    if (!t) throw new KoineError(`Teste ${id} não existe`, 0, 0, "interno");
+    if (!t) throw new KoineError(msg("Teste {id} não existe", { id }), 0, 0, "interno");
     await this.initGlobals(host);
     await this.runMain(t);
   }
@@ -189,12 +190,12 @@ class KoineProgram implements Program {
   }
 
   private captured(at: Loc): string {
-    if (!this.host.captured) throw rt('"saida" só funciona dentro de um teste', at);
+    if (!this.host.captured) throw rt(msg("\"saida\" só funciona dentro de um teste"), at);
     return this.host.captured();
   }
 
   private feed(text: unknown, at: Loc) {
-    if (!this.host.feed) throw rt('"entrada" só funciona dentro de um teste', at);
+    if (!this.host.feed) throw rt(msg("\"entrada\" só funciona dentro de um teste"), at);
     this.host.feed(String(text));
   }
 
@@ -298,7 +299,7 @@ class KoineProgram implements Program {
     const declared = sizes[0];
     if (declared) {
       const sz = this.evalE(declared, F);
-      if (arr.length > sz) throw rt(`O vetor foi declarado com tamanho ${sz}, mas recebeu ${arr.length} valores`, n);
+      if (arr.length > sz) throw rt(msg("O vetor foi declarado com tamanho {sz}, mas recebeu {length} valores", { sz, length: arr.length }), n);
       while (arr.length < sz) arr.push(t.dims > 1 ? makeArray(sizes.slice(1).map((e) => (e ? this.evalE(e, F) : 0)), t, n) : defaultValue(t));
     }
     return arr;
@@ -316,7 +317,7 @@ class KoineProgram implements Program {
       case "var": {
         const v = e.global ? this.G[e.slot] : F[e.slot];
         if (e.ref) return (v as Ref).get();
-        if (v === undefined) throw rt(`A variável "${e.name}" foi usada antes de receber um valor`, e);
+        if (v === undefined) throw rt(msg("A variável \"{name}\" foi usada antes de receber um valor", { name: e.name }), e);
         return v;
       }
       case "index": return this.indexGet(e, F);
@@ -327,7 +328,7 @@ class KoineProgram implements Program {
       }
       case "deref": {
         const r = this.evalE(e.e, F);
-        if (r === null) throw rt(`Referência nula: "${describeExpr(e.e)}" não aponta para nenhuma variável (use & para apontar)`, e);
+        if (r === null) throw rt(msg("Referência nula: \"{v}\" não aponta para nenhuma variável (use & para apontar)", { v: describeExpr(e.e) }), e);
         return (r as Ref).get();
       }
       case "addr": return this.makeRef(e.target, F);
@@ -360,7 +361,7 @@ class KoineProgram implements Program {
       case "call": return this.call(e, F);
       case "mcall": return this.mcall(e, F);
       case "new": return this.construct(e, F);
-      case "arr": throw rt("Lista de valores inesperada", e);
+      case "arr": throw rt(msg("Lista de valores inesperada"), e);
     }
   }
 
@@ -368,9 +369,11 @@ class KoineProgram implements Program {
     let arr = this.evalE(e.target, F);
     for (let i = 0; i < e.indices.length; i++) {
       const idx = this.evalE(e.indices[i], F);
-      if (!Array.isArray(arr)) throw rt("Tentativa de indexar algo que não é um vetor", e);
+      if (!Array.isArray(arr)) throw rt(msg("Tentativa de indexar algo que não é um vetor"), e);
       if (!Number.isInteger(idx) || idx < 0 || idx >= arr.length)
-        throw rt(`Índice ${idx} fora dos limites (o ${Array.isArray(arr[0]) ? "número de linhas" : "tamanho"} é ${arr.length}, índices válidos: 0 a ${arr.length - 1})`, e.indices[i]);
+        throw rt((Array.isArray(arr[0])
+          ? msg("Índice {idx} fora dos limites (o número de linhas é {length}, índices válidos: 0 a {max})", { idx, length: arr.length, max: arr.length - 1 })
+          : msg("Índice {idx} fora dos limites (o tamanho é {length}, índices válidos: 0 a {max})", { idx, length: arr.length, max: arr.length - 1 })), e.indices[i]);
       arr = arr[idx];
     }
     return arr;
@@ -396,7 +399,7 @@ class KoineProgram implements Program {
       }
       case "deref": {
         const r = this.evalE(t.e, F);
-        if (r === null) throw rt(`Referência nula: "${describeExpr(t.e)}" não aponta para nenhuma variável (use & para apontar)`, t);
+        if (r === null) throw rt(msg("Referência nula: \"{v}\" não aponta para nenhuma variável (use & para apontar)", { v: describeExpr(t.e) }), t);
         (r as Ref).set(v);
         return;
       }
@@ -407,13 +410,13 @@ class KoineProgram implements Program {
     let arr = this.evalE(t.target, F);
     for (let i = 0; i < t.indices.length; i++) {
       const idx = this.evalE(t.indices[i], F);
-      if (!Array.isArray(arr)) throw rt("Tentativa de indexar algo que não é um vetor", t);
+      if (!Array.isArray(arr)) throw rt(msg("Tentativa de indexar algo que não é um vetor"), t);
       if (!Number.isInteger(idx) || idx < 0 || idx >= arr.length)
-        throw rt(`Índice ${idx} fora dos limites (tamanho ${arr.length}, índices válidos: 0 a ${arr.length - 1})`, t.indices[i]);
+        throw rt(msg("Índice {idx} fora dos limites (tamanho {length}, índices válidos: 0 a {v})", { idx, length: arr.length, v: arr.length - 1 }), t.indices[i]);
       if (i === t.indices.length - 1) return { arr, idx };
       arr = arr[idx];
     }
-    throw rt("Índice inválido", t);
+    throw rt(msg("Índice inválido"), t);
   }
 
   private binop(e: { op: string; line: number; col: number; file?: number; t: TypeRef; l?: A.Expr; r?: A.Expr }, l: any, r: any): any {
@@ -426,10 +429,10 @@ class KoineProgram implements Program {
       case "-": return l - r;
       case "*": return l * r;
       case "/":
-        if (r === 0) throw rt("Divisão por zero", e);
+        if (r === 0) throw rt(msg("Divisão por zero"), e);
         return e.t.base === "inteiro" ? Math.trunc(l / r) : l / r;
       case "%":
-        if (r === 0) throw rt("Divisão por zero (resto)", e);
+        if (r === 0) throw rt(msg("Divisão por zero (resto)"), e);
         return l % r;
       case "==": return l instanceof StructVal ? structEquals(l, r) : l === r;
       case "!=": return l instanceof StructVal ? !structEquals(l, r) : l !== r;
@@ -445,7 +448,7 @@ class KoineProgram implements Program {
       case "<<": return l << r;
       case ">>": return l >> r;
     }
-    throw rt(`Operador desconhecido "${e.op}"`, e);
+    throw rt(msg("Operador desconhecido \"{op}\"", { op: e.op }), e);
   }
 
   /** Argumentos de uma função/método do usuário (params pode começar com `este`, preenchido por quem chama). */
@@ -500,7 +503,7 @@ class KoineProgram implements Program {
       return this.invoke(m, args, e);
     }
     const obj = this.evalE(e.obj, F);
-    if (obj === null) throw rt(`Tentativa de chamar "${e.name}" em "${describeExpr(e.obj)}", que é nulo (nenhum objeto foi criado)`, e);
+    if (obj === null) throw rt(msg("Tentativa de chamar \"{name}\" em \"{v}\", que é nulo (nenhum objeto foi criado)", { name: e.name, v: describeExpr(e.obj) }), e);
     const m = (obj as ObjVal).cls.vtable[e.vslot] as A.MethodDecl;
     const args = this.argsFor(m.params, e.args, e.copyArgs, F, 1);
     args[0] = obj;
@@ -544,7 +547,7 @@ class KoineProgram implements Program {
         return new Ref(
           () => {
             const v = M[slot];
-            if (v === undefined) throw rt(`A variável "${name}" foi usada antes de receber um valor`, a);
+            if (v === undefined) throw rt(msg("A variável \"{name}\" foi usada antes de receber um valor", { name }), a);
             return v;
           },
           (v) => { M[slot] = v; },
@@ -562,7 +565,7 @@ class KoineProgram implements Program {
       }
       case "deref": {
         const r = this.evalE(a.e, F);
-        if (r === null) throw rt(`Referência nula: "${describeExpr(a.e)}" não aponta para nenhuma variável`, a);
+        if (r === null) throw rt(msg("Referência nula: \"{v}\" não aponta para nenhuma variável", { v: describeExpr(a.e) }), a);
         return r as Ref;
       }
     }
@@ -689,7 +692,7 @@ class KoineProgram implements Program {
         for (let i = 0; i < idxs.length; i++) {
           const idx = idxs[i];
           if (!Array.isArray(arr) || !Number.isInteger(idx) || idx < 0 || idx >= arr.length)
-            throw rt(`Índice ${idx} fora dos limites (tamanho ${Array.isArray(arr) ? arr.length : 0})`, e.indices[i]);
+            throw rt(msg("Índice {idx} fora dos limites (tamanho {v})", { idx, v: Array.isArray(arr) ? arr.length : 0 }), e.indices[i]);
           arr = arr[idx];
         }
         return arr;
@@ -701,7 +704,7 @@ class KoineProgram implements Program {
       }
       case "deref": {
         const r = await this.evalA(e.e, F);
-        if (r === null) throw rt(`Referência nula: "${describeExpr(e.e)}" não aponta para nenhuma variável (use & para apontar)`, e);
+        if (r === null) throw rt(msg("Referência nula: \"{v}\" não aponta para nenhuma variável (use & para apontar)", { v: describeExpr(e.e) }), e);
         return (r as Ref).get();
       }
       case "bin": {
@@ -791,7 +794,7 @@ class KoineProgram implements Program {
       return this.invokeA(m, args, e);
     }
     const obj = await this.evalA(e.obj, F);
-    if (obj === null) throw rt(`Tentativa de chamar "${e.name}" em "${describeExpr(e.obj)}", que é nulo (nenhum objeto foi criado)`, e);
+    if (obj === null) throw rt(msg("Tentativa de chamar \"{name}\" em \"{v}\", que é nulo (nenhum objeto foi criado)", { name: e.name, v: describeExpr(e.obj) }), e);
     const m = (obj as ObjVal).cls.vtable[e.vslot] as A.MethodDecl;
     const args = await this.argsForA(m.params, e.args, e.copyArgs, F, 1);
     args[0] = obj;
@@ -848,18 +851,18 @@ class KoineProgram implements Program {
     switch (t.base) {
       case "inteiro": {
         const v = parseIntStrict(line);
-        if (v === null) throw rt(`Valor inválido: "${line}" não é um número inteiro`, n);
+        if (v === null) throw rt(msg("Valor inválido: \"{line}\" não é um número inteiro", { line }), n);
         return v;
       }
       case "real": {
         const v = parseRealStrict(line);
-        if (v === null) throw rt(`Valor inválido: "${line}" não é um número real`, n);
+        if (v === null) throw rt(msg("Valor inválido: \"{line}\" não é um número real", { line }), n);
         return v;
       }
       case "logico": {
         const b = parseBool(line);
         if (b !== null) return b;
-        throw rt(`Valor inválido: "${line}" não é um valor lógico (digite ${BOOL_WORDS.yes} ou ${BOOL_WORDS.no})`, n);
+        throw rt(msg("Valor inválido: \"{line}\" não é um valor lógico (digite {yes} ou {no})", { line, yes: BOOL_WORDS.yes, no: BOOL_WORDS.no }), n);
       }
       case "caracter": return line.length ? line[0] : "";
       default: return line;

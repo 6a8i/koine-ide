@@ -12,6 +12,8 @@ import { REFERENCE } from "../src/reference";
 import { compileProject } from "../src/lang";
 import { BufferHost, setBooleanWords } from "../src/lang/shared/runtime";
 import { EXAMPLES } from "../src/examples";
+import { EXAMPLE_I18N, exampleTexts, localizeExample } from "../src/examples/i18n";
+import { MESSAGES, setMessageLocale } from "../src/lang/i18n/messages";
 import { createRequire } from "module";
 import { UI_EN } from "../src/i18n/ui/en";
 import { UI_ES } from "../src/i18n/ui/es";
@@ -25,6 +27,10 @@ import { UI_ZH } from "../src/i18n/ui/zh";
 const UI: Record<string, Record<string, string>> = { en: UI_EN, es: UI_ES, el: UI_EL, ru: UI_RU, uk: UI_UK, pl: UI_PL, ja: UI_JA, ko: UI_KO, zh: UI_ZH };
 const { extract } = createRequire(import.meta.url)("./ui-keys.cjs") as { extract: () => string[] };
 const UI_KEYS: string[] = extract();
+const { extract: extractMessages } = createRequire(import.meta.url)("./message-keys.cjs") as { extract: () => string[] };
+const MSG_KEYS: string[] = extractMessages();
+const EXAMPLE_KEYS: string[] = [...new Set(EXAMPLES.flatMap((ex) => (ex.files ?? [{ code: ex.code ?? "" }]).flatMap((f) => exampleTexts(f.code))))];
+const placeholders = (s: string) => (s.match(/{[A-Za-z_][A-Za-z0-9_]*}/g) ?? []).sort().join(",");
 
 const IDENT = /^[\p{L}_][\p{L}\p{N}_]*$/u;
 const only = process.argv[2] as Locale | undefined;
@@ -61,13 +67,43 @@ async function checkLocale(locale: Locale) {
       const p = compileProject(translated, translated[0].path, { locale, tests: true });
       if (!p.tests.length) {
         const h = new BufferHost(["1", "2", "3", "4", "5", "6", "7", "8"]);
-        try { await p.run(h); } catch (err) { if (!/não há mais linhas/.test(String(err))) throw err; }
+        const noMore = MESSAGES[locale]?.["Teste pediu entrada, mas não há mais linhas"] ?? "Teste pediu entrada, mas não há mais linhas";
+        try { await p.run(h); } catch (err) { if (!String(err).includes(noMore)) throw err; }
       }
     } catch (err) {
       bad(`${locale}: exemplo "${ex.title}" convertido não compila/executa: ${(err as Error).message}`);
     }
   }
   setBooleanWords("verdadeiro", "falso");
+  setMessageLocale("pt-BR");
+  // mensagens do compilador/interpretador
+  const msgs = MESSAGES[locale] ?? {};
+  const missingMsg = MSG_KEYS.filter((k) => !msgs[k]);
+  if (missingMsg.length) bad(`${locale}: mensagens sem tradução: ${missingMsg.length} de ${MSG_KEYS.length}: ${missingMsg.slice(0, 5).map((k) => JSON.stringify(k)).join(", ")}${missingMsg.length > 5 ? "…" : ""}`);
+  for (const k of Object.keys(msgs)) {
+    if (!MSG_KEYS.includes(k)) bad(`${locale}: mensagem desconhecida no dicionário: ${JSON.stringify(k)}`);
+    if (placeholders(k) !== placeholders(msgs[k])) bad(`${locale}: parâmetros diferentes na mensagem ${JSON.stringify(k)} → ${JSON.stringify(msgs[k])}`);
+  }
+  // textos dos exemplos (comentários e literais)
+  const exd = EXAMPLE_I18N[locale] ?? {};
+  const missingEx = EXAMPLE_KEYS.filter((k) => exd[k] === undefined);
+  if (missingEx.length) bad(`${locale}: textos de exemplo sem tradução: ${missingEx.length} de ${EXAMPLE_KEYS.length}: ${missingEx.slice(0, 5).map((k) => JSON.stringify(k)).join(", ")}${missingEx.length > 5 ? "…" : ""}`);
+  for (const k of Object.keys(exd)) {
+    if (!EXAMPLE_KEYS.includes(k)) bad(`${locale}: texto de exemplo desconhecido no dicionário: ${JSON.stringify(k)}`);
+    const v = exd[k];
+    if ((k.endsWith(" ") !== v.endsWith(" ")) || (k.startsWith(" ") !== v.startsWith(" "))) bad(`${locale}: espaços nas pontas diferentes em ${JSON.stringify(k)} → ${JSON.stringify(v)}`);
+    // os textos vêm do código-fonte dos exemplos: "\n" é a sequência de dois caracteres
+    if ((k.match(/\\n/g) ?? []).length !== (v.match(/\\n/g) ?? []).length) bad(`${locale}: quebras de linha (\\n) diferentes em ${JSON.stringify(k)} → ${JSON.stringify(v)}`);
+    // literal sem aspas no original não pode ganhar aspas sem escape (quebraria o código); comentários com aspas podem
+    if (!/"/.test(k) && /(^|[^\\])"/.test(v)) bad(`${locale}: aspas sem escape no texto de exemplo ${JSON.stringify(k)} → ${JSON.stringify(v)}`);
+  }
+  // exemplos localizados (palavras + textos) continuam compilando
+  for (const ex of EXAMPLES) {
+    const files = ex.files ? ex.files.map((f) => ({ path: f.name, source: f.code })) : [{ path: "principal.koi", source: ex.code ?? "" }];
+    const loc = files.map((f) => ({ path: f.path, source: localizeExample(translateSource(f.source, "pt-BR", locale), locale) }));
+    try { compileProject(loc, loc[0].path, { locale, tests: true }); } catch (err) { bad(`${locale}: exemplo "${ex.title}" com textos traduzidos não compila: ${(err as Error).message}`); }
+  }
+  setMessageLocale("pt-BR");
   // referência
   const ref = REF_I18N[locale] ?? {};
   const missingRef = REFERENCE.filter((e) => !ref[e.name]?.summary).map((e) => e.name);

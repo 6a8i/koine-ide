@@ -1,3 +1,5 @@
+import { m, getMessageLocale } from "../i18n/messages";
+import { word } from "../i18n";
 export type Base =
   | "inteiro" | "real" | "cadeia" | "caracter" | "logico" | "vazio" | "?"
   | "named" // tipo escrito pelo usuário, ainda não resolvido ("Ponto", "Geo.Ponto")
@@ -20,15 +22,15 @@ export const T_UNK: TypeRef = { base: "?", dims: 0 };
 export const withDims = (t: TypeRef, dims: number): TypeRef => ({ ...t, dims });
 
 export function typeName(t: TypeRef): string {
-  if (t.base === "?") return "desconhecido";
+  if (t.base === "?") return m("desconhecido");
   let base: string;
   switch (t.base) {
     case "ref": base = "ref " + (t.elem ? typeName(t.elem) : "?"); break;
     case "named": case "estrutura": case "classe": base = t.name ?? t.decl?.name ?? t.base; break;
-    default: base = t.base;
+    default: base = word(getMessageLocale(), t.base);
   }
-  if (t.dims === 1) return `vetor de ${base}`;
-  if (t.dims === 2) return `matriz de ${base}`;
+  if (t.dims === 1) return m("vetor de {tipo}", { tipo: base });
+  if (t.dims === 2) return m("matriz de {tipo}", { tipo: base });
   return base;
 }
 

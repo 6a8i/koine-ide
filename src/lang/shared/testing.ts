@@ -2,6 +2,7 @@
  * Suporte a testes escritos em Koiné: descoberta, host de captura, afirmações e cobertura.
  * O interpretador chama `hit()` antes de cada comando quando há um coletor ligado.
  */
+import { m } from "../i18n/messages";
 import { Host, KoineError } from "./types";
 import { StructVal, ObjVal, structEquals } from "./runtime";
 import { describeValue } from "./debug";
@@ -46,7 +47,7 @@ export class TestHost implements Host {
   }
   async readLine(): Promise<string> {
     if (this.inputs.length === 0) {
-      throw new KoineError('O programa pediu uma entrada ("leia"), mas o teste não forneceu nenhuma. Use entrada("valor") antes de chamar o código testado', 0, 0, "execucao");
+      throw new KoineError(m("O programa pediu uma entrada (\"leia\"), mas o teste não forneceu nenhuma. Use entrada(\"valor\") antes de chamar o código testado"), 0, 0, "execucao");
     }
     return this.inputs.shift()!;
   }
@@ -84,20 +85,20 @@ const fail = (msg: string, at: { line: number; col: number; file?: number }) => 
 export const ASSERTS = {
   afirme(args: any[], at: { line: number; col: number; file?: number }) {
     const [cond, msg] = args;
-    if (cond !== true) throw fail(msg !== undefined && msg !== "" ? `Afirmação falhou: ${msg}` : "Afirmação falhou: a condição é falsa", at);
+    if (cond !== true) throw fail(msg !== undefined && msg !== "" ? m("Afirmação falhou: {msg}", { msg }) : m("Afirmação falhou: a condição é falsa"), at);
   },
   afirme_igual(args: any[], at: { line: number; col: number; file?: number }) {
     const [expected, got, msg] = args;
-    if (!valuesEqual(expected, got)) throw fail(`${msg ? msg + ": " : ""}esperava ${show(expected)}, mas obteve ${show(got)}`, at);
+    if (!valuesEqual(expected, got)) throw fail(msg ? m("{msg}: esperava {esperado}, mas obteve {obtido}", { msg, esperado: show(expected), obtido: show(got) }) : m("esperava {esperado}, mas obteve {obtido}", { esperado: show(expected), obtido: show(got) }), at);
   },
   afirme_diferente(args: any[], at: { line: number; col: number; file?: number }) {
     const [a, b, msg] = args;
-    if (valuesEqual(a, b)) throw fail(`${msg ? msg + ": " : ""}esperava um valor diferente de ${show(a)}, mas obteve o mesmo`, at);
+    if (valuesEqual(a, b)) throw fail(msg ? m("{msg}: esperava um valor diferente de {valor}, mas obteve o mesmo", { msg, valor: show(a) }) : m("esperava um valor diferente de {valor}, mas obteve o mesmo", { valor: show(a) }), at);
   },
   afirme_aproximado(args: any[], at: { line: number; col: number; file?: number }) {
     const [expected, got, tol, msg] = args;
-    if (typeof expected !== "number" || typeof got !== "number") throw fail("afirme_aproximado compara números", at);
-    if (!(Math.abs(expected - got) <= Math.abs(tol))) throw fail(`${msg ? msg + ": " : ""}esperava ${show(expected)} (± ${show(tol)}), mas obteve ${show(got)}`, at);
+    if (typeof expected !== "number" || typeof got !== "number") throw fail(m("afirme_aproximado compara números"), at);
+    if (!(Math.abs(expected - got) <= Math.abs(tol))) throw fail(msg ? m("{msg}: esperava {esperado} (± {tolerancia}), mas obteve {obtido}", { msg, esperado: show(expected), tolerancia: show(tol), obtido: show(got) }) : m("esperava {esperado} (± {tolerancia}), mas obteve {obtido}", { esperado: show(expected), tolerancia: show(tol), obtido: show(got) }), at);
   },
 };
 

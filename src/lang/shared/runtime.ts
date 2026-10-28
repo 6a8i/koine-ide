@@ -1,3 +1,4 @@
+import { m } from "../i18n/messages";
 import { Host, KoineError } from "./types";
 
 export const MAX_CALL_DEPTH = 1200;
@@ -79,7 +80,7 @@ export function structEquals(a: any, b: any): boolean {
 
 export function stackOverflow(line: number, col: number) {
   return new KoineError(
-    "Estouro de pilha: a função chamou a si mesma vezes demais (recursão sem fim?)",
+    m("Estouro de pilha: a função chamou a si mesma vezes demais (recursão sem fim?)"),
     line,
     col,
   );
@@ -131,7 +132,7 @@ export class BufferHost implements Host {
     this.out += t;
   }
   async readLine() {
-    if (this.inputs.length === 0) throw new KoineError("Teste pediu entrada, mas não há mais linhas", 0, 0);
+    if (this.inputs.length === 0) throw new KoineError(m("Teste pediu entrada, mas não há mais linhas"), 0, 0);
     return this.inputs.shift()!;
   }
   clear() {

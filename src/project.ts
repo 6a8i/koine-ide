@@ -5,6 +5,7 @@
 import { EditorState, StateEffect, TransactionSpec } from "@codemirror/state";
 import { LANG, isKoineFile, hasEntryPoint } from "./lang";
 import { NEW_PROGRAM } from "./examples";
+import { localizeExample } from "./examples/i18n";
 import { translateSource } from "./lang/i18n";
 import { SourceFile } from "./lang/protocol";
 import type { Editor } from "./ui/editor";
@@ -208,7 +209,7 @@ export class Project {
   newUntitled(text?: string, name?: string, activate = true, clean = text === undefined, group?: string): Doc {
     const n = this.untitledSeq++;
     const key = "untitled:" + n;
-    const content = text ?? translateSource(NEW_PROGRAM, "pt-BR", getLocale());
+    const content = text ?? localizeExample(translateSource(NEW_PROGRAM, "pt-BR", getLocale()), getLocale());
     const doc: Doc = {
       key, path: null, name: name ?? `${t("sem título")}${n > 1 ? "-" + n : ""}.${LANG.ext}`,
       state: this.editor.createState(content), scroll: null, savedText: clean ? content : "\0", dirty: !clean, missing: false,

@@ -2,17 +2,20 @@ import { compileKoine, compileKoineProject } from "./koine/interpreter";
 import { CompileOptions, Program } from "./shared/types";
 import { SourceFile } from "./protocol";
 import { Locale, escapeRe, wordAlternatives } from "./i18n";
+import { setMessageLocale } from "./i18n/messages";
 
 /** Nome da linguagem e extensão dos arquivos. */
 export const LANG = { name: "Koiné", ext: "koi" } as const;
 
 /** Compila um único arquivo (atalho usado pelos testes). */
 export function compile(src: string): Program {
+  setMessageLocale("pt-BR");
   return compileKoine(src);
 }
 
 /** Compila um projeto: todos os arquivos, com `entry` como ponto de partida. */
 export function compileProject(files: SourceFile[], entry: string, opts: CompileOptions = {}): Program {
+  setMessageLocale(opts.locale ?? "pt-BR");
   return compileKoineProject(files, entry, opts);
 }
 
