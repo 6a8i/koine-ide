@@ -105,8 +105,8 @@ jobs:
             - `Koine.IDE_x.y.z_x64_pt-BR.msi`: instalador MSI, para quem prefere ou para distribuição em rede
 
             **Linux (x86-64)**
-            - `koine-ide_x.y.z_amd64.AppImage`: funciona em qualquer distribuição; dê permissão de execução (`chmod +x`) e abra
-            - `koine-ide_x.y.z_amd64.deb`: Debian, Ubuntu, Mint e derivados (`sudo apt install ./koine-ide_x.y.z_amd64.deb`)
+            - `Koine.IDE_x.y.z_amd64.AppImage`: funciona em qualquer distribuição; dê permissão de execução (`chmod +x`) e abra
+            - `Koine.IDE_x.y.z_amd64.deb`: Debian, Ubuntu, Mint e derivados (`sudo apt install ./Koine.IDE_x.y.z_amd64.deb`)
 
             **macOS 11 ou mais recente (Intel e Apple Silicon)**
             - `Koine.IDE_x.y.z_universal.dmg`: abra e arraste para Aplicativos
