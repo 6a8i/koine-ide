@@ -36,8 +36,8 @@ pede senha de administrador, e todos são gerados automaticamente pelo GitHub Ac
 | Sistema | Arquivo | Como instalar |
 | --- | --- | --- |
 | Windows 10/11 (64 bits) | `Koine.IDE_x.y.z_x64-setup.exe` (ou `.msi`) | Execute. O SmartScreen pode avisar "editor desconhecido": *Mais informações* → *Executar assim mesmo*. |
-| Linux (x86-64) | `koine-ide_x.y.z_amd64.AppImage` | `chmod +x` e execute; precisa do WebKitGTK 4.1 (Ubuntu 22.04+, Debian 12+, Fedora 36+). |
-| Debian/Ubuntu/Mint | `koine-ide_x.y.z_amd64.deb` | `sudo apt install ./koine-ide_x.y.z_amd64.deb`; registra o menu e a extensão `.koi`. |
+| Linux (x86-64) | `Koine.IDE_x.y.z_amd64.AppImage` | `chmod +x` e execute; precisa do WebKitGTK 4.1 (Ubuntu 22.04+, Debian 12+, Fedora 36+). |
+| Debian/Ubuntu/Mint | `Koine.IDE_x.y.z_amd64.deb` | `sudo apt install ./Koine.IDE_x.y.z_amd64.deb`; registra o menu e a extensão `.koi`. |
 | macOS 11+ (Intel e Apple Silicon) | `Koine.IDE_x.y.z_universal.dmg` | Arraste para Aplicativos; na primeira vez, botão direito → *Abrir* (o app não é notarizado). |
 
 Depois de instalado, arquivos `.koi` abrem com duplo clique. Passo a passo no
