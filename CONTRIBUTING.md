@@ -107,8 +107,9 @@ Revisão de falante nativo é muito bem-vinda: diga na issue/PR qual é o seu id
 
 Os mantenedores publicam versões em três passos: um PR que sobe a versão em `package.json`, `src-tauri/tauri.conf.json`
 e `src-tauri/Cargo.toml` (as três iguais) e descreve a versão no `CHANGELOG.md`; depois do merge, uma tag assinada
-`vX.Y.Z` na `main`. A pipeline de release confere a versão, roda os testes e anexa à página de *Releases* os instaladores
-de Windows, Linux e macOS.
+`vX.Y.Z` na `main`. A pipeline de release confere a versão, roda os testes, anexa à página de *Releases* os instaladores
+de Windows (instalador, MSI e versão portátil), Linux e macOS e, com o segredo `WINGET_TOKEN`, envia a nova versão ao
+winget (veja `winget/README.md`).
 
 ## Dúvidas
 

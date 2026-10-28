@@ -2,5 +2,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+    koine_ide_lib::setup_portable_mode();
     koine_ide_lib::run()
 }

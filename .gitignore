@@ -12,3 +12,4 @@ docs/idiomas.html
 # configuração local do assistente de código
 .claude/
 docs/media/*.webm
+winget/out/
