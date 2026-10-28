@@ -1,4 +1,5 @@
-# Release: ao criar uma tag vX.Y.Z, gera o instalador do Windows (.exe NSIS e .msi) e publica em Releases.
+# Release: ao criar uma tag vX.Y.Z, gera os instaladores (Windows .exe/.msi, Linux .AppImage/.deb, macOS .dmg)
+# e publica em Releases. Execução manual (workflow_dispatch) só gera os artefatos, sem publicar.
 name: Release
 
 on:
@@ -39,12 +40,36 @@ jobs:
       - run: npm ci
       - run: npm test
 
-  windows:
-    name: Instalador do Windows
+  build:
+    name: ${{ matrix.name }}
     needs: [check-version, tests]
     # check-version é pulado na execução manual; nas tags precisa ter passado
     if: ${{ always() && needs.tests.result == 'success' && (needs.check-version.result == 'success' || needs.check-version.result == 'skipped') }}
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows (x64)
+            os: windows-latest
+            args: ""
+            artifact: koine-ide-windows
+            paths: |
+              src-tauri/target/release/bundle/nsis/*.exe
+              src-tauri/target/release/bundle/msi/*.msi
+          - name: Linux (x64)
+            os: ubuntu-22.04
+            args: ""
+            artifact: koine-ide-linux
+            paths: |
+              src-tauri/target/release/bundle/appimage/*.AppImage
+              src-tauri/target/release/bundle/deb/*.deb
+          - name: macOS (universal)
+            os: macos-latest
+            args: "--target universal-apple-darwin"
+            artifact: koine-ide-macos
+            paths: |
+              src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -52,9 +77,17 @@ jobs:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          # o binário universal do macOS precisa das duas arquiteturas
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      - name: Dependências do sistema (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libxdo-dev libssl-dev build-essential curl wget file
       - run: npm ci
       - name: Build e publicação (tauri-action)
         uses: tauri-apps/tauri-action@v1
@@ -65,20 +98,27 @@ jobs:
           tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
           releaseName: "Koiné IDE v__VERSION__"
           releaseBody: |
-            Instalador do Koiné IDE para Windows 10/11 (64 bits).
+            Koiné IDE para Windows, Linux e macOS. Todos os arquivos são gerados automaticamente pelo GitHub Actions a partir desta tag.
 
-            - **Koine.IDE_x.y.z_x64-setup.exe**: instalador recomendado (NSIS, instala só para o usuário atual, sem precisar de administrador)
-            - **Koine.IDE_x.y.z_x64_pt-BR.msi**: instalador MSI, para quem prefere ou para distribuição em rede
+            **Windows 10/11 (64 bits)**
+            - `Koine.IDE_x.y.z_x64-setup.exe`: instalador recomendado (instala só para o usuário atual, sem precisar de administrador)
+            - `Koine.IDE_x.y.z_x64_pt-BR.msi`: instalador MSI, para quem prefere ou para distribuição em rede
 
-            Baixe, execute e abra um arquivo `.koi`. O Windows pode avisar que o editor é desconhecido porque o instalador não é assinado; clique em "Mais informações" → "Executar assim mesmo".
+            **Linux (x86-64)**
+            - `koine-ide_x.y.z_amd64.AppImage`: funciona em qualquer distribuição; dê permissão de execução (`chmod +x`) e abra
+            - `koine-ide_x.y.z_amd64.deb`: Debian, Ubuntu, Mint e derivados (`sudo apt install ./koine-ide_x.y.z_amd64.deb`)
+
+            **macOS 11 ou mais recente (Intel e Apple Silicon)**
+            - `Koine.IDE_x.y.z_universal.dmg`: abra e arraste para Aplicativos
+
+            Os instaladores ainda não são assinados. No Windows, o SmartScreen pode avisar "editor desconhecido": clique em "Mais informações" → "Executar assim mesmo". No macOS, na primeira vez clique com o botão direito no aplicativo → "Abrir" → "Abrir". Veja o guia: https://6a8i.github.io/koine-ide/guia.html#instalar
           releaseDraft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           uploadReleaseAssets: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          args: ${{ matrix.args }}
       - name: Guarda os instaladores como artefato do workflow
         uses: actions/upload-artifact@v7
         with:
-          name: koine-ide-windows
-          path: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/msi/*.msi
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.paths }}
           if-no-files-found: error

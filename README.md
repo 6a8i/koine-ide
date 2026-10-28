@@ -30,14 +30,18 @@ exemplos e a tabela dos dez idiomas).
 
 ## Download e instalação
 
-Baixe o instalador mais recente na página de [**Releases**](https://github.com/6a8i/koine-ide/releases/latest):
+Baixe o arquivo do seu sistema na página de [**Releases**](https://github.com/6a8i/koine-ide/releases/latest). Nenhum
+pede senha de administrador, e todos são gerados automaticamente pelo GitHub Actions a partir do código.
 
-- `Koine.IDE_x.y.z_x64-setup.exe`: instalador recomendado para Windows 10/11 (instala só para o seu usuário, sem
-  precisar de administrador).
-- `Koine.IDE_x.y.z_x64_pt-BR.msi`: instalador MSI, para quem prefere ou para distribuição em rede.
+| Sistema | Arquivo | Como instalar |
+| --- | --- | --- |
+| Windows 10/11 (64 bits) | `Koine.IDE_x.y.z_x64-setup.exe` (ou `.msi`) | Execute. O SmartScreen pode avisar "editor desconhecido": *Mais informações* → *Executar assim mesmo*. |
+| Linux (x86-64) | `koine-ide_x.y.z_amd64.AppImage` | `chmod +x` e execute; precisa do WebKitGTK 4.1 (Ubuntu 22.04+, Debian 12+, Fedora 36+). |
+| Debian/Ubuntu/Mint | `koine-ide_x.y.z_amd64.deb` | `sudo apt install ./koine-ide_x.y.z_amd64.deb`; registra o menu e a extensão `.koi`. |
+| macOS 11+ (Intel e Apple Silicon) | `Koine.IDE_x.y.z_universal.dmg` | Arraste para Aplicativos; na primeira vez, botão direito → *Abrir* (o app não é notarizado). |
 
-Execute o instalador e pronto: arquivos `.koi` passam a abrir com duplo clique. Como o instalador ainda não é assinado,
-o Windows pode mostrar o aviso "editor desconhecido"; clique em *Mais informações* → *Executar assim mesmo*.
+Depois de instalado, arquivos `.koi` abrem com duplo clique. Passo a passo no
+[guia de instalação](https://6a8i.github.io/koine-ide/guia.html#instalar).
 
 ## Como usar
 
@@ -96,7 +100,7 @@ As palavras em português continuam valendo em qualquer idioma.
 
 ## Desenvolvimento
 
-Pré-requisitos (Windows):
+Pré-requisitos (Windows; no Linux instale as dependências do Tauri com `apt`, como no workflow de release; no macOS, as Xcode Command Line Tools):
 
 1. **Node.js 18+** — <https://nodejs.org>
 2. **Rust** — <https://rustup.rs> (instala o `cargo`)

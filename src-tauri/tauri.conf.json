@@ -27,17 +27,42 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "category": "Education",
     "shortDescription": "IDE para aprender programação com pseudocódigo em vários idiomas",
     "longDescription": "Escreva, depure e teste programas em Koiné (.koi), uma linguagem de pseudocódigo com palavras reservadas e interface no seu idioma.",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico", "icons/icon.png"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
     "fileAssociations": [
-      { "ext": ["koi"], "name": "Programa Koiné", "description": "Programa Koiné", "role": "Editor" }
+      {
+        "ext": [
+          "koi"
+        ],
+        "name": "Programa Koiné",
+        "description": "Programa Koiné",
+        "mimeType": "text/x-koine",
+        "role": "Editor"
+      }
     ],
     "windows": {
-      "nsis": { "installMode": "currentUser", "languages": ["PortugueseBR"] },
-      "wix": { "language": "pt-BR" }
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "PortugueseBR"
+        ]
+      },
+      "wix": {
+        "language": "pt-BR"
+      }
     }
   }
 }
