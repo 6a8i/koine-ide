@@ -72,6 +72,10 @@ O [README](README.md) explica a arquitetura em mais detalhe.
 - **Palavra ou função nova**: acrescente em `CANON` (`src/lang/i18n/index.ts`), na tabela de **todos** os idiomas em
   `src/lang/i18n/vocab/*.ts`, na referência (`src/reference/index.ts` + `src/reference/i18n/*.ts`) e, se fizer sentido,
   no autocompletar (`src/ui/languages.ts`). O `npm test` acusa o que faltar.
+- **Mensagens de erro**: nunca escreva texto solto; use `m("Texto em português com {parametro}", { parametro })`
+  (`src/lang/i18n/messages.ts`) e acrescente a tradução nos nove dicionários de `src/lang/i18n/messages/`. Monte frases
+  inteiras por caso em vez de colar fragmentos em português dentro de um parâmetro, porque o fragmento não é traduzido.
+  Textos de exemplos novos (comentários e literais) entram em `src/examples/i18n/`. O `npm test` acusa o que faltar.
 - **Velocidade**: o caminho normal de execução é síncrono e sem custo extra; só `leia`/`aguarde` e o depurador são
   assíncronos. Não introduza `await` no caminho quente.
 
@@ -83,8 +87,9 @@ O [README](README.md) explica a arquitetura em mais detalhe.
 
 ## Traduções
 
-Para melhorar um idioma existente, edite as três tabelas dele: `src/lang/i18n/vocab/<id>.ts` (palavras reservadas),
-`src/i18n/ui/<id>.ts` (interface) e `src/reference/i18n/<id>.ts` (referência). Cada palavra reservada precisa ser um
+Para melhorar um idioma existente, edite as tabelas dele: `src/lang/i18n/vocab/<id>.ts` (palavras reservadas),
+`src/i18n/ui/<id>.ts` (interface), `src/reference/i18n/<id>.ts` (referência), `src/lang/i18n/messages/<id>.ts`
+(mensagens de erro) e `src/examples/i18n/<id>.ts` (textos dos exemplos). Cada palavra reservada precisa ser um
 identificador válido (letras, dígitos e `_`), única dentro da tabela e diferente de qualquer palavra canônica em
 português. Para um idioma novo, acrescente também a entrada em `LOCALES` e nos mapas `VOCAB`, `DICTS` e `REF_I18N`.
 Revisão de falante nativo é muito bem-vinda: diga na issue/PR qual é o seu idioma.

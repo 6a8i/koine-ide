@@ -399,6 +399,7 @@ for (const c of tcases) {
 
 // ---------------- Idiomas (palavras reservadas traduzidas pelo lexer) ----------------
 import { translateSource } from "../src/lang/i18n";
+import { localizeExample } from "../src/examples/i18n";
 {
   const runLocale = async (src: string, locale: "en" | "es" | "el") => {
     const p = compileProject([{ path: "a.koi", source: src }], "a.koi", { locale });
@@ -412,7 +413,10 @@ import { translateSource } from "../src/lang/i18n";
   check("i18n: ida e volta", translateSource(translateSource("programa { funcao inicio() { escreva(\"funcao\") } }", "pt-BR", "es"), "es", "pt-BR"), "programa { funcao inicio() { escreva(\"funcao\") } }");
   check("i18n: comentários e textos não mudam", translateSource("// funcao\nprograma { funcao inicio() { escreva(\"se\") } }", "pt-BR", "en").split("\n")[0], "// funcao");
   check("i18n: hasEntryPoint localizado", [hasEntryPoint("function main() {", "en"), hasEntryPoint("function main() {", "pt-BR"), hasEntryPoint("συνάρτηση αρχή() {", "el")], [true, false, true]);
-  check("i18n: texto de erro usa a palavra do idioma", await (async () => { try { await runLocale(`program { function main() { boolean b  read(b) } }`, "en"); return "sem erro"; } catch (e) { return /Teste pediu entrada/.test((e as Error).message) ? "pediu entrada" : (e as Error).message; } })(), "pediu entrada");
+  check("i18n: erro de execução em inglês vem traduzido", await (async () => { try { await runLocale(`program { function main() { boolean b  read(b) } }`, "en"); return "sem erro"; } catch (e) { const t = (e as Error).message; return /Teste pediu entrada/.test(t) ? "ainda em português" : /input|line/i.test(t) ? "em inglês" : t; } })(), "em inglês");
+  check("i18n: erro de compilação em inglês vem traduzido com o tipo no idioma", (() => { try { compileProject([{ path: "a.koi", source: `program { function main() { integer x = "a" } }` }], "a.koi", { locale: "en" }); return "sem erro"; } catch (e) { const t = (e as Error).message; return /string/.test(t) && /integer/.test(t) && !/cadeia|inteiro/.test(t) ? "ok" : t; } })(), "ok");
+  check("i18n: depois de compilar em inglês, português volta ao normal", (() => { try { compile(`programa { funcao inicio() { inteiro x = "a" } }`); return "sem erro"; } catch (e) { return /cadeia/.test((e as Error).message) && /inteiro/.test((e as Error).message) ? "ok" : (e as Error).message; } })(), "ok");
+  check("i18n: comentários e textos dos exemplos traduzidos", localizeExample('// roda o programa\nescreva("Soma: ")', "en") !== '// roda o programa\nescreva("Soma: ")' && localizeExample('// roda o programa', "pt-BR") === '// roda o programa', true);
 }
 
 // ---------------- Exemplos (todos compilam e executam sem erro) ----------------

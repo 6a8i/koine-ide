@@ -1,3 +1,4 @@
+import { m as msg } from "../i18n/messages";
 import { tokenize, Token, TokenStream } from "../shared/lexer";
 import { KoineError } from "../shared/types";
 import { RawImport } from "../shared/modules";
@@ -81,18 +82,18 @@ class Parser {
     if (!s.isKw("programa")) {
       throw s.error(
         s.is("eof")
-          ? "O arquivo está vazio. Um programa começa com: programa { funcao inicio() { } }"
-          : `Todo programa deve começar com a palavra "programa", mas encontrei ${s.describe()}`,
+          ? msg("O arquivo está vazio. Um programa começa com: programa { funcao inicio() { } }")
+          : msg("Todo programa deve começar com a palavra \"programa\", mas encontrei {encontrado}", { encontrado: s.describe() }),
       );
     }
     s.next();
-    s.expectOp("{", 'depois de "programa"');
+    s.expectOp("{", msg("depois de \"programa\""));
     while (!s.isOp("}")) {
-      if (s.is("eof")) throw s.error('Faltou fechar o bloco do programa com "}"');
+      if (s.is("eof")) throw s.error(msg("Faltou fechar o bloco do programa com \"}\""));
       if (s.isKw("modulo")) {
         const kw = s.next();
-        if (out.declaredName) throw s.error('"modulo" só pode aparecer uma vez por arquivo', kw);
-        const name = s.expectIdent("o nome do módulo");
+        if (out.declaredName) throw s.error(msg("\"modulo\" só pode aparecer uma vez por arquivo"), kw);
+        const name = s.expectIdent(msg("o nome do módulo"));
         out.declaredName = name.value;
         out.moduleName = name.value;
         s.acceptOp(";");
@@ -106,29 +107,29 @@ class Parser {
           imp.path = p.value;
           imp.alias = stem(p.value);
         } else {
-          const name = s.expectIdent("o nome do módulo (ou o caminho do arquivo entre aspas)");
+          const name = s.expectIdent(msg("o nome do módulo (ou o caminho do arquivo entre aspas)"));
           imp.name = name.value;
           imp.alias = name.value;
         }
-        if (s.acceptOp("-->")) imp.alias = s.expectIdent("o apelido do módulo").value;
+        if (s.acceptOp("-->")) imp.alias = s.expectIdent(msg("o apelido do módulo")).value;
         out.imports.push(imp);
         s.acceptOp(";");
         continue;
       }
       if (s.acceptKw("inclua")) {
-        s.expectKw("biblioteca", 'depois de "inclua"');
-        const lib = s.expectIdent("o nome da biblioteca");
+        s.expectKw("biblioteca", msg("depois de \"inclua\""));
+        const lib = s.expectIdent(msg("o nome da biblioteca"));
         let alias = lib.value;
-        if (s.acceptOp("-->")) alias = s.expectIdent("o apelido da biblioteca").value;
+        if (s.acceptOp("-->")) alias = s.expectIdent(msg("o apelido da biblioteca")).value;
         out.includes.push({ lib: lib.value, alias, line: lib.line, col: lib.col, file: this.s.fileIndex });
         s.acceptOp(";");
         continue;
       }
       if (s.isKw("teste")) {
         const kw = s.next();
-        if (!s.is("string")) throw s.error('Depois de "teste" vem o nome do teste, entre aspas (ex.: teste "soma de dois números" { ... })');
+        if (!s.is("string")) throw s.error(msg("Depois de \"teste\" vem o nome do teste, entre aspas (ex.: teste \"soma de dois números\" { ... })"));
         const title = s.next();
-        if (s.isOp("(")) throw s.error('Um teste não tem parâmetros: teste "nome" { ... }');
+        if (s.isOp("(")) throw s.error(msg("Um teste não tem parâmetros: teste \"nome\" { ... }"));
         const body = this.block(`do teste "${title.value}"`);
         out.tests.push({ name: title.value, qname: `teste "${title.value}"`, ret: T("vazio"), params: [], body, nslots: 0, blocking: false, visibility: "privado", isTest: true, line: kw.line, col: kw.col, file: this.s.fileIndex });
         continue;
@@ -142,7 +143,7 @@ class Parser {
         // forma curta, sem "funcao": tipo nome(parâmetros) { ... }
         const t = s.cur;
         const ret = this.typeRef();
-        const name = s.expectIdent("o nome da função");
+        const name = s.expectIdent(msg("o nome da função"));
         const params = this.params();
         const body = this.block(`da função "${name.value}"`);
         out.functions.push({ name: name.value, qname: name.value, ret, params, body, nslots: 0, blocking: false, visibility, line: t.line, col: t.col, file: this.s.fileIndex });
@@ -165,13 +166,13 @@ class Parser {
       }
       if (s.is("ident")) {
         throw s.error(
-          `Comando "${s.cur.raw}" fora de uma função. Comandos devem ficar dentro de "funcao inicio()" ou de outra função`,
+          msg("Comando \"{nome}\" fora de uma função. Comandos devem ficar dentro de \"funcao inicio()\" ou de outra função", { nome: s.cur.raw }),
         );
       }
-      throw s.error(`Não esperava ${s.describe()} aqui. Dentro de "programa" só podem existir módulos, importações, bibliotecas, variáveis globais, estruturas, classes e funções`);
+      throw s.error(msg("Não esperava {encontrado} aqui. Dentro de \"programa\" só podem existir módulos, importações, bibliotecas, variáveis globais, estruturas, classes e funções", { encontrado: s.describe() }));
     }
     s.next();
-    if (!s.is("eof")) throw s.error(`O programa já terminou, mas ainda há código depois do "}" final: ${s.describe()}`);
+    if (!s.is("eof")) throw s.error(msg("O programa já terminou, mas ainda há código depois do \"}\" final: {encontrado}", { encontrado: s.describe() }));
     out.importable = !out.functions.some((f) => f.name === "inicio");
     return out;
   }
@@ -197,7 +198,7 @@ class Parser {
       }
       return { base: "named", dims: 0, name };
     }
-    throw s.error(`Esperava um tipo (inteiro, real, cadeia, caracter, logico, uma estrutura ou uma classe), mas encontrei ${s.describe()}`);
+    throw s.error(msg("Esperava um tipo (inteiro, real, cadeia, caracter, logico, uma estrutura ou uma classe), mas encontrei {encontrado}", { encontrado: s.describe() }));
   }
 
   /** O comando atual começa com um tipo (declaração)? `Tipo nome`, `Mod.Tipo nome`, `ref ...`, `inteiro ...`, `const` */
@@ -244,10 +245,10 @@ class Parser {
       do {
         const t = this.typeRef();
         const ref = !!s.acceptOp("&");
-        const pn = s.expectIdent("o nome do parâmetro");
+        const pn = s.expectIdent(msg("o nome do parâmetro"));
         let dims = 0;
         while (s.acceptOp("[")) {
-          s.expectOp("]", "(parâmetros de vetor não têm tamanho)");
+          s.expectOp("]", msg("(parâmetros de vetor não têm tamanho)"));
           dims++;
         }
         params.push({ name: pn.value, t: A.withDims(t, dims), ref, slot: -1 });
@@ -262,7 +263,7 @@ class Parser {
     const kw = s.expectKw("funcao");
     let ret: TypeRef = T("vazio");
     if (this.hasReturnType()) ret = this.typeRef();
-    const name = s.expectIdent("o nome da função");
+    const name = s.expectIdent(msg("o nome da função"));
     const params = this.params();
     const body = this.block(`da função "${name.value}"`);
     return { name: name.value, qname: name.value, ret, params, body, nslots: 0, blocking: false, visibility, line: kw.line, col: kw.col, file: this.s.fileIndex };
@@ -271,13 +272,13 @@ class Parser {
   private structDecl(visibility: Visibility): RawStruct {
     const s = this.s;
     const kw = s.expectKw("estrutura");
-    const name = s.expectIdent("o nome da estrutura");
+    const name = s.expectIdent(msg("o nome da estrutura"));
     s.expectOp("{", `para abrir a estrutura "${name.value}"`);
     const fields: RawField[] = [];
     while (!s.isOp("}")) {
-      if (s.is("eof")) throw s.error(`Faltou fechar a estrutura "${name.value}" com "}"`);
-      if (s.isKw("publico") || s.isKw("privado")) throw s.error("Campos de estrutura são sempre públicos; use uma classe para ter campos privados");
-      if (s.isKw("funcao")) throw s.error("Estruturas só têm campos. Para ter métodos, use uma classe");
+      if (s.is("eof")) throw s.error(msg("Faltou fechar a estrutura \"{nome}\" com \"}\"", { nome: name.value }));
+      if (s.isKw("publico") || s.isKw("privado")) throw s.error(msg("Campos de estrutura são sempre públicos; use uma classe para ter campos privados"));
+      if (s.isKw("funcao")) throw s.error(msg("Estruturas só têm campos. Para ter métodos, use uma classe"));
       fields.push(...this.fieldDecl("privado", false));
       s.acceptOp(";");
     }
@@ -290,16 +291,16 @@ class Parser {
     const t = this.typeRef();
     const out: RawField[] = [];
     do {
-      const name = s.expectIdent("o nome do campo");
+      const name = s.expectIdent(msg("o nome do campo"));
       const sizes: A.Expr[] = [];
       while (s.acceptOp("[")) {
         sizes.push(this.expr());
-        s.expectOp("]", "para fechar o tamanho do vetor");
+        s.expectOp("]", msg("para fechar o tamanho do vetor"));
       }
-      if (sizes.length > 2) throw s.error("Só são permitidos vetores (1 dimensão) e matrizes (2 dimensões)");
+      if (sizes.length > 2) throw s.error(msg("Só são permitidos vetores (1 dimensão) e matrizes (2 dimensões)"));
       let init: A.Expr | null = null;
       if (s.acceptOp("=")) {
-        if (!allowInit) throw s.error("Campos de estrutura não têm valor inicial; eles começam zerados", name);
+        if (!allowInit) throw s.error(msg("Campos de estrutura não têm valor inicial; eles começam zerados"), name);
         init = this.expr();
       }
       out.push({ name: name.value, t: A.withDims(t, sizes.length), sizes, init, visibility, line: name.line, col: name.col, file: this.s.fileIndex });
@@ -310,17 +311,17 @@ class Parser {
   private classDecl(visibility: Visibility): RawClass {
     const s = this.s;
     const kw = s.expectKw("classe");
-    const name = s.expectIdent("o nome da classe");
+    const name = s.expectIdent(msg("o nome da classe"));
     let parentName: string | null = null;
     if (s.acceptKw("herda")) {
-      const p = s.expectIdent("o nome da classe mãe");
+      const p = s.expectIdent(msg("o nome da classe mãe"));
       parentName = p.value;
       if (s.isOp(".") && s.peek().type === "ident") { s.next(); parentName += "." + s.next().value; }
     }
     s.expectOp("{", `para abrir a classe "${name.value}"`);
     const cls: RawClass = { name: name.value, visibility, parentName, fields: [], methods: [], ctor: null, line: kw.line, col: kw.col, file: this.s.fileIndex };
     while (!s.isOp("}")) {
-      if (s.is("eof")) throw s.error(`Faltou fechar a classe "${name.value}" com "}"`);
+      if (s.is("eof")) throw s.error(msg("Faltou fechar a classe \"{nome}\" com \"}\"", { nome: name.value }));
       const vis = this.visibility();
       const t = s.cur;
       // construtor: Nome(
@@ -328,7 +329,7 @@ class Parser {
         s.next();
         const params = this.params();
         const body = this.block(`do construtor de "${name.value}"`);
-        if (cls.ctor) throw s.error(`A classe "${name.value}" já tem um construtor`, t);
+        if (cls.ctor) throw s.error(msg("A classe \"{nome}\" já tem um construtor", { nome: name.value }), t);
         cls.ctor = { name: name.value, qname: `${name.value}.${name.value}`, ret: T("vazio"), params, body, nslots: 0, blocking: false, visibility: vis, line: t.line, col: t.col, file: this.s.fileIndex };
         continue;
       }
@@ -362,7 +363,7 @@ class Parser {
     const open = s.expectOp("{", what ? `para abrir o bloco ${what}` : "");
     const body: A.Stmt[] = [];
     while (!s.isOp("}")) {
-      if (s.is("eof")) throw new KoineError(`Faltou fechar com "}" o bloco ${what} aberto aqui`, open.line, open.col, "sintaxe", s.fileIndex);
+      if (s.is("eof")) throw new KoineError(msg("Faltou fechar com \"}\" o bloco {what} aberto aqui", { what }), open.line, open.col, "sintaxe", s.fileIndex);
       body.push(this.statement());
     }
     s.next();
@@ -381,20 +382,20 @@ class Parser {
     const t = this.typeRef();
     const decls: A.Decl[] = [];
     do {
-      const name = s.expectIdent("o nome da variável");
+      const name = s.expectIdent(msg("o nome da variável"));
       const sizes: (A.Expr | null)[] = [];
       while (s.acceptOp("[")) {
         if (s.acceptOp("]")) sizes.push(null);
         else {
           sizes.push(this.expr());
-          s.expectOp("]", "para fechar o tamanho do vetor");
+          s.expectOp("]", msg("para fechar o tamanho do vetor"));
         }
       }
-      if (sizes.length > 2) throw s.error("Só são permitidos vetores (1 dimensão) e matrizes (2 dimensões)");
+      if (sizes.length > 2) throw s.error(msg("Só são permitidos vetores (1 dimensão) e matrizes (2 dimensões)"));
       let init: A.Expr | null = null;
       if (s.acceptOp("=")) init = sizes.length > 0 ? this.arrayLitOrExpr() : this.expr();
-      else if (s.isOp("==")) throw s.error('Use "=" (um sinal de igual) para atribuir um valor; "==" serve para comparar');
-      if (isConst && !init) throw s.error(`A constante "${name.value}" precisa receber um valor na declaração`);
+      else if (s.isOp("==")) throw s.error(msg("Use \"=\" (um sinal de igual) para atribuir um valor; \"==\" serve para comparar"));
+      if (isConst && !init) throw s.error(msg("A constante \"{nome}\" precisa receber um valor na declaração", { nome: name.value }));
       decls.push({
         k: "decl", ...this.pos(name), name: name.value, slot: -1, global,
         t: A.withDims(t, sizes.length), sizes, init, copy: false, isConst, visibility: "privado",
@@ -413,7 +414,7 @@ class Parser {
         items.push(this.arrayLitOrExpr());
       } while (s.acceptOp(","));
     }
-    s.expectOp("}", "para fechar a lista de valores");
+    s.expectOp("}", msg("para fechar a lista de valores"));
     return { k: "arr", ...this.pos(open), items, copyItems: [], t: T_UNK };
   }
 
@@ -440,7 +441,7 @@ class Parser {
         case "faca": {
           s.next();
           const body = this.bodyOrStmt('do "faca"');
-          s.expectKw("enquanto", 'depois do bloco do "faca"');
+          s.expectKw("enquanto", msg("depois do bloco do \"faca\""));
           s.expectOp("(", 'depois de "enquanto"');
           const cond = this.expr();
           s.expectOp(")", "para fechar a condição");
@@ -457,15 +458,15 @@ class Parser {
           s.acceptOp(";");
           return { k: "return", ...this.pos(t), value, copy: false };
         }
-        case "senao": throw s.error('"senao" só pode aparecer logo depois do bloco de um "se"');
-        case "caso": throw s.error('"caso" só pode aparecer dentro de um "escolha"');
-        case "funcao": throw s.error("Não é possível declarar uma função dentro de outra função");
-        case "programa": throw s.error('"programa" só pode aparecer uma vez, no início do arquivo');
-        case "estrutura": case "classe": throw s.error(`"${t.raw}" só pode ser declarada fora das funções, diretamente dentro de "programa"`);
-        case "publico": case "privado": throw s.error(`"${t.raw}" só é usado em declarações do módulo e em membros de classe`);
+        case "senao": throw s.error(msg("\"senao\" só pode aparecer logo depois do bloco de um \"se\""));
+        case "caso": throw s.error(msg("\"caso\" só pode aparecer dentro de um \"escolha\""));
+        case "funcao": throw s.error(msg("Não é possível declarar uma função dentro de outra função"));
+        case "programa": throw s.error(msg("\"programa\" só pode aparecer uma vez, no início do arquivo"));
+        case "estrutura": case "classe": throw s.error(msg("\"{nome}\" só pode ser declarada fora das funções, diretamente dentro de \"programa\"", { nome: t.raw }));
+        case "publico": case "privado": throw s.error(msg("\"{nome}\" só é usado em declarações do módulo e em membros de classe", { nome: t.raw }));
         case "verdadeiro": case "falso": case "nao": case "este": case "super": case "nulo": break; // expressão
         default:
-          throw s.error(`Não esperava ${s.describe()} aqui`);
+          throw s.error(msg("Não esperava {encontrado} aqui", { encontrado: s.describe() }));
       }
     }
     if (t.type === "op" && t.value === "{") {
@@ -474,8 +475,8 @@ class Parser {
     if (t.type === "op" && t.value === ";") { s.next(); return { k: "block", ...this.pos(t), body: [] }; }
     const e = this.expr();
     if (e.k !== "call" && e.k !== "mcall" && e.k !== "new" && e.k !== "assign" && e.k !== "incdec") {
-      if (e.k === "bin" && (e as A.Bin).op === "==") throw s.error('Use "=" (um sinal de igual) para atribuir um valor; "==" serve para comparar', t);
-      throw s.error("Esta expressão não faz nada. Esperava uma atribuição, uma chamada de função ou um comando", t);
+      if (e.k === "bin" && (e as A.Bin).op === "==") throw s.error(msg("Use \"=\" (um sinal de igual) para atribuir um valor; \"==\" serve para comparar"), t);
+      throw s.error(msg("Esta expressão não faz nada. Esperava uma atribuição, uma chamada de função ou um comando"), t);
     }
     s.acceptOp(";");
     return { k: "expr", ...this.pos(t), e };
@@ -515,9 +516,9 @@ class Parser {
         init = { k: "expr", ...this.pos(t), e };
       }
     }
-    s.expectOp(";", 'depois da inicialização do "para" (ex.: para (inteiro i = 0; i < 10; i++))');
+    s.expectOp(";", msg("depois da inicialização do \"para\" (ex.: para (inteiro i = 0; i < 10; i++))"));
     const cond = s.isOp(";") ? null : this.expr();
-    s.expectOp(";", 'depois da condição do "para"');
+    s.expectOp(";", msg("depois da condição do \"para\""));
     const step = s.isOp(")") ? null : this.expr();
     s.expectOp(")", 'para fechar o cabeçalho do "para"');
     const body = this.bodyOrStmt('do "para"');
@@ -530,18 +531,18 @@ class Parser {
     s.expectOp("(", 'depois de "escolha"');
     const e = this.expr();
     s.expectOp(")", 'para fechar a expressão do "escolha"');
-    s.expectOp("{", 'para abrir o bloco do "escolha"');
+    s.expectOp("{", msg("para abrir o bloco do \"escolha\""));
     const cases: A.Case[] = [];
     while (!s.isOp("}")) {
-      if (s.is("eof")) throw s.error('Faltou fechar o bloco do "escolha" com "}"');
-      const ck = s.expectKw("caso", 'dentro do "escolha"');
+      if (s.is("eof")) throw s.error(msg("Faltou fechar o bloco do \"escolha\" com \"}\""));
+      const ck = s.expectKw("caso", msg("dentro do \"escolha\""));
       let values: A.Expr[] | null = null;
       if (s.acceptKw("contrario")) values = null;
       else values = [this.expr()];
-      s.expectOp(":", 'depois do valor do "caso"');
+      s.expectOp(":", msg("depois do valor do \"caso\""));
       const body: A.Stmt[] = [];
       while (!s.isKw("caso") && !s.isOp("}")) {
-        if (s.is("eof")) throw s.error('Faltou fechar o bloco do "escolha" com "}"');
+        if (s.is("eof")) throw s.error(msg("Faltou fechar o bloco do \"escolha\" com \"}\""));
         body.push(this.statement());
       }
       cases.push({ values, body, line: ck.line, col: ck.col, file: this.s.fileIndex });
@@ -560,7 +561,7 @@ class Parser {
     const left = this.binary(0);
     const t = s.cur;
     if (t.type === "op" && ["=", "+=", "-=", "*=", "/=", "%="].includes(t.value)) {
-      if (!A.isLValue(left)) throw s.error("Só é possível atribuir valores a variáveis, posições de vetores, campos ou referências (*r)", t);
+      if (!A.isLValue(left)) throw s.error(msg("Só é possível atribuir valores a variáveis, posições de vetores, campos ou referências (*r)"), t);
       s.next();
       const value = this.assignment();
       return { k: "assign", ...this.pos(t), op: t.value, target: left, value, copy: false, t: T_UNK };
@@ -617,13 +618,13 @@ class Parser {
     if (t.type === "op" && t.value === "&") {
       s.next();
       const target = this.unary();
-      if (!A.isLValue(target)) throw s.error('"&" só pode ser aplicado a variáveis, posições de vetor ou campos', t);
+      if (!A.isLValue(target)) throw s.error(msg("\"&\" só pode ser aplicado a variáveis, posições de vetor ou campos"), t);
       return { k: "addr", ...this.pos(t), target, t: T_UNK };
     }
     if (t.type === "op" && (t.value === "++" || t.value === "--")) {
       s.next();
       const target = this.unary();
-      if (!A.isLValue(target)) throw s.error(`"${t.value}" só pode ser usado em variáveis`, t);
+      if (!A.isLValue(target)) throw s.error(msg("\"{nome}\" só pode ser usado em variáveis", { nome: t.value }), t);
       return { k: "incdec", ...this.pos(t), op: t.value as "++" | "--", target, prefix: true, t: T_UNK };
     }
     return this.postfix();
@@ -649,14 +650,14 @@ class Parser {
       if (t.type === "op" && t.value === "[") {
         s.next();
         const idx = this.expr();
-        s.expectOp("]", "para fechar o índice");
+        s.expectOp("]", msg("para fechar o índice"));
         if (e.k === "index" && e.indices.length === 1) e.indices.push(idx);
         else e = { k: "index", ...this.pos(t), target: e, indices: [idx], t: T_UNK };
         continue;
       }
       if (t.type === "op" && t.value === ".") {
         s.next();
-        const m = s.expectIdent("o nome do campo ou do método");
+        const m = s.expectIdent(msg("o nome do campo ou do método"));
         if (s.acceptOp("(")) {
           const args = this.argList(m.value);
           e = { k: "mcall", ...this.pos(m), obj: e, name: m.value, args, copyArgs: [], method: null, vslot: -1, isSuper: false, initsOf: null, t: T_UNK };
@@ -666,7 +667,7 @@ class Parser {
         continue;
       }
       if (t.type === "op" && (t.value === "++" || t.value === "--")) {
-        if (!A.isLValue(e)) throw s.error(`"${t.value}" só pode ser usado em variáveis`, t);
+        if (!A.isLValue(e)) throw s.error(msg("\"{nome}\" só pode ser usado em variáveis", { nome: t.value }), t);
         s.next();
         e = { k: "incdec", ...this.pos(t), op: t.value as "++" | "--", target: e, prefix: false, t: T_UNK };
         continue;
@@ -704,14 +705,14 @@ class Parser {
             const args = this.argList("super");
             return { k: "mcall", ...this.pos(t), obj: self, name: "<construtor>", args, copyArgs: [], method: null, vslot: -1, isSuper: true, initsOf: null, t: T_UNK };
           }
-          s.expectOp(".", 'depois de "super" (use super(...) ou super.metodo(...))');
-          const m = s.expectIdent("o nome do método da classe mãe");
+          s.expectOp(".", msg("depois de \"super\" (use super(...) ou super.metodo(...))"));
+          const m = s.expectIdent(msg("o nome do método da classe mãe"));
           s.expectOp("(", `para chamar super.${m.value}`);
           const args = this.argList(m.value);
           return { k: "mcall", ...this.pos(t), obj: self, name: m.value, args, copyArgs: [], method: null, vslot: -1, isSuper: true, initsOf: null, t: T_UNK };
         }
-        if (TYPES.has(t.value)) throw s.error(`Não esperava o tipo "${t.raw}" aqui. Declarações de variáveis devem ficar no início de um comando`);
-        throw s.error(`Não esperava a palavra reservada "${t.raw}" aqui`);
+        if (TYPES.has(t.value)) throw s.error(msg("Não esperava o tipo \"{nome}\" aqui. Declarações de variáveis devem ficar no início de um comando", { nome: t.raw }));
+        throw s.error(msg("Não esperava a palavra reservada \"{nome}\" aqui", { nome: t.raw }));
       case "ident": {
         s.next();
         if (s.isOp("(")) {
@@ -728,13 +729,13 @@ class Parser {
           s.expectOp(")", "para fechar o parêntese aberto");
           return e;
         }
-        if (t.value === "{") throw s.error("Listas de valores entre chaves só podem ser usadas na declaração de vetores");
-        if (t.value === ")") throw s.error('Parêntese ")" sem o "(" correspondente');
-        if (t.value === "}") throw s.error('Chave "}" sem o "{" correspondente');
-        throw s.error(`Não esperava o operador "${t.raw}" aqui`);
+        if (t.value === "{") throw s.error(msg("Listas de valores entre chaves só podem ser usadas na declaração de vetores"));
+        if (t.value === ")") throw s.error(msg("Parêntese \")\" sem o \"(\" correspondente"));
+        if (t.value === "}") throw s.error(msg("Chave \"}\" sem o \"{\" correspondente"));
+        throw s.error(msg("Não esperava o operador \"{nome}\" aqui", { nome: t.raw }));
       case "eof":
-        throw s.error("O programa terminou de forma inesperada. Verifique se todos os blocos foram fechados");
+        throw s.error(msg("O programa terminou de forma inesperada. Verifique se todos os blocos foram fechados"));
     }
-    throw s.error(`Não esperava ${s.describe()} aqui`);
+    throw s.error(msg("Não esperava {encontrado} aqui", { encontrado: s.describe() }));
   }
 }

@@ -1,4 +1,5 @@
 /// <reference lib="webworker" />
+import { m as msg, setMessageLocale } from "./i18n/messages";
 import { compileProject } from "./index";
 import { FromWorker, ToWorker } from "./protocol";
 import { Host, KoineError, Program } from "./shared/types";
@@ -8,6 +9,7 @@ import { booleanWords, type Locale } from "./i18n";
 import { setBooleanWords } from "./shared/runtime";
 
 function useLocale(locale: Locale | undefined): Locale {
+  setMessageLocale(locale ?? "pt-BR");
   const l = locale ?? "pt-BR";
   const w = booleanWords(l);
   setBooleanWords(w.yes, w.no);
@@ -80,7 +82,7 @@ async function runTests(m: Extract<ToWorker, { type: "runTests" }>) {
     try {
       program = compileProject(m.files, tf.path, { tests: true, locale });
     } catch (e) {
-      const pe = e instanceof KoineError ? e : new KoineError("Erro interno: " + (e as Error)?.message, 0, 0, "interno");
+      const pe = e instanceof KoineError ? e : new KoineError(msg("Erro interno: {erro}", { erro: (e as Error)?.message }), 0, 0, "interno");
       post({ type: "test-file-error", file: tf.path, message: pe.message, line: pe.line, col: pe.col, errFile: pe.file ?? m.files[pe.fileIndex]?.path ?? tf.path });
       continue;
     }
@@ -103,7 +105,7 @@ async function runTests(m: Extract<ToWorker, { type: "runTests" }>) {
         } else if (e instanceof RangeError) {
           post({ type: "test", result: { file: tf.path, name: t.name, line: t.line, status: "erro", message: "Estouro de pilha: recursão sem fim?", ms, output: host.out } });
         } else {
-          post({ type: "test", result: { file: tf.path, name: t.name, line: t.line, status: "erro", message: "Erro interno do interpretador: " + (e as Error)?.message, ms, output: host.out } });
+          post({ type: "test", result: { file: tf.path, name: t.name, line: t.line, status: "erro", message: msg("Erro interno do interpretador: {erro}", { erro: (e as Error)?.message }), ms, output: host.out } });
         }
       }
     }
@@ -148,7 +150,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
     entryFile = m.entry;
     fileNames = m.files.map((f) => f.path);
     try {
-      if (!m.files.length) throw new KoineError("Nenhum arquivo para executar", 0, 0, "interno");
+      if (!m.files.length) throw new KoineError(msg("Nenhum arquivo para executar"), 0, 0, "interno");
       program = compileProject(m.files, m.entry, { locale: useLocale(m.locale) });
       fileNames = program!.files;
       if (m.debug) {
@@ -171,7 +173,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       const snapshot = finalSnapshot();
       if (e instanceof KoineError) post({ type: "error", message: e.message, line: e.line, col: e.col, kind: e.kind, file: fileOf(e), snapshot });
       else if (e instanceof RangeError) post({ type: "error", message: "Estouro de pilha: recursão sem fim?", line: 0, col: 0, kind: "execucao", file: entryFile, snapshot });
-      else post({ type: "error", message: "Erro interno do interpretador: " + (e as Error)?.message, line: 0, col: 0, kind: "interno", file: entryFile, snapshot });
+      else post({ type: "error", message: msg("Erro interno do interpretador: {erro}", { erro: (e as Error)?.message }), line: 0, col: 0, kind: "interno", file: entryFile, snapshot });
     }
   }
 };

@@ -1,3 +1,4 @@
+import { m } from "../i18n/messages";
 import { KoineError } from "./types";
 
 export type TokType =
@@ -73,7 +74,7 @@ export function tokenize(src: string, opt: LexerOptions, fileIndex = 0): Token[]
         c = col;
       adv(2);
       while (i < n && !(src[i] === "*" && src[i + 1] === "/")) adv();
-      if (i >= n) throw err("Comentário de bloco não foi fechado (faltou */)", l, c);
+      if (i >= n) throw err(m("Comentário de bloco não foi fechado (faltou */)"), l, c);
       adv(2);
       continue;
     }
@@ -116,7 +117,7 @@ export function tokenize(src: string, opt: LexerOptions, fileIndex = 0): Token[]
         }
       }
       const raw = src.slice(start, i);
-      if (isIdentStart(src[i] ?? "")) throw err(`Número inválido: "${raw}${src[i]}"`, l, c);
+      if (isIdentStart(src[i] ?? "")) throw err(m("Número inválido: \"{nome}{v}\"", { nome: raw, v: src[i] }), l, c);
       push(isReal ? "real" : "int", raw, raw, l, c, start);
       continue;
     }
@@ -136,7 +137,7 @@ export function tokenize(src: string, opt: LexerOptions, fileIndex = 0): Token[]
       adv();
       let s = "";
       while (i < n && src[i] !== quote) {
-        if (src[i] === "\n") throw err("Texto não foi fechado (faltou aspas)", l, c);
+        if (src[i] === "\n") throw err(m("Texto não foi fechado (faltou aspas)"), l, c);
         if (src[i] === "\\") {
           adv();
           const e = src[i];
@@ -156,7 +157,7 @@ export function tokenize(src: string, opt: LexerOptions, fileIndex = 0): Token[]
         s += src[i];
         adv();
       }
-      if (i >= n) throw err("Texto não foi fechado (faltou aspas)", l, c);
+      if (i >= n) throw err(m("Texto não foi fechado (faltou aspas)"), l, c);
       adv();
       push("string", s, src.slice(start, i), l, c, start);
       continue;
@@ -170,12 +171,12 @@ export function tokenize(src: string, opt: LexerOptions, fileIndex = 0): Token[]
         s = e === "n" ? "\n" : e === "t" ? "\t" : e === "0" ? "\0" : e;
         adv();
       } else if (src[i] === "'" ) {
-        throw err("Caractere vazio: use ' ' para espaço", l, c);
+        throw err(m("Caractere vazio: use ' ' para espaço"), l, c);
       } else {
         s = src[i];
         adv();
       }
-      if (src[i] !== "'") throw err("Caractere inválido: use apenas um caractere entre aspas simples, ou aspas duplas para texto", l, c);
+      if (src[i] !== "'") throw err(m("Caractere inválido: use apenas um caractere entre aspas simples, ou aspas duplas para texto"), l, c);
       adv();
       push("char", s, src.slice(start, i), l, c, start);
       continue;
@@ -191,7 +192,7 @@ export function tokenize(src: string, opt: LexerOptions, fileIndex = 0): Token[]
       }
     }
     if (matched) continue;
-    throw err(`Caractere inesperado: "${ch}"`);
+    throw err(m("Caractere inesperado: \"{ch}\"", { ch }));
   }
   toks.push({ type: "eof", value: "<fim>", raw: "", line, col, start: i, end: i });
   return toks;
@@ -236,22 +237,22 @@ export class TokenStream {
     return new KoineError(msg, t.line, t.col, "sintaxe", this.fileIndex);
   }
   describe(t: Token = this.cur): string {
-    if (t.type === "eof") return "o fim do programa";
-    if (t.type === "string") return `o texto ${t.raw}`;
+    if (t.type === "eof") return m("o fim do programa");
+    if (t.type === "string") return m("o texto {texto}", { texto: t.raw });
     return `"${t.raw}"`;
   }
   expectOp(v: string, what?: string): Token {
     if (this.isOp(v)) return this.next();
-    throw this.error(`Esperava "${v}"${what ? ` ${what}` : ""}, mas encontrei ${this.describe()}`);
+    throw this.error(what ? m("Esperava \"{v}\" {what}, mas encontrei {encontrado}", { v, what, encontrado: this.describe() }) : m("Esperava \"{v}\", mas encontrei {encontrado}", { v, encontrado: this.describe() }));
   }
   expectKw(v: string, what?: string): Token {
     if (this.isKw(v)) return this.next();
-    throw this.error(`Esperava "${v}"${what ? ` ${what}` : ""}, mas encontrei ${this.describe()}`);
+    throw this.error(what ? m("Esperava \"{v}\" {what}, mas encontrei {encontrado}", { v, what, encontrado: this.describe() }) : m("Esperava \"{v}\", mas encontrei {encontrado}", { v, encontrado: this.describe() }));
   }
-  expectIdent(what = "um nome"): Token {
+  expectIdent(what = m("um nome")): Token {
     if (this.is("ident")) return this.next();
     if (this.is("keyword"))
-      throw this.error(`"${this.cur.raw}" é uma palavra reservada e não pode ser usada como ${what}`);
-    throw this.error(`Esperava ${what}, mas encontrei ${this.describe()}`);
+      throw this.error(m("\"{nome}\" é uma palavra reservada e não pode ser usada como {what}", { nome: this.cur.raw, what }));
+    throw this.error(m("Esperava {what}, mas encontrei {encontrado}", { what, encontrado: this.describe() }));
   }
 }

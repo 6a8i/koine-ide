@@ -12,6 +12,7 @@ import { Runner } from "./runner";
 import { LANG } from "./lang";
 import { DebugCommand, Snapshot } from "./lang/shared/debug";
 import { EXAMPLES, NEW_PROGRAM } from "./examples";
+import { localizeExample } from "./examples/i18n";
 import { TestsPanel, TestsState, applyResult } from "./ui/tests";
 import { coverageSpec } from "./ui/coverage";
 import { discoverTests, hasTests } from "./lang/shared/testing";
@@ -715,7 +716,7 @@ async function treeNewFile(n: TreeNode | null) {
   const full = /\.[a-z0-9]+$/i.test(name) ? name : `${name}.${ext}`;
   const path = joinPath(dir, full);
   try {
-    await createFile(path, translateSource(NEW_PROGRAM, "pt-BR", getLocale()));
+    await createFile(path, localizeExample(translateSource(NEW_PROGRAM, "pt-BR", getLocale()), getLocale()));
     if (n) project.expanded.add(n.kind === "dir" ? n.key : dirName(n.key));
     await project.refreshTree();
     await project.openDoc(path);
@@ -824,10 +825,10 @@ function buildExamples() {
       if (ex.files) {
         // cada arquivo vira uma aba; o grupo faz todas serem executadas juntas; o primeiro (principal) fica ativo
         const group = `ex:${slug}:${Date.now()}`;
-        const docs = ex.files.map((f) => project.newUntitled(translateSource(f.code, "pt-BR", getLocale()), f.name, false, true, group));
+        const docs = ex.files.map((f) => project.newUntitled(localizeExample(translateSource(f.code, "pt-BR", getLocale()), getLocale()), f.name, false, true, group));
         project.activate(docs[0].key);
       } else {
-        project.newUntitled(translateSource(ex.code ?? "", "pt-BR", getLocale()), `${slug}.${LANG.ext}`, true, true);
+        project.newUntitled(localizeExample(translateSource(ex.code ?? "", "pt-BR", getLocale()), getLocale()), `${slug}.${LANG.ext}`, true, true);
       }
       editor.focus();
     });

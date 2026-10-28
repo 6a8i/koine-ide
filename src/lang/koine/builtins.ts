@@ -1,3 +1,4 @@
+import { m } from "../i18n/messages";
 import { Builtin, T, TypeRef } from "./ast";
 import { KoineError } from "../shared/types";
 import { formatRealJava, parseIntStrict, parseRealStrict, StructVal, ObjVal, formatBool, parseBool } from "../shared/runtime";
@@ -40,8 +41,8 @@ export const LIBS: Record<string, Record<string, Builtin | { constValue: number;
     PI: { constValue: Math.PI, t: REAL },
     E: { constValue: Math.E, t: REAL },
     raiz: b("raiz", [REAL, REAL], REAL, ([x, i], c) => {
-      if (i === 0) throw rt("Índice da raiz não pode ser zero", c);
-      if (x < 0 && i % 2 === 0) throw rt("Não existe raiz de índice par de número negativo", c);
+      if (i === 0) throw rt(m("Índice da raiz não pode ser zero"), c);
+      if (x < 0 && i % 2 === 0) throw rt(m("Não existe raiz de índice par de número negativo"), c);
       return x < 0 ? -Math.pow(-x, 1 / i) : Math.pow(x, 1 / i);
     }),
     potencia: b("potencia", [REAL, REAL], REAL, ([x, y]) => Math.pow(x, y)),
@@ -54,7 +55,7 @@ export const LIBS: Record<string, Record<string, Builtin | { constValue: number;
     cosseno: b("cosseno", [REAL], REAL, ([x]) => Math.cos(x)),
     tangente: b("tangente", [REAL], REAL, ([x]) => Math.tan(x)),
     logaritmo: b("logaritmo", [REAL, REAL], REAL, ([x, base], c) => {
-      if (x <= 0 || base <= 0 || base === 1) throw rt("Logaritmo inválido", c);
+      if (x <= 0 || base <= 0 || base === 1) throw rt(m("Logaritmo inválido"), c);
       return Math.log(x) / Math.log(base);
     }),
     maior_numero: b("maior_numero", [REAL, REAL], "arg0", ([a, bb]) => Math.max(a, bb)),
@@ -65,14 +66,14 @@ export const LIBS: Record<string, Record<string, Builtin | { constValue: number;
     caixa_alta: b("caixa_alta", [CAD], CAD, ([s]) => String(s).toUpperCase()),
     caixa_baixa: b("caixa_baixa", [CAD], CAD, ([s]) => String(s).toLowerCase()),
     obter_caractere: b("obter_caractere", [CAD, INT], CAR, ([s, i], c) => {
-      if (i < 0 || i >= String(s).length) throw rt(`Posição ${i} fora dos limites do texto (tamanho ${String(s).length})`, c);
+      if (i < 0 || i >= String(s).length) throw rt(m("Posição {i} fora dos limites do texto (tamanho {n})", { i, n: String(s).length }), c);
       return String(s)[i];
     }),
     posicao_texto: b("posicao_texto", [CAD, CAD, INT], INT, ([sub, s, ini]) => String(s).indexOf(String(sub), ini)),
     substituir: b("substituir", [CAD, CAD, CAD], CAD, ([s, a, bb]) => String(s).split(String(a)).join(String(bb))),
     extrair_subtexto: b("extrair_subtexto", [CAD, INT, INT], CAD, ([s, i, f], c) => {
       const str = String(s);
-      if (i < 0 || f > str.length || i > f) throw rt(`Intervalo [${i}, ${f}] fora dos limites do texto (tamanho ${str.length})`, c);
+      if (i < 0 || f > str.length || i > f) throw rt(m("Intervalo [{i}, {f}] fora dos limites do texto (tamanho {length})", { i, f, length: str.length }), c);
       return str.substring(i, f);
     }),
     preencher_a_esquerda: b("preencher_a_esquerda", [CAR, INT, CAD], CAD, ([ch, n, s]) => String(s).padStart(n, String(ch))),
@@ -83,20 +84,20 @@ export const LIBS: Record<string, Record<string, Builtin | { constValue: number;
   Util: {
     aguarde: b("aguarde", [INT], VAZ, undefined, { blocking: true }),
     sorteia: b("sorteia", [INT, INT], INT, ([a, bb], c) => {
-      if (a > bb) throw rt("O valor mínimo de sorteia não pode ser maior que o máximo", c);
+      if (a > bb) throw rt(m("O valor mínimo de sorteia não pode ser maior que o máximo"), c);
       return a + Math.floor(Math.random() * (bb - a + 1));
     }),
     tempo_decorrido: b("tempo_decorrido", [], INT, () => Date.now() - startTime),
     numero_elementos: b("numero_elementos", ["*"], INT, ([v], c) => {
-      if (!Array.isArray(v)) throw rt("numero_elementos espera um vetor", c);
+      if (!Array.isArray(v)) throw rt(m("numero_elementos espera um vetor"), c);
       return v.length;
     }),
     numero_linhas: b("numero_linhas", ["*"], INT, ([m], c) => {
-      if (!Array.isArray(m)) throw rt("numero_linhas espera uma matriz", c);
+      if (!Array.isArray(m)) throw rt(m("numero_linhas espera uma matriz"), c);
       return m.length;
     }),
     numero_colunas: b("numero_colunas", ["*"], INT, ([m], c) => {
-      if (!Array.isArray(m) || !Array.isArray(m[0])) throw rt("numero_colunas espera uma matriz", c);
+      if (!Array.isArray(m) || !Array.isArray(m[0])) throw rt(m("numero_colunas espera uma matriz"), c);
       return m[0].length;
     }),
   },
@@ -109,19 +110,19 @@ export const LIBS: Record<string, Record<string, Builtin | { constValue: number;
     real_para_inteiro: b("real_para_inteiro", [REAL], INT, ([x]) => Math.trunc(x)),
     cadeia_para_inteiro: b("cadeia_para_inteiro", [CAD], INT, ([s], c) => {
       const v = parseIntStrict(String(s));
-      if (v === null) throw rt(`Não foi possível converter "${s}" para inteiro`, c);
+      if (v === null) throw rt(m("Não foi possível converter \"{s}\" para inteiro", { s }), c);
       return v;
     }),
     cadeia_para_real: b("cadeia_para_real", [CAD], REAL, ([s], c) => {
       const v = parseRealStrict(String(s));
-      if (v === null) throw rt(`Não foi possível converter "${s}" para real`, c);
+      if (v === null) throw rt(m("Não foi possível converter \"{s}\" para real", { s }), c);
       return v;
     }),
     cadeia_para_caracter: b("cadeia_para_caracter", [CAD], CAR, ([s]) => String(s)[0] ?? ""),
     cadeia_para_logico: b("cadeia_para_logico", [CAD], LOG, ([s], c) => {
       const v = parseBool(String(s));
       if (v !== null) return v;
-      throw rt(`Não foi possível converter "${s}" para lógico`, c);
+      throw rt(m("Não foi possível converter \"{s}\" para lógico", { s }), c);
     }),
     caracter_para_cadeia: b("caracter_para_cadeia", [CAR], CAD, ([x]) => String(x)),
     caracter_para_inteiro: b("caracter_para_inteiro", [CAR], INT, ([x]) => String(x).charCodeAt(0)),
