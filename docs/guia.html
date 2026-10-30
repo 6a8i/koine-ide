@@ -51,6 +51,8 @@
     <li>Como o instalador ainda não é assinado digitalmente, o SmartScreen pode mostrar "O Windows protegeu o computador". Clique em <em>Mais informações</em> e depois em <em>Executar assim mesmo</em>. Se o navegador bloquear o download, escolha <em>Manter</em>.</li>
     <li>Pronto: o Koiné IDE aparece no menu Iniciar e arquivos <code>.koi</code> passam a abrir com duplo clique.</li>
   </ol>
+  <p><strong>Pelo terminal:</strong> no PowerShell, <code>winget install BznDigital.KoineIDE</code> instala e atualiza sem baixar nada à mão (assim que a versão for aceita no catálogo do winget).</p>
+  <p><strong>Sem instalar (laboratório, pendrive):</strong> baixe <code>Koine.IDE_x.y.z_x64-portable.zip</code>, descompacte em qualquer pasta e abra <code>Koine IDE.exe</code>. O arquivo vazio <code>portable</code> na pasta faz as preferências, os rascunhos e a sessão ficarem na subpasta <code>dados</code>, ao lado do programa; nada é gravado no perfil do usuário. Precisa do WebView2, que já vem no Windows atual.</p>
   <h3 id="instalar-linux">Linux (x86-64)</h3>
   <ol class="steps">
     <li><strong>AppImage</strong> (qualquer distribuição): baixe <code>Koine.IDE_x.y.z_amd64.AppImage</code>, dê permissão de execução e abra:
@@ -165,6 +167,8 @@ teste "programa completo"
   <p>O instalador ainda não tem assinatura digital. Clique em <em>Mais informações</em> → <em>Executar assim mesmo</em>. O código é aberto e o instalador é gerado automaticamente a partir dele pelo GitHub Actions, com o registro público de cada build.</p>
   <h3>Funciona em Linux ou macOS?</h3>
   <p>Sim. Há AppImage e .deb para Linux e um .dmg universal para macOS, todos na mesma <a href="https://github.com/6a8i/koine-ide/releases/latest">release</a>; veja <a href="#instalar">Instalar</a>. A IDE é a mesma nos três sistemas.</p>
+  <h3>Posso usar sem instalar, num laboratório com restrições?</h3>
+  <p>Sim: a versão portátil (<code>.zip</code>) não precisa de instalação nem de administrador e guarda tudo na própria pasta. Veja <a href="#instalar-windows">Instalar → Windows</a>.</p>
   <h3>Posso usar no navegador?</h3>
   <p>Não há uma versão hospedada, mas quem baixa o código-fonte pode rodar <code>npm run dev</code> e usar a IDE no navegador, sem o painel de projeto.</p>
   <h3>Onde fica o rascunho?</h3>

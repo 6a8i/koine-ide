@@ -283,6 +283,27 @@ fn startup_path() -> Option<StartupArg> {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// Modo portátil: se existir um arquivo chamado `portable` (ou `portatil`) ao lado do executável,
+/// os dados da WebView (preferências, rascunhos, sessão) ficam na pasta `dados` ao lado dele,
+/// em vez do perfil do usuário. Precisa ser chamado antes de criar a janela.
+pub fn setup_portable_mode() {
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let Some(dir) = exe.parent() else { return };
+    if !dir.join("portable").exists() && !dir.join("portatil").exists() {
+        return;
+    }
+    let data = dir.join("dados");
+    if std::fs::create_dir_all(&data).is_ok() {
+        // Lida pelo WebView2 (Windows) na criação da janela.
+        std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", &data);
+        // Linux/macOS: a WebKit usa XDG_DATA_HOME/XDG_CACHE_HOME para o perfil.
+        std::env::set_var("XDG_DATA_HOME", data.join("share"));
+        std::env::set_var("XDG_CACHE_HOME", data.join("cache"));
+    }
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())

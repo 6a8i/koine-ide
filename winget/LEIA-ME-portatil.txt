@@ -1,0 +1,19 @@
+Koiné IDE — versão portátil para Windows
+=========================================
+
+Não precisa instalar: basta abrir "Koine IDE.exe". Pode rodar de um pendrive ou
+de uma pasta compartilhada em laboratório.
+
+O arquivo vazio chamado "portable" nesta pasta liga o modo portátil: preferências,
+rascunhos e sessão ficam na subpasta "dados", ao lado do programa, e nada é gravado
+no perfil do usuário. Para voltar ao comportamento normal, apague o arquivo "portable".
+
+Requisitos: Windows 10 ou 11 (64 bits) com o WebView2, que já vem instalado nas
+versões atuais do Windows. Se o programa reclamar da falta do WebView2, instale o
+"WebView2 Runtime" da Microsoft ou use o instalador .exe da release, que cuida disso.
+
+Como o programa ainda não é assinado digitalmente, o SmartScreen pode avisar na
+primeira abertura: clique em "Mais informações" e depois em "Executar assim mesmo".
+
+Site e documentação: https://6a8i.github.io/koine-ide/
+Código-fonte (MIT): https://github.com/6a8i/koine-ide
