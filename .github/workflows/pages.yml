@@ -37,7 +37,7 @@ jobs:
       - name: Gera referência, exemplos e idiomas
         run: node --import tsx scripts/build-docs.ts
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: docs
 
